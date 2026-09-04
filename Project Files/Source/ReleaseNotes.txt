@@ -2,7 +2,7 @@ This is the Thetis version for the Hermes Lite 2.
 
 Please report any bugs on [GitHub here](https://github.com/mi0bot/OpenHPSDR-Thetis/issues/new/choose).
 
-# 2.10.3.15 HL2 Beta 1 (2026-06-12)
+# 2.10.3.15 HL2 (2026-09-04)
 
 - [add] Upgraded to release 2.10.3.15 of official Thetis
 - [fix] Corrected timeout of auto tune routine
