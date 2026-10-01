@@ -2602,6 +2602,7 @@ namespace Thetis
             SetTXAetherVoiceBody(tx_av_body_drive, tx_av_body_tune, tx_av_body_mix);
             SetTXAetherVoiceClarity(tx_av_clarity_tune, tx_av_clarity_harmonics, tx_av_clarity_mix);
             TXAetherVoiceOn = tx_aethervoice_on;
+            applyTXStripAll();
 			Notch160 = notch_160;
 			TXAMCarrierLevel = tx_am_carrier_level;
 			TXALCDecay = tx_alc_decay;
@@ -2802,6 +2803,7 @@ namespace Thetis
 					}
 				}
 				applyTXAetherVoiceRun(); // Kainos: AetherVoice only runs in voice modes
+				applyTXStripEnables(); // Kainos: the AetherSDR strip only runs in voice modes
 			}
 		}
 
@@ -3037,6 +3039,48 @@ namespace Thetis
                 tx_av_clarity_harmonics_dsp = harmonics_db;
                 tx_av_clarity_mix_dsp = mix;
             }
+        }
+
+        // Kainos: AetherSDR channel strip on transmit (wdsp/aetherstrip.cpp). Every parameter is cached
+        // here and re-sent by SyncAll; the stages only run in voice modes, because a gate, compressor or
+        // reverb would wreck CW and digital signals.
+        private readonly Dictionary<int, double> tx_strip = new Dictionary<int, double>();      // key = stage * 100 + param
+        private readonly Dictionary<int, double> tx_strip_dsp = new Dictionary<int, double>();
+        public void SetTXStripParam(int stage, int param, double value)
+        {
+            tx_strip[stage * 100 + param] = value;
+            sendTXStripParam(stage * 100 + param);
+        }
+
+        public double GetTXStripMeter(int stage, int meter)
+        {
+            return WDSP.GetTXAStripMeter(WDSP.id(thread, 0), stage, meter);
+        }
+
+        private void sendTXStripParam(int key)
+        {
+            double v = tx_strip[key];
+            if (key % 100 == 0) v = (v != 0 && RadioDSPRX.IsAetherVoiceMode(current_dsp_mode)) ? 1 : 0;  // enable
+            double old;
+            if (update && (!tx_strip_dsp.TryGetValue(key, out old) || old != v || force))
+            {
+                WDSP.SetTXAStripParam(WDSP.id(thread, 0), key / 100, key % 100, v);
+                tx_strip_dsp[key] = v;
+            }
+        }
+
+        private void applyTXStripEnables()
+        {
+            foreach (int key in new List<int>(tx_strip.Keys))
+                if (key % 100 == 0) sendTXStripParam(key);
+        }
+
+        private void applyTXStripAll()
+        {
+            // parameters first, enables last, so a stage never runs with stale settings
+            List<int> keys = new List<int>(tx_strip.Keys);
+            foreach (int key in keys) if (key % 100 != 0) sendTXStripParam(key);
+            foreach (int key in keys) if (key % 100 == 0) sendTXStripParam(key);
         }
 
 		private bool notch_160_dsp = false;

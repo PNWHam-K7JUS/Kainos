@@ -10,6 +10,7 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 ## What Kainos adds
 
 - **AetherVoice**: an exciter, ported from [AetherSDR](https://github.com/aethersdr/AetherSDR), that adds low-end body and high-end clarity to voice, on receive and on transmit. Open the AetherVoice window from the menu bar (or right-click the AV button on the console), or use Setup > DSP > AetherVoice. It works in voice modes only and is bypassed automatically in CW and digital modes. The transmit settings are saved in each TX profile; test into a dummy load and check your signal on a second receiver before using it on the air.
+- **AetherTX channel strip**: AetherSDR's transmit processing chain (gate, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter), in its own window with knobs, transfer curves and meters. Open it from the AetherTX menu. Voice modes only; the settings are saved in each TX profile.
 
 ## Kainos and Thetis side by side
 

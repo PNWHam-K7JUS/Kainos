@@ -352,6 +352,13 @@ namespace Thetis
         [DllImport("wdsp.dll", EntryPoint = "GetTXAAetherVoiceWetRms", CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetTXAAetherVoiceWetRms(int channel);
 
+        // Kainos: AetherSDR channel strip (wdsp/aetherstrip.cpp); stage/param/meter numbers are in aetherstrip.h
+        [DllImport("wdsp.dll", EntryPoint = "SetTXAStripParam", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetTXAStripParam(int channel, int stage, int param, double value);
+
+        [DllImport("wdsp.dll", EntryPoint = "GetTXAStripMeter", CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetTXAStripMeter(int channel, int stage, int meter);
+
         [DllImport("wdsp.dll", EntryPoint = "SetTXAEQRun", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetTXAEQRun(int channel, bool run);
 

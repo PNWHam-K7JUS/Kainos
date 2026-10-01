@@ -675,6 +675,9 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="frmAetherStrip.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="frmAetherVoice.cs">
       <SubType>Form</SubType>
     </Compile>

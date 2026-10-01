@@ -215,6 +215,13 @@ namespace Thetis
         {
             applyAetherVoiceRX();
             applyAetherVoiceTX();
+            console.AetherStripTX.ApplyAll();
+        }
+
+        // the AetherTX BYPASS button also bypasses AetherVoice TX
+        internal void ApplyAetherVoiceTXFromStrip()
+        {
+            applyAetherVoiceTX();
         }
 
         // pushes the receive settings to every receiver (RX1, RX1 sub, RX2, RX2 sub)
@@ -243,7 +250,7 @@ namespace Thetis
             tx.TXAetherVoiceMode = Math.Max(0, s.Mode.SelectedIndex);
             tx.SetTXAetherVoiceBody((double)s.BodyDrive.Value, (double)s.BodyTune.Value, (double)s.BodyMix.Value / 100.0);
             tx.SetTXAetherVoiceClarity((double)s.ClarityTune.Value, (double)s.ClarityHarmonics.Value, (double)s.ClarityMix.Value / 100.0);
-            tx.TXAetherVoiceOn = s.Enable.Checked;
+            tx.TXAetherVoiceOn = s.Enable.Checked && !console.AetherStripTX.Bypass;
         }
 
         #endregion
@@ -260,8 +267,17 @@ namespace Thetis
         private static readonly decimal[] AV_TX_DEFAULTS = { 0, 100, 50, 5000, 6, 50 };
         private static readonly string[] AV_TX_LABELS = { "Body Drive", "Body Tune", "Body Mix", "Clarity Tune", "Clarity Harmonics", "Clarity Mix" };
 
+        // the whole AetherTX channel strip, as AetherStripTX.Serialize() text
+        private const string AV_TX_STRIP = "AetherStripTX";
+
+        private static string profileStrip(DataRow dr)
+        {
+            return profileHas(dr, AV_TX_STRIP) ? Convert.ToString(dr[AV_TX_STRIP]) : null;
+        }
+
         private static void ensureAetherVoiceTXColumns(DataTable t)
         {
+            if (!t.Columns.Contains(AV_TX_STRIP)) t.Columns.Add(AV_TX_STRIP, typeof(string));
             if (!t.Columns.Contains(AV_TX_ENABLED)) t.Columns.Add(AV_TX_ENABLED, typeof(bool));
             if (!t.Columns.Contains(AV_TX_MODE)) t.Columns.Add(AV_TX_MODE, typeof(int));
             foreach (string col in AV_TX_VALUES)
@@ -289,6 +305,7 @@ namespace Thetis
             dr[AV_TX_MODE] = Math.Max(0, s.Mode.SelectedIndex);
             NumericUpDownTS[] uds = s.UpDowns;
             for (int i = 0; i < uds.Length; i++) dr[AV_TX_VALUES[i]] = (double)uds[i].Value;
+            dr[AV_TX_STRIP] = console.AetherStripTX.Serialize();
         }
 
         // loadTXProfile
@@ -300,6 +317,7 @@ namespace Thetis
                 uds[i].Value = Math.Max(uds[i].Minimum, Math.Min(uds[i].Maximum, profileValue(dr, i)));
             s.Mode.SelectedIndex = profileMode(dr) == 1 ? 1 : 0;
             s.Enable.Checked = profileEnabled(dr);
+            console.AetherStripTX.Deserialize(profileStrip(dr));   // a profile without it loads with the strip off
         }
 
         // checkTXProfileChanged2
@@ -311,7 +329,7 @@ namespace Thetis
             NumericUpDownTS[] uds = s.UpDowns;
             for (int i = 0; i < uds.Length; i++)
                 if (profileValue(dr, i) != uds[i].Value) return true;
-            return false;
+            return console.AetherStripTX.Differs(profileStrip(dr));
         }
 
         // getTXProfileChangeReport
@@ -327,6 +345,8 @@ namespace Thetis
             for (int i = 0; i < uds.Length; i++)
                 if (profileValue(dr, i) != uds[i].Value)
                     report += "AetherVoice TX " + AV_TX_LABELS[i] + ": " + profileValue(dr, i) + " -> " + uds[i].Value + Environment.NewLine;
+            if (console.AetherStripTX.Differs(profileStrip(dr)))
+                report += "AetherTX channel strip changed" + Environment.NewLine;
             return report;
         }
 
