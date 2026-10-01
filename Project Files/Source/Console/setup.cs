@@ -111,6 +111,8 @@ namespace Thetis
             LogTool.AddLogEntry("      Setup init components...", "INITCOMPSETUP");
             InitializeComponent();
 
+            addKainosControls(); // Kainos: setupKainos.cs
+
             _original_pnlP1_adcs_location = pnlP1_adcs.Location;
 
             _recording_keybind_timer.Interval = 5000;
@@ -2207,6 +2209,8 @@ namespace Thetis
         private void ForceAllEvents()
         {
             EventArgs e = EventArgs.Empty;
+
+            applyAetherVoiceRX(); // Kainos: setupKainos.cs
 
             // General Tab
             comboRadioModel_SelectedIndexChanged(this, e);

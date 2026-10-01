@@ -222,6 +222,7 @@
     <ClInclude Include="emnr.h" />
     <ClInclude Include="emph.h" />
     <ClInclude Include="eq.h" />
+    <ClInclude Include="aethervoice.h" />
     <ClInclude Include="channel.h" />
     <ClInclude Include="comm.h" />
     <ClInclude Include="fcurve.h" />
@@ -293,6 +294,7 @@
     <ClCompile Include="emnr.c" />
     <ClCompile Include="emph.c" />
     <ClCompile Include="eq.c" />
+    <ClCompile Include="aethervoice.c" />
     <ClCompile Include="channel.c" />
     <ClCompile Include="fcurve.c" />
     <ClCompile Include="FDnoiseIQ.c" />

@@ -529,6 +529,14 @@ void create_rxa (int channel)
 		2000.0);										// max freq for f_to_v converter									
 
 	// patchpanel
+	// AetherVoice exciter (Kainos), last stage before the volume/pan panel
+	rxa[channel].aethervoice.p = create_aethervoice (
+		0,												// run - OFF by default
+		ch[channel].dsp_size,							// buffer size
+		rxa[channel].midbuff,							// pointer to input buffer
+		rxa[channel].midbuff,							// pointer to output buffer
+		ch[channel].dsp_rate);							// sample rate
+
 	rxa[channel].panel.p = create_panel (
 		channel,										// channel number
 		1,												// run
@@ -560,6 +568,7 @@ void create_rxa (int channel)
 void destroy_rxa (int channel)
 {
 	destroy_resample (rxa[channel].rsmpout.p);
+	destroy_aethervoice (rxa[channel].aethervoice.p);
 	destroy_panel (rxa[channel].panel.p);
 	destroy_ssql (rxa[channel].ssql.p);
 	destroy_apfshadow(rxa[channel].apfshadow.p);
@@ -631,6 +640,7 @@ void flush_rxa (int channel)
 	flush_speak (rxa[channel].speak.p);
 	flush_mpeak (rxa[channel].mpeak.p);
 	flush_ssql (rxa[channel].ssql.p);
+	flush_aethervoice (rxa[channel].aethervoice.p);
 	flush_panel (rxa[channel].panel.p);
 	flush_resample (rxa[channel].rsmpout.p);
 }
@@ -677,6 +687,7 @@ void xrxa (int channel)
 	xspeak (rxa[channel].speak.p);
 	xmpeak (rxa[channel].mpeak.p);
 	xssql (rxa[channel].ssql.p);
+	xaethervoice (rxa[channel].aethervoice.p, rxa[channel].panel.p->copy == 0);	// Kainos: AetherVoice
 	xpanel (rxa[channel].panel.p);
 	xamsq (rxa[channel].amsq.p);
 	xresample (rxa[channel].rsmpout.p);
@@ -753,6 +764,7 @@ void setDSPSamplerate_rxa (int channel)
 	setSamplerate_speak (rxa[channel].speak.p, ch[channel].dsp_rate);
 	setSamplerate_mpeak (rxa[channel].mpeak.p, ch[channel].dsp_rate);
 	setSamplerate_ssql (rxa[channel].ssql.p, ch[channel].dsp_rate);
+	setSamplerate_aethervoice (rxa[channel].aethervoice.p, ch[channel].dsp_rate);
 	setSamplerate_panel (rxa[channel].panel.p, ch[channel].dsp_rate);
 	// output resampler
 	setBuffers_resample (rxa[channel].rsmpout.p, rxa[channel].midbuff, rxa[channel].outbuff);
@@ -832,6 +844,8 @@ void setDSPBuffsize_rxa (int channel)
 	setSize_mpeak (rxa[channel].mpeak.p, ch[channel].dsp_size);
 	setBuffers_ssql (rxa[channel].ssql.p, rxa[channel].midbuff, rxa[channel].midbuff);
 	setSize_ssql (rxa[channel].ssql.p, ch[channel].dsp_size);
+	setBuffers_aethervoice (rxa[channel].aethervoice.p, rxa[channel].midbuff, rxa[channel].midbuff);
+	setSize_aethervoice (rxa[channel].aethervoice.p, ch[channel].dsp_size);
 	setBuffers_panel (rxa[channel].panel.p, rxa[channel].midbuff, rxa[channel].midbuff);
 	setSize_panel (rxa[channel].panel.p, ch[channel].dsp_size);
 	// output resampler

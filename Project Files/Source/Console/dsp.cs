@@ -321,6 +321,22 @@ namespace Thetis
         [DllImport("wdsp.dll", EntryPoint = "SetRXAEQRun", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetRXAEQRun(int channel, bool run);
 
+        // Kainos: AetherVoice exciter (wdsp/aethervoice.c)
+        [DllImport("wdsp.dll", EntryPoint = "SetRXAAetherVoiceRun", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetRXAAetherVoiceRun(int channel, bool run);
+
+        [DllImport("wdsp.dll", EntryPoint = "SetRXAAetherVoiceMode", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetRXAAetherVoiceMode(int channel, int mode);
+
+        [DllImport("wdsp.dll", EntryPoint = "SetRXAAetherVoiceBody", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetRXAAetherVoiceBody(int channel, double drive_db, double tune_hz, double mix);
+
+        [DllImport("wdsp.dll", EntryPoint = "SetRXAAetherVoiceClarity", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetRXAAetherVoiceClarity(int channel, double tune_hz, double harmonics_db, double mix);
+
+        [DllImport("wdsp.dll", EntryPoint = "GetRXAAetherVoiceWetRms", CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetRXAAetherVoiceWetRms(int channel);
+
         [DllImport("wdsp.dll", EntryPoint = "SetTXAEQRun", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetTXAEQRun(int channel, bool run);
 

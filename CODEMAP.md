@@ -74,7 +74,7 @@ A module must therefore cope with the rate and buffer size changing while runnin
 
 In order: input shift and resampler → generator → ADC meter → notch/bandpass (`nbp0`, `bpsnba`) → S-meter → **demodulators** (`amd`, `fmd`, FM squelch) → `snba` → **RX EQ** (`eqp`) → noise reduction position 0 (ANF, NR, NR2/`emnr`, NR3/`rnnr`, NR4/`sbnr`) → bandpass `bp1` → carrier removal (`cbl`, pre-AGC option) → **AGC** (`wcpagc`) → noise reduction position 1 (same modules, post-AGC option) → `bp1` → AGC meter → siphon (display tap) → `cbl` → CW peaking filters (`doublepole`, `matched`, `gaussian`, `speak`, `mpeak`) → syllabic squelch → **`panel`** (volume, pan, binaural) → AM squelch → output resampler.
 
-**AetherVoice RX insertion point (Phase 4):** after the post-AGC noise reduction and `bp1`, before `panel`, so it sees demodulated, noise-reduced, AGC-levelled audio, and the volume control still works after it.
+**AetherVoice RX (Kainos, Phase 4):** `xaethervoice` runs between `ssql` and `panel`, so it sees demodulated, noise-reduced, AGC-levelled audio, and the volume control still works after it. See KAINOS.md.
 
 ### TXA chain (`TXA.c`, `xtxa`)
 

@@ -7,6 +7,10 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
 - Current version: 2.10.3.15 (based on Thetis 2.10.3.15)
 
+## What Kainos adds
+
+- **AetherVoice on receive**: an exciter, ported from [AetherSDR](https://github.com/aethersdr/AetherSDR), that adds low-end body and high-end clarity to received voice. Turn it on in Setup > DSP > AetherVoice. It works in voice modes only and is bypassed automatically in CW, digital, DRM and SPEC modes.
+
 ## Kainos and Thetis side by side
 
 Kainos is installed and run separately from Thetis, so both can be on the same PC:
@@ -35,13 +39,16 @@ Kainos would not exist without the people who built Thetis and the software it g
 - Laurence Barker, G8NJJ: G2, Andromeda and protocols
 - Phil, VK6PH; Bill Tracey, KD5TFD; Rick, N1GP; Bryan, W4WMT; Chris, W2PA; Joe, K5SO; and the many other contributors listed in the About window
 - FlexRadio Systems: PowerSDR, from which Thetis was originally derived
+- The AetherSDR contributors: the AetherVoice exciter
 - The OpenHPSDR and Apache Labs communities, the skin authors, and all the testers
 
 The Thetis manuals and guides that ship with Kainos are the original Thetis documents and remain the work of their authors.
 
 ## License
 
-Kainos is free software, licensed under the GNU General Public License version 2 or later. See [LICENSE](LICENSE). Like Thetis, it includes code under the dual-licensing statement in [LICENSE-DUAL-LICENSING](LICENSE-DUAL-LICENSING), which applies only to code written by Richard Samphire, MW0LGE.
+Kainos is free software, distributed as a whole under the GNU General Public License version 3 or later. See [LICENSE-GPL-3.0](LICENSE-GPL-3.0).
+
+Kainos combines code under two compatible licenses. Thetis and WDSP are licensed under the GNU GPL version 2 "or (at your option) any later version" (see [LICENSE](LICENSE)), and each of their files keeps that notice. The AetherVoice code, derived from AetherSDR, is licensed under the GNU GPL version 3 or later. Like Thetis, Kainos also includes code under the dual-licensing statement in [LICENSE-DUAL-LICENSING](LICENSE-DUAL-LICENSING), which applies only to code written by Richard Samphire, MW0LGE.
 
 ## Upstream release history
 

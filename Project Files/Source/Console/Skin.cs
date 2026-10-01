@@ -784,6 +784,16 @@ namespace Thetis
             ctrl.BackgroundImage = null;
         }
         private static Dictionary<string, ImageList> _shared_image_lists = new Dictionary<string, ImageList>();
+
+        // Kainos: a checkbox button added by Kainos can borrow the skin images of an existing Thetis
+        // control (the images are plain backgrounds, the text is drawn on top), so it matches every
+        // skin without new image files. Key = Kainos control name, value = control to borrow from.
+        public static readonly Dictionary<string, string> ImageAlias = new Dictionary<string, string>();
+        private static string skinImageName(Control ctrl)
+        {
+            string alias;
+            return ImageAlias.TryGetValue(ctrl.Name, out alias) ? alias : ctrl.Name;
+        }
         private static void SetupButtonImages(Button ctrl)
         {
             string skey = "";
@@ -1002,9 +1012,9 @@ namespace Thetis
             string skey = "";
             for (int i=0; i<8; i++)
             {
-                string spath = path + "\\" + ctrl.TopLevelControl.Name + "\\" + ctrl.Name + "-" + i.ToString() + pic_file_ext;
+                string spath = path + "\\" + ctrl.TopLevelControl.Name + "\\" + skinImageName(ctrl) + "-" + i.ToString() + pic_file_ext;
                 if (!File.Exists(spath))
-                    spath = path + "\\" + "Console" + "\\" + ctrl.Name + "-" + i.ToString() + pic_file_ext;
+                    spath = path + "\\" + "Console" + "\\" + skinImageName(ctrl) + "-" + i.ToString() + pic_file_ext;
                 if (File.Exists(spath))
                 {
                     Image img = loadImage(spath); // load to cache it
@@ -1028,11 +1038,11 @@ namespace Thetis
                 for (int i = 0; i < 8; i++)
                 {
                     string sstate = ((ImageState)i).ToString();
-                    string spath = path + "\\" + ctrl.TopLevelControl.Name + "\\" + ctrl.Name + "-" + i.ToString() + pic_file_ext;
+                    string spath = path + "\\" + ctrl.TopLevelControl.Name + "\\" + skinImageName(ctrl) + "-" + i.ToString() + pic_file_ext;
                     Image img = getImageFromFilePath(spath);
                     if (img == null)
                     {
-                        spath = path + "\\" + "Console" + "\\" + ctrl.Name + "-" + i.ToString() + pic_file_ext;
+                        spath = path + "\\" + "Console" + "\\" + skinImageName(ctrl) + "-" + i.ToString() + pic_file_ext;
                         img = getImageFromFilePath(spath);
                     }
                     if (img != null && !_shared_image_lists[skey].Images.ContainsKey(sstate))
