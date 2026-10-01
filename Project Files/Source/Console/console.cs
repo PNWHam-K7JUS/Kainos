@@ -762,6 +762,7 @@ namespace Thetis
             LogTool.AddLogEntry("Initialising components...", "COMP");
 
             InitializeComponent();								// Windows Forms Generated Code
+            addKainosControls(); // Kainos: consoleKainos.cs
             Common.DoubleBufferAll(this, true);
 
             InitialiseAndromedaMenus();

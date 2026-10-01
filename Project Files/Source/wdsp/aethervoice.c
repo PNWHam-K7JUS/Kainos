@@ -123,6 +123,7 @@ AETHERVOICE create_aethervoice (int run, int size, double* in, double* out, int 
 	a->clarity_tune_hz = 5000.0;
 	a->clarity_harmonics_db = 6.0;
 	a->clarity_mix = 0.5;
+	a->wet_rms_db = -120.0;
 	calc_aethervoice (a);
 	flush_aethervoice (a);
 	return a;
@@ -149,11 +150,13 @@ void xaethervoice (AETHERVOICE a, int stereo)
 	int nch = stereo ? 2 : 1;
 	int aphex = (a->mode == 0);
 	double dry[2], lf[2], wet_lf[2], hf, comp = 1.0;
+	double wet_sumsq = 0.0, wet, wet_rms;
 
 	if (!a->run)
 	{
 		if (a->in != a->out)
 			memcpy (a->out, a->in, a->size * sizeof (complex));
+		a->wet_rms_db = -120.0;
 		return;
 	}
 
@@ -207,11 +210,17 @@ void xaethervoice (AETHERVOICE a, int stereo)
 			else
 				hf = tanh (hf);
 
-			a->out[2 * i + c] = dry[c] + a->body_mix * wet_lf[c] + a->clarity_mix * hf;
+			wet = a->body_mix * wet_lf[c] + a->clarity_mix * hf;
+			wet_sumsq += wet * wet;
+			a->out[2 * i + c] = dry[c] + wet;
 		}
 		if (!stereo)
 			a->out[2 * i + 1] = dry[1];
 	}
+
+	// AetherSDR counts two channels per frame (mono duplicates left into right)
+	wet_rms = sqrt (wet_sumsq / (a->size * nch));
+	a->wet_rms_db = 20.0 * log10 (max (wet_rms, 1.0e-6));
 }
 
 void setBuffers_aethervoice (AETHERVOICE a, double* in, double* out)
@@ -248,6 +257,13 @@ void SetRXAAetherVoiceRun (int channel, int run)
 		flush_aethervoice (a);		// start from clean filter state
 	a->run = run;
 	LeaveCriticalSection (&ch[channel].csDSP);
+}
+
+// RMS of what the exciter is adding, in dB (-120 when off); read without the lock, it is only a meter
+PORT
+double GetRXAAetherVoiceWetRms (int channel)
+{
+	return rxa[channel].aethervoice.p->wet_rms_db;
 }
 
 PORT

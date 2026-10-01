@@ -41,6 +41,17 @@ namespace Thetis
         private NumericUpDownTS udAetherVoiceRXClarityHarmonics;
         private NumericUpDownTS udAetherVoiceRXClarityMix;
 
+        // the AetherVoice window (frmAetherVoice) reads and writes these controls directly, so the
+        // window, this tab and the console AV button always agree and save the same way
+        internal CheckBoxTS AetherVoiceRXEnable { get { return chkAetherVoiceRX; } }
+        internal ComboBoxTS AetherVoiceRXMode { get { return comboAetherVoiceRXMode; } }
+        internal NumericUpDownTS AetherVoiceRXBodyDrive { get { return udAetherVoiceRXBodyDrive; } }
+        internal NumericUpDownTS AetherVoiceRXBodyTune { get { return udAetherVoiceRXBodyTune; } }
+        internal NumericUpDownTS AetherVoiceRXBodyMix { get { return udAetherVoiceRXBodyMix; } }
+        internal NumericUpDownTS AetherVoiceRXClarityTune { get { return udAetherVoiceRXClarityTune; } }
+        internal NumericUpDownTS AetherVoiceRXClarityHarmonics { get { return udAetherVoiceRXClarityHarmonics; } }
+        internal NumericUpDownTS AetherVoiceRXClarityMix { get { return udAetherVoiceRXClarityMix; } }
+
         // called from the constructor straight after InitializeComponent, before saved options are restored
         private void addKainosControls()
         {
@@ -192,6 +203,7 @@ namespace Thetis
                     rx.RXAetherVoiceOn = chkAetherVoiceRX.Checked;
                 }
             }
+            console.AetherVoiceRXChanged(chkAetherVoiceRX.Checked);
         }
 
         #endregion

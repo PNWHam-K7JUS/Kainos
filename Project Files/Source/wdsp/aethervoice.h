@@ -65,6 +65,9 @@ typedef struct _aethervoice
 	double dc_x1[2];
 	double dc_y1[2];
 	double lf_env;					// shared LF envelope follower
+
+	// metering: RMS of what the exciter adds, in dB, per block (-120 when off). Drives the UI logo glow
+	volatile double wet_rms_db;
 } aethervoice, *AETHERVOICE;
 
 extern AETHERVOICE create_aethervoice (int run, int size, double* in, double* out, int samplerate);

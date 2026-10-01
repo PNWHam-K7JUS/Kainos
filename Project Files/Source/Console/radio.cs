@@ -855,7 +855,7 @@ namespace Thetis
 
         // Kainos: AetherVoice exciter (wdsp/aethervoice.c). It only runs in voice modes, because an
         // exciter would distort CW and digital audio, including audio decoded over VAC.
-        private static bool isAetherVoiceMode(DSPMode mode)
+        public static bool IsAetherVoiceMode(DSPMode mode)
         {
             switch (mode)
             {
@@ -887,7 +887,7 @@ namespace Thetis
 
         private void applyRXAetherVoiceRun()
         {
-            bool run = rx_aethervoice_on && isAetherVoiceMode(dsp_mode);
+            bool run = rx_aethervoice_on && IsAetherVoiceMode(dsp_mode);
             if (update && (run != rx_aethervoice_run_dsp || force))
             {
                 WDSP.SetRXAAetherVoiceRun(WDSP.id(thread, subrx), run);

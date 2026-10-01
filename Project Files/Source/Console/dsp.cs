@@ -334,6 +334,9 @@ namespace Thetis
         [DllImport("wdsp.dll", EntryPoint = "SetRXAAetherVoiceClarity", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetRXAAetherVoiceClarity(int channel, double tune_hz, double harmonics_db, double mix);
 
+        [DllImport("wdsp.dll", EntryPoint = "GetRXAAetherVoiceWetRms", CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetRXAAetherVoiceWetRms(int channel);
+
         [DllImport("wdsp.dll", EntryPoint = "SetTXAEQRun", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetTXAEQRun(int channel, bool run);
 
