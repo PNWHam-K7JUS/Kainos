@@ -58,6 +58,7 @@ warren@wpratt.com
 #include "sbnr.h" // NR3 + NR4 support
 #include "emph.h"
 #include "eq.h"
+#include "aethervoice.h"
 #include "fcurve.h"
 #include "fir.h"
 #include "firmin.h"

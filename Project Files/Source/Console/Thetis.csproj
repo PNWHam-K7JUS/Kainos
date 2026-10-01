@@ -811,6 +811,10 @@
     <Compile Include="setup.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="setupKainos.cs">
+      <DependentUpon>setup.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="setup.designer.cs">
       <DependentUpon>setup.cs</DependentUpon>
     </Compile>

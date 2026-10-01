@@ -383,6 +383,11 @@ namespace Thetis
             //
             this.RXFilterLow = rx.rx_filter_low;
             this.RXFilterHigh = rx.rx_filter_high;
+            // Kainos: AetherVoice
+            this.RXAetherVoiceMode = rx.rx_aethervoice_mode;
+            this.SetRXAetherVoiceBody(rx.rx_av_body_drive, rx.rx_av_body_tune, rx.rx_av_body_mix);
+            this.SetRXAetherVoiceClarity(rx.rx_av_clarity_tune, rx.rx_av_clarity_harmonics, rx.rx_av_clarity_mix);
+            this.RXAetherVoiceOn = rx.rx_aethervoice_on;
         }
 
 		private void SyncAll()
@@ -486,6 +491,11 @@ namespace Thetis
             //
             RXFMLowCut = rx_fm_lowcut;
             RXFMHighCut = rx_fm_highcut;
+            // Kainos: AetherVoice
+            RXAetherVoiceMode = rx_aethervoice_mode;
+            SetRXAetherVoiceBody(rx_av_body_drive, rx_av_body_tune, rx_av_body_mix);
+            SetRXAetherVoiceClarity(rx_av_clarity_tune, rx_av_clarity_harmonics, rx_av_clarity_mix);
+            RXAetherVoiceOn = rx_aethervoice_on;
         }
 
 		#region Non-Static Properties & Routines
@@ -591,6 +601,7 @@ namespace Thetis
 						dsp_mode_dsp = value;
 					}
 				}
+				applyRXAetherVoiceRun(); // Kainos: AetherVoice only runs in voice modes
 			}
 		}
 
@@ -841,6 +852,96 @@ namespace Thetis
 				}
 			}
 		}
+
+        // Kainos: AetherVoice exciter (wdsp/aethervoice.c). It only runs in voice modes, because an
+        // exciter would distort CW and digital audio, including audio decoded over VAC.
+        private static bool isAetherVoiceMode(DSPMode mode)
+        {
+            switch (mode)
+            {
+                case DSPMode.LSB:
+                case DSPMode.USB:
+                case DSPMode.DSB:
+                case DSPMode.AM:
+                case DSPMode.SAM:
+                case DSPMode.FM:
+                case DSPMode.AM_LSB:
+                case DSPMode.AM_USB:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool rx_aethervoice_on = false;
+        private bool rx_aethervoice_run_dsp = false;
+        public bool RXAetherVoiceOn
+        {
+            get { return rx_aethervoice_on; }
+            set
+            {
+                rx_aethervoice_on = value;
+                applyRXAetherVoiceRun();
+            }
+        }
+
+        private void applyRXAetherVoiceRun()
+        {
+            bool run = rx_aethervoice_on && isAetherVoiceMode(dsp_mode);
+            if (update && (run != rx_aethervoice_run_dsp || force))
+            {
+                WDSP.SetRXAAetherVoiceRun(WDSP.id(thread, subrx), run);
+                rx_aethervoice_run_dsp = run;
+            }
+        }
+
+        private int rx_aethervoice_mode_dsp = 0;
+        private int rx_aethervoice_mode = 0;
+        public int RXAetherVoiceMode
+        {
+            get { return rx_aethervoice_mode; }
+            set
+            {
+                rx_aethervoice_mode = value;
+                if (update && (value != rx_aethervoice_mode_dsp || force))
+                {
+                    WDSP.SetRXAAetherVoiceMode(WDSP.id(thread, subrx), value);
+                    rx_aethervoice_mode_dsp = value;
+                }
+            }
+        }
+
+        private double rx_av_body_drive = 0.0, rx_av_body_tune = 100.0, rx_av_body_mix = 0.5;
+        private double rx_av_body_drive_dsp = 0.0, rx_av_body_tune_dsp = 100.0, rx_av_body_mix_dsp = 0.5;
+        public void SetRXAetherVoiceBody(double drive_db, double tune_hz, double mix)
+        {
+            rx_av_body_drive = drive_db;
+            rx_av_body_tune = tune_hz;
+            rx_av_body_mix = mix;
+            if (update && (drive_db != rx_av_body_drive_dsp || tune_hz != rx_av_body_tune_dsp || mix != rx_av_body_mix_dsp || force))
+            {
+                WDSP.SetRXAAetherVoiceBody(WDSP.id(thread, subrx), drive_db, tune_hz, mix);
+                rx_av_body_drive_dsp = drive_db;
+                rx_av_body_tune_dsp = tune_hz;
+                rx_av_body_mix_dsp = mix;
+            }
+        }
+
+        private double rx_av_clarity_tune = 5000.0, rx_av_clarity_harmonics = 6.0, rx_av_clarity_mix = 0.5;
+        private double rx_av_clarity_tune_dsp = 5000.0, rx_av_clarity_harmonics_dsp = 6.0, rx_av_clarity_mix_dsp = 0.5;
+        public void SetRXAetherVoiceClarity(double tune_hz, double harmonics_db, double mix)
+        {
+            rx_av_clarity_tune = tune_hz;
+            rx_av_clarity_harmonics = harmonics_db;
+            rx_av_clarity_mix = mix;
+            if (update && (tune_hz != rx_av_clarity_tune_dsp || harmonics_db != rx_av_clarity_harmonics_dsp || mix != rx_av_clarity_mix_dsp || force))
+            {
+                WDSP.SetRXAAetherVoiceClarity(WDSP.id(thread, subrx), tune_hz, harmonics_db, mix);
+                rx_av_clarity_tune_dsp = tune_hz;
+                rx_av_clarity_harmonics_dsp = harmonics_db;
+                rx_av_clarity_mix_dsp = mix;
+            }
+        }
 
 		private double nb_threshold_dsp = 3.3;
 		private double nb_threshold = 3.3;
