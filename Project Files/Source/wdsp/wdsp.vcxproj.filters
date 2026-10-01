@@ -42,6 +42,30 @@
     <ClInclude Include="aethervoice.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="aetherstrip.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientGate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientDeEss.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientComp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientPhaseRotator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientTube.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientReverb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aethersdr\ClientFinalLimiter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="fir.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -249,6 +273,30 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="aethervoice.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aetherstrip.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientGate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientDeEss.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientComp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientPhaseRotator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientTube.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientReverb.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientFinalLimiter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="utilities.c">

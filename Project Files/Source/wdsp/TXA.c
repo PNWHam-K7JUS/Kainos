@@ -127,6 +127,14 @@ void create_txa (int channel)
 		ch[channel].dsp_rate);						// samplerate
 	}
 
+	// AetherSDR channel strip (Kainos): gate, de-esser, compressor and tube before AetherVoice,
+	// reverb and final limiter after it. Every stage is off by default
+	txa[channel].aetherstrip.p = create_aetherstrip (
+		ch[channel].dsp_size,						// buffer size
+		txa[channel].midbuff,						// pointer to input buffer
+		txa[channel].midbuff,						// pointer to output buffer
+		ch[channel].dsp_rate);						// sample rate
+
 	// AetherVoice exciter (Kainos), after the mic EQ and before the leveler, CFC, compressor,
 	// bandpass filters and ALC, so the TX bandpass removes anything it adds outside the TX filter
 	txa[channel].aethervoice.p = create_aethervoice (
@@ -516,6 +524,7 @@ void destroy_txa (int channel)
 	destroy_meter (txa[channel].eqmeter.p);
 	destroy_eqp (txa[channel].eqp.p);
 	destroy_aethervoice (txa[channel].aethervoice.p);
+	destroy_aetherstrip (txa[channel].aetherstrip.p);
 	destroy_amsq (txa[channel].amsq.p);
 	destroy_meter (txa[channel].micmeter.p);
 	destroy_phrot (txa[channel].phrot.p);
@@ -540,6 +549,7 @@ void flush_txa (int channel)
 	flush_amsq (txa[channel].amsq.p);
 	flush_eqp (txa[channel].eqp.p);
 	flush_aethervoice (txa[channel].aethervoice.p);
+	flush_aetherstrip (txa[channel].aetherstrip.p);
 	flush_meter (txa[channel].eqmeter.p);
 	flush_emphp (txa[channel].preemph.p);
 	flush_wcpagc (txa[channel].leveler.p);
@@ -576,7 +586,9 @@ void xtxa (int channel)
 	xamsq (txa[channel].amsq.p);					// downward expander action
 	xeqp (txa[channel].eqp.p);						// pre-EQ
 	xmeter (txa[channel].eqmeter.p);				// EQ meter
+	xaetherstrip_pre (txa[channel].aetherstrip.p, 0);		// Kainos: gate, de-esser, compressor, tube
 	xaethervoice (txa[channel].aethervoice.p, 0);		// Kainos: AetherVoice exciter
+	xaetherstrip_post (txa[channel].aetherstrip.p, 0);	// Kainos: reverb, final limiter
 	xemphp (txa[channel].preemph.p, 0);				// FM pre-emphasis (first option)
 	xwcpagc (txa[channel].leveler.p);				// Leveler
 	xmeter (txa[channel].lvlrmeter.p);				// Leveler Meter
@@ -651,6 +663,7 @@ void setDSPSamplerate_txa (int channel)
 	setSamplerate_amsq (txa[channel].amsq.p, ch[channel].dsp_rate);
 	setSamplerate_eqp (txa[channel].eqp.p, ch[channel].dsp_rate);
 	setSamplerate_aethervoice (txa[channel].aethervoice.p, ch[channel].dsp_rate);
+	setSamplerate_aetherstrip (txa[channel].aetherstrip.p, ch[channel].dsp_rate);
 	setSamplerate_meter (txa[channel].eqmeter.p, ch[channel].dsp_rate);
 	setSamplerate_emphp (txa[channel].preemph.p, ch[channel].dsp_rate);
 	setSamplerate_wcpagc (txa[channel].leveler.p, ch[channel].dsp_rate);
@@ -708,6 +721,8 @@ void setDSPBuffsize_txa (int channel)
 	setSize_eqp (txa[channel].eqp.p, ch[channel].dsp_size);
 	setBuffers_aethervoice (txa[channel].aethervoice.p, txa[channel].midbuff, txa[channel].midbuff);
 	setSize_aethervoice (txa[channel].aethervoice.p, ch[channel].dsp_size);
+	setBuffers_aetherstrip (txa[channel].aetherstrip.p, txa[channel].midbuff, txa[channel].midbuff);
+	setSize_aetherstrip (txa[channel].aetherstrip.p, ch[channel].dsp_size);
 	setBuffers_meter (txa[channel].eqmeter.p, txa[channel].midbuff);
 	setSize_meter (txa[channel].eqmeter.p, ch[channel].dsp_size);
 	setBuffers_emphp (txa[channel].preemph.p, txa[channel].midbuff, txa[channel].midbuff);

@@ -96,6 +96,10 @@ struct _txa
 	} amsq;
 	struct
 	{
+		AETHERSTRIP p;
+	} aetherstrip;
+	struct
+	{
 		AETHERVOICE p;
 	} aethervoice;
 	struct

@@ -223,6 +223,14 @@
     <ClInclude Include="emph.h" />
     <ClInclude Include="eq.h" />
     <ClInclude Include="aethervoice.h" />
+    <ClInclude Include="aetherstrip.h" />
+    <ClInclude Include="aethersdr\ClientGate.h" />
+    <ClInclude Include="aethersdr\ClientDeEss.h" />
+    <ClInclude Include="aethersdr\ClientComp.h" />
+    <ClInclude Include="aethersdr\ClientPhaseRotator.h" />
+    <ClInclude Include="aethersdr\ClientTube.h" />
+    <ClInclude Include="aethersdr\ClientReverb.h" />
+    <ClInclude Include="aethersdr\ClientFinalLimiter.h" />
     <ClInclude Include="channel.h" />
     <ClInclude Include="comm.h" />
     <ClInclude Include="fcurve.h" />
@@ -295,6 +303,46 @@
     <ClCompile Include="emph.c" />
     <ClCompile Include="eq.c" />
     <ClCompile Include="aethervoice.c" />
+    <ClCompile Include="aetherstrip.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientGate.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientDeEss.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientComp.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientPhaseRotator.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientTube.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientReverb.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientFinalLimiter.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="channel.c" />
     <ClCompile Include="fcurve.c" />
     <ClCompile Include="FDnoiseIQ.c" />

@@ -59,6 +59,7 @@ warren@wpratt.com
 #include "emph.h"
 #include "eq.h"
 #include "aethervoice.h"
+#include "aetherstrip.h"
 #include "fcurve.h"
 #include "fir.h"
 #include "firmin.h"

@@ -1,0 +1,5 @@
+// Kainos: stand-in for Qt's <QtGlobal>, so AetherSDR's ClientFinalLimiter compiles unchanged
+// without Qt. It only uses the quint64 type.
+#pragma once
+#include <cstdint>
+typedef std::uint64_t quint64;

@@ -302,6 +302,25 @@ void SetRXAAetherVoiceClarity (int channel, double tune_hz, double harmonics_db,
 
 /********************************************************************************************************
 *																										*
+*							AetherSDR channel strip (aetherstrip.cpp): TXA access						*
+*																										*
+********************************************************************************************************/
+
+// stage / param / meter numbers are listed in aetherstrip.h; AetherSDR's setters are lock-free
+PORT
+void SetTXAStripParam (int channel, int stage, int param, double value)
+{
+	setParam_aetherstrip (txa[channel].aetherstrip.p, stage, param, value);
+}
+
+PORT
+double GetTXAStripMeter (int channel, int stage, int meter)
+{
+	return getMeter_aetherstrip (txa[channel].aetherstrip.p, stage, meter);
+}
+
+/********************************************************************************************************
+*																										*
 *										TXA Properties													*
 *																										*
 ********************************************************************************************************/
