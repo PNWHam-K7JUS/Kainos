@@ -175,6 +175,10 @@ struct _rxa
 	} mpeak;
 	struct
 	{
+		AETHERSTRIP p;
+	} aetherstrip;
+	struct
+	{
 		AETHERVOICE p;
 	} aethervoice;
 	struct

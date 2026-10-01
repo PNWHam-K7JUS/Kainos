@@ -128,20 +128,25 @@ namespace Thetis
 
     #region settings model
 
-    // The AetherTX strip settings (console.AetherStripTX). They are saved in each TX profile
-    // (Setup: saveAetherVoiceTXProfile/loadAetherVoiceTXProfile) and pushed to RadioDSPTX.
-    public class AetherStripTX
+    // Channel strip settings for one side. AetherTX (console.AetherStripTX) is saved in each TX profile
+    // (Setup: saveAetherVoiceTXProfile/loadAetherVoiceTXProfile) and pushed to RadioDSPTX; AetherRX
+    // (console.AetherStripRX) is saved with the Setup options and pushed to all four receivers.
+    public class AetherStrip
     {
         private readonly Console _console;
+        private readonly bool _rx;
         private readonly double[,] _values = (double[,])AetherStripDefs.Defaults.Clone();
         private bool _bypass;
 
         public event EventHandler Changed;
 
-        public AetherStripTX(Console console)
+        public AetherStrip(Console console, bool rx)
         {
             _console = console;
+            _rx = rx;
         }
+
+        public bool IsRX { get { return _rx; } }
 
         public double Get(int stage, int param) { return _values[stage, param]; }
         public bool Enabled(int stage) { return _values[stage, 0] != 0; }
@@ -166,7 +171,7 @@ namespace Thetis
             Changed?.Invoke(this, EventArgs.Empty);
         }
 
-        // BYPASS: the whole chain (strip and AetherVoice TX) off, without losing the settings
+        // BYPASS: the whole chain (strip and AetherVoice) off, without losing the settings
         public bool Bypass
         {
             get { return _bypass; }
@@ -175,7 +180,11 @@ namespace Thetis
                 if (_bypass == value) return;
                 _bypass = value;
                 for (int s = 0; s < AetherStripDefs.Stages; s++) push(s, 0);
-                if (!_console.IsSetupFormNull) _console.SetupForm.ApplyAetherVoiceTXFromStrip();
+                if (!_console.IsSetupFormNull)
+                {
+                    if (_rx) _console.SetupForm.ApplyAetherVoiceRXFromStrip();
+                    else _console.SetupForm.ApplyAetherVoiceTXFromStrip();
+                }
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -189,10 +198,15 @@ namespace Thetis
 
         private void push(int stage, int param)
         {
-            if (_console.radio == null) return;
+            if (_console == null || _console.radio == null) return;
             double v = _values[stage, param];
             if (param == 0 && _bypass) v = 0;
-            _console.radio.GetDSPTX(0).SetTXStripParam(stage, param, v);
+            if (_rx)
+            {
+                for (int t = 0; t < 2; t++)
+                    for (int s = 0; s < 2; s++) _console.radio.GetDSPRX(t, s).SetRXStripParam(stage, param, v);
+            }
+            else _console.radio.GetDSPTX(0).SetTXStripParam(stage, param, v);
         }
 
         // "stage.param=value;..." for the TX profile column
@@ -230,12 +244,12 @@ namespace Thetis
 
         public static string DefaultsSerialized()
         {
-            return new AetherStripTX(null).Serialize();
+            return new AetherStrip(null, false).Serialize();
         }
 
         public bool Differs(string profileData)
         {
-            AetherStripTX other = new AetherStripTX(null);
+            AetherStrip other = new AetherStrip(null, false);
             other.load(profileData);
             for (int s = 0; s < AetherStripDefs.Stages; s++)
                 for (int p = 0; p < AetherStripDefs.MaxParams; p++)
@@ -263,7 +277,7 @@ namespace Thetis
 
     #region window
 
-    // The AetherTX window: stage list on the left, the selected stage's page on the right.
+    // The AetherTX / AetherRX window: stage list on the left, the selected stage's page on the right.
     public class frmAetherStrip : Form
     {
         private static readonly Color kWindowBg = Color.FromArgb(0x08, 0x12, 0x1d);
@@ -280,12 +294,17 @@ namespace Thetis
 
         // pages in AetherSDR's chain order; Exciter is AetherVoice TX
         private const int PageExciter = 100;
-        private static readonly int[] PageOrder = { AetherStripDefs.Gate, AetherStripDefs.DeEss, AetherStripDefs.Comp, AetherStripDefs.Tube,
+        private static readonly int[] PageOrderTX = { AetherStripDefs.Gate, AetherStripDefs.DeEss, AetherStripDefs.Comp, AetherStripDefs.Tube,
             PageExciter, AetherStripDefs.Reverb, AetherStripDefs.Limiter };
+        // AetherSDR's receive chain: gate, compressor, tube, exciter (de-essing and reverb are transmit tools)
+        private static readonly int[] PageOrderRX = { AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, PageExciter };
 
         private readonly Console _console;
-        private readonly AetherStripTX _strip;
+        private readonly bool _rx;
+        private readonly int[] _pageIds;
+        private readonly AetherStrip _strip;
         private readonly Setup _setup;
+        private readonly AetherVoiceSetupControls _av;      // the AetherVoice controls for this side
         private readonly StageList _list;
         private readonly Panel _page;
         private readonly Label _pageTitle, _pageNote, _status;
@@ -302,13 +321,16 @@ namespace Thetis
         private AetherKnob[] _exciterKnobs;
         private AetherToggleButton _even, _odd;
 
-        public frmAetherStrip(Console console)
+        public frmAetherStrip(Console console, bool rx)
         {
             _console = console;
-            _strip = console.AetherStripTX;
+            _rx = rx;
+            _pageIds = rx ? PageOrderRX : PageOrderTX;
+            _strip = rx ? console.AetherStripRX : console.AetherStripTX;
             _setup = console.SetupForm;
+            _av = rx ? _setup.AetherVoiceRX : _setup.AetherVoiceTX;
 
-            Text = "AetherTX";
+            Text = rx ? "AetherRX" : "AetherTX";
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             BackColor = kWindowBg;
@@ -320,7 +342,7 @@ namespace Thetis
 
             Label title = new Label
             {
-                Text = "AetherTX — Aetherial Audio Channel Strip",
+                Text = (rx ? "AetherRX" : "AetherTX") + " — Aetherial Audio Channel Strip",
                 ForeColor = kText, BackColor = kTitleBg,
                 Font = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Pixel),
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0),
@@ -340,13 +362,13 @@ namespace Thetis
             Controls.Add(close);
 
             // stage list
-            _list = new StageList(this) { Location = new Point(10, 34), Size = new Size(170, 7 * 38 + 4) };
+            _list = new StageList(this) { Location = new Point(10, 34), Size = new Size(170, _pageIds.Length * 38 + 4) };
             Controls.Add(_list);
 
             // bottom-left: TX indicator and BYPASS
             _btnBypass = new AetherToggleButton { Text = "BYPASS", Bypass = true, Location = new Point(10, 520), Size = new Size(170, 28) };
             _btnBypass.Click += (s, e) => _strip.Bypass = !_strip.Bypass;
-            _tips.SetToolTip(_btnBypass, "Bypass the whole chain (strip and AetherVoice) without changing any settings.");
+            _tips.SetToolTip(_btnBypass, "Bypass the whole " + (rx ? "receive" : "transmit") + " chain (strip and AetherVoice) without changing any settings.");
             Controls.Add(_btnBypass);
             _status = new Label
             {
@@ -394,7 +416,8 @@ namespace Thetis
         #region pages
 
         internal int PageId { get { return _pageId; } }
-        internal static int[] Pages { get { return PageOrder; } }
+        internal int[] Pages { get { return _pageIds; } }
+        internal bool IsRX { get { return _rx; } }
 
         internal string PageName(int id)
         {
@@ -403,7 +426,7 @@ namespace Thetis
 
         internal bool PageEnabled(int id)
         {
-            return id == PageExciter ? _setup.AetherVoiceTX.Enable.Checked : _strip.Enabled(id);
+            return id == PageExciter ? _av.Enable.Checked : _strip.Enabled(id);
         }
 
         internal bool Bypassed { get { return _strip.Bypass; } }
@@ -425,7 +448,8 @@ namespace Thetis
             const int knobY = 300, step = 92;
             if (id == PageExciter)
             {
-                _pageNote.Text = "AetherVoice on transmit: the same settings as AetherVoice > TX and Setup > DSP > AetherVoice.";
+                _pageNote.Text = _rx ? "AetherVoice on receive: the same settings as the AetherVoice window (RX) and Setup > DSP > AetherVoice."
+                                     : "AetherVoice on transmit: the same settings as the AetherVoice window (TX) and Setup > DSP > AetherVoice.";
                 buildExciterPage(knobY, step);
             }
             else
@@ -519,7 +543,7 @@ namespace Thetis
 
         private void buildExciterPage(int knobY, int step)
         {
-            AetherVoiceSetupControls s = _setup.AetherVoiceTX;
+            AetherVoiceSetupControls s = _av;
             _even = new AetherToggleButton { Text = "Even", Location = new Point(300, 2), Size = new Size(62, 26) };
             _odd = new AetherToggleButton { Text = "Odd", Location = new Point(368, 2), Size = new Size(62, 26) };
             _even.Click += (o, e) => s.Mode.SelectedIndex = 0;
@@ -566,7 +590,7 @@ namespace Thetis
 
         private void toggleStage()
         {
-            if (_pageId == PageExciter) _setup.AetherVoiceTX.Enable.Checked = !_setup.AetherVoiceTX.Enable.Checked;
+            if (_pageId == PageExciter) _av.Enable.Checked = !_av.Enable.Checked;
             else _strip.Set(_pageId, 0, _strip.Enabled(_pageId) ? 0 : 1);
         }
 
@@ -575,7 +599,7 @@ namespace Thetis
 
         private void hookSetupTX(bool add)
         {
-            AetherVoiceSetupControls s = _setup.AetherVoiceTX;
+            AetherVoiceSetupControls s = _av;
             EventHandler h = setupTXChanged;
             if (add) { s.Enable.CheckedChanged += h; s.Mode.SelectedIndexChanged += h; foreach (NumericUpDownTS ud in s.UpDowns) ud.ValueChanged += h; }
             else { s.Enable.CheckedChanged -= h; s.Mode.SelectedIndexChanged -= h; foreach (NumericUpDownTS ud in s.UpDowns) ud.ValueChanged -= h; }
@@ -599,7 +623,7 @@ namespace Thetis
                 }
                 if (_exciterKnobs != null)
                 {
-                    AetherVoiceSetupControls s = _setup.AetherVoiceTX;
+                    AetherVoiceSetupControls s = _av;
                     NumericUpDownTS[] uds = s.UpDowns;
                     double[] scale = { 1, 1, 100, 1, 1, 100 };
                     for (int i = 0; i < _exciterKnobs.Length; i++) _exciterKnobs[i].SetValue((double)uds[i].Value / scale[i]);
@@ -614,29 +638,34 @@ namespace Thetis
 
         private void tick()
         {
-            DSPMode mode = _console.radio.GetDSPTX(0).CurrentDSPMode;
-            bool tx = _console.MOX && _console.PowerOn;
+            DSPMode mode = _rx ? _console.RX1DSPMode : _console.radio.GetDSPTX(0).CurrentDSPMode;
+            // meters are live while transmitting (AetherTX) or receiving on RX1 (AetherRX)
+            bool live = _console.PowerOn && (_rx ? !_console.MOX : _console.MOX);
+            bool voice = RadioDSPRX.IsAetherVoiceMode(mode);
             if (_strip.Bypass) { _status.Text = "Bypassed"; _status.ForeColor = kAmber; }
-            else if (!RadioDSPRX.IsAetherVoiceMode(mode)) { _status.Text = "Paused in " + mode + "\r\n(voice modes only)"; _status.ForeColor = kTextMid; }
-            else if (tx) { _status.Text = "● TX"; _status.ForeColor = Color.FromArgb(0xff, 0x50, 0x50); }
+            else if (!voice) { _status.Text = "Paused in " + mode + "\r\n(voice modes only)"; _status.ForeColor = kTextMid; }
+            else if (live && !_rx) { _status.Text = "● TX"; _status.ForeColor = Color.FromArgb(0xff, 0x50, 0x50); }
+            else if (live) { _status.Text = "● RX"; _status.ForeColor = kGreen; }
             else { _status.Text = "Ready"; _status.ForeColor = kTextDim; }
+            live = live && voice && !_strip.Bypass;
 
             if (_pageId == PageExciter)
             {
                 double wet = -120;
-                if (tx && _setup.AetherVoiceTX.Enable.Checked && !_strip.Bypass)
-                    try { wet = WDSP.GetTXAAetherVoiceWetRms(WDSP.id(1, 0)); } catch { }
+                if (live && _av.Enable.Checked)
+                    try { wet = _rx ? WDSP.GetRXAAetherVoiceWetRms(WDSP.id(0, 0)) : WDSP.GetTXAAetherVoiceWetRms(WDSP.id(1, 0)); } catch { }
                 _logo.Update(wet);
             }
-            else _viz.UpdateMeters(tx && !_strip.Bypass && _strip.Enabled(_pageId));
+            else _viz.UpdateMeters(live && _strip.Enabled(_pageId));
         }
 
         internal double Meter(int stage, int meter)
         {
-            try { return _console.radio.GetDSPTX(0).GetTXStripMeter(stage, meter); } catch { return -120; }
+            try { return _rx ? _console.radio.GetDSPRX(0, 0).GetRXStripMeter(stage, meter) : _console.radio.GetDSPTX(0).GetTXStripMeter(stage, meter); }
+            catch { return -120; }
         }
 
-        internal AetherStripTX Strip { get { return _strip; } }
+        internal AetherStrip Strip { get { return _strip; } }
 
         #endregion
 
@@ -713,7 +742,7 @@ namespace Thetis
             {
                 base.OnMouseDown(e);
                 int i = e.Y / 38;
-                if (i >= 0 && i < Pages.Length) _f.ShowPage(Pages[i]);
+                if (i >= 0 && i < _f.Pages.Length) _f.ShowPage(_f.Pages[i]);
             }
 
             protected override void OnPaint(PaintEventArgs e)
@@ -722,9 +751,9 @@ namespace Thetis
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
                 using (Font f = new Font("Segoe UI", 13f, FontStyle.Bold, GraphicsUnit.Pixel))
-                    for (int i = 0; i < Pages.Length; i++)
+                    for (int i = 0; i < _f.Pages.Length; i++)
                     {
-                        int id = Pages[i];
+                        int id = _f.Pages[i];
                         Rectangle r = new Rectangle(0, i * 38, Width - 1, 34);
                         bool sel = id == _f.PageId;
                         using (Brush b = new SolidBrush(sel ? Color.FromArgb(0x1a, 0x2a, 0x3a) : i == _hover ? Color.FromArgb(0x10, 0x1e, 0x2c) : kPanel))
@@ -787,7 +816,7 @@ namespace Thetis
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
                 using (Pen p = new Pen(kBorder)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
-                AetherStripTX st = _f.Strip;
+                AetherStrip st = _f.Strip;
                 Rectangle plot = new Rectangle(14, 14, Height - 28, Height - 28);       // square curve plot
                 Rectangle meters = new Rectangle(plot.Right + 30, 14, Width - plot.Right - 44, Height - 28);
                 switch (_f.PageId)
@@ -820,11 +849,12 @@ namespace Thetis
                 if (!_live)
                     using (Font f = new Font("Segoe UI", 11f, GraphicsUnit.Pixel))
                     using (Brush b = new SolidBrush(kTextDim))
-                        g.DrawString("Meters show while transmitting with this stage on", f, b, meters.X, meters.Bottom - 12);
+                        g.DrawString(_f.IsRX ? "Meters show while receiving on RX1 with this stage on" : "Meters show while transmitting with this stage on",
+                            f, b, meters.X, meters.Bottom - 12);
             }
 
             // AetherSDR ClientGate::staticCurveGainDb
-            private static double gateGain(AetherStripTX st, double x)
+            private static double gateGain(AetherStrip st, double x)
             {
                 double T = st.Get(AetherStripDefs.Gate, 2), slope = st.Get(AetherStripDefs.Gate, 3) - 1, floor = st.Get(AetherStripDefs.Gate, 7);
                 double shortfall = T - x;
@@ -832,7 +862,7 @@ namespace Thetis
             }
 
             // drive, AetherSDR ClientComp::staticCurveGainDb (soft knee), makeup, then the output limiter
-            private static double compOut(AetherStripTX st, double x)
+            private static double compOut(AetherStrip st, double x)
             {
                 const int C = AetherStripDefs.Comp;
                 double env = x + st.Get(C, 9), T = st.Get(C, 1), W = st.Get(C, 5), slope = 1 - 1 / st.Get(C, 2), over = env - T, gain;
@@ -877,7 +907,7 @@ namespace Thetis
             }
 
             // de-esser sidechain band: |H| of N cascaded RBJ band-pass sections, 200 Hz .. 16 kHz
-            private void drawBand(Graphics g, Rectangle r, AetherStripTX st)
+            private void drawBand(Graphics g, Rectangle r, AetherStrip st)
             {
                 drawGrid(g, r, 0, "200 Hz .. 16 kHz", "band");
                 double f0 = st.Get(AetherStripDefs.DeEss, 1), q = st.Get(AetherStripDefs.DeEss, 2);
@@ -894,7 +924,7 @@ namespace Thetis
             }
 
             // tube: soft-clip transfer shape for the current drive and bias (illustrative)
-            private void drawShaper(Graphics g, Rectangle r, AetherStripTX st)
+            private void drawShaper(Graphics g, Rectangle r, AetherStrip st)
             {
                 drawGrid(g, r, 0, "in", "out");
                 double drive = Math.Pow(10, st.Get(AetherStripDefs.Tube, 2) / 20), bias = st.Get(AetherStripDefs.Tube, 3);
@@ -914,7 +944,7 @@ namespace Thetis
             }
 
             // reverb: pre-delay gap, then the decay envelope over 3 seconds
-            private void drawTail(Graphics g, Rectangle r, AetherStripTX st)
+            private void drawTail(Graphics g, Rectangle r, AetherStrip st)
             {
                 drawGrid(g, r, 0, "0 .. 3 s", "tail");
                 double pre = st.Get(AetherStripDefs.Reverb, 4) / 1000, decay = st.Get(AetherStripDefs.Reverb, 2), mix = st.Get(AetherStripDefs.Reverb, 5);

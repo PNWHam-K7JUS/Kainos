@@ -388,6 +388,8 @@ namespace Thetis
             this.SetRXAetherVoiceBody(rx.rx_av_body_drive, rx.rx_av_body_tune, rx.rx_av_body_mix);
             this.SetRXAetherVoiceClarity(rx.rx_av_clarity_tune, rx.rx_av_clarity_harmonics, rx.rx_av_clarity_mix);
             this.RXAetherVoiceOn = rx.rx_aethervoice_on;
+            this.rx_strip = new Dictionary<int, double>(rx.rx_strip);
+            this.applyRXStripAll();
         }
 
 		private void SyncAll()
@@ -496,6 +498,7 @@ namespace Thetis
             SetRXAetherVoiceBody(rx_av_body_drive, rx_av_body_tune, rx_av_body_mix);
             SetRXAetherVoiceClarity(rx_av_clarity_tune, rx_av_clarity_harmonics, rx_av_clarity_mix);
             RXAetherVoiceOn = rx_aethervoice_on;
+            applyRXStripAll();
         }
 
 		#region Non-Static Properties & Routines
@@ -602,6 +605,7 @@ namespace Thetis
 					}
 				}
 				applyRXAetherVoiceRun(); // Kainos: AetherVoice only runs in voice modes
+				applyRXStripEnables(); // Kainos: the AetherRX strip only runs in voice modes
 			}
 		}
 
@@ -941,6 +945,47 @@ namespace Thetis
                 rx_av_clarity_harmonics_dsp = harmonics_db;
                 rx_av_clarity_mix_dsp = mix;
             }
+        }
+
+        // Kainos: AetherSDR channel strip on receive (AetherRX, wdsp/aetherstrip.cpp). Every parameter is
+        // cached here and re-sent by SyncAll; the stages only run in voice modes.
+        private Dictionary<int, double> rx_strip = new Dictionary<int, double>();      // key = stage * 100 + param
+        private readonly Dictionary<int, double> rx_strip_dsp = new Dictionary<int, double>();
+        public void SetRXStripParam(int stage, int param, double value)
+        {
+            rx_strip[stage * 100 + param] = value;
+            sendRXStripParam(stage * 100 + param);
+        }
+
+        public double GetRXStripMeter(int stage, int meter)
+        {
+            return WDSP.GetRXAStripMeter(WDSP.id(thread, subrx), stage, meter);
+        }
+
+        private void sendRXStripParam(int key)
+        {
+            double v = rx_strip[key];
+            if (key % 100 == 0) v = (v != 0 && IsAetherVoiceMode(dsp_mode)) ? 1 : 0;  // enable
+            double old;
+            if (update && (!rx_strip_dsp.TryGetValue(key, out old) || old != v || force))
+            {
+                WDSP.SetRXAStripParam(WDSP.id(thread, subrx), key / 100, key % 100, v);
+                rx_strip_dsp[key] = v;
+            }
+        }
+
+        private void applyRXStripEnables()
+        {
+            foreach (int key in new List<int>(rx_strip.Keys))
+                if (key % 100 == 0) sendRXStripParam(key);
+        }
+
+        private void applyRXStripAll()
+        {
+            // parameters first, enables last, so a stage never runs with stale settings
+            List<int> keys = new List<int>(rx_strip.Keys);
+            foreach (int key in keys) if (key % 100 != 0) sendRXStripParam(key);
+            foreach (int key in keys) if (key % 100 == 0) sendRXStripParam(key);
         }
 
 		private double nb_threshold_dsp = 3.3;
