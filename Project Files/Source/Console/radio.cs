@@ -2597,6 +2597,11 @@ namespace Thetis
 				TXEQ10 = tx_eq10;
 			}
 			TXEQOn = tx_eq_on;
+            // Kainos: AetherVoice
+            TXAetherVoiceMode = tx_aethervoice_mode;
+            SetTXAetherVoiceBody(tx_av_body_drive, tx_av_body_tune, tx_av_body_mix);
+            SetTXAetherVoiceClarity(tx_av_clarity_tune, tx_av_clarity_harmonics, tx_av_clarity_mix);
+            TXAetherVoiceOn = tx_aethervoice_on;
 			Notch160 = notch_160;
 			TXAMCarrierLevel = tx_am_carrier_level;
 			TXALCDecay = tx_alc_decay;
@@ -2796,6 +2801,7 @@ namespace Thetis
 						current_dsp_mode_dsp = value;
 					}
 				}
+				applyTXAetherVoiceRun(); // Kainos: AetherVoice only runs in voice modes
 			}
 		}
 
@@ -2961,6 +2967,77 @@ namespace Thetis
 				}
 			}
 		}
+
+        // Kainos: AetherVoice exciter on transmit (wdsp/aethervoice.c), voice modes only
+        private bool tx_aethervoice_on = false;
+        private bool tx_aethervoice_run_dsp = false;
+        public bool TXAetherVoiceOn
+        {
+            get { return tx_aethervoice_on; }
+            set
+            {
+                tx_aethervoice_on = value;
+                applyTXAetherVoiceRun();
+            }
+        }
+
+        private void applyTXAetherVoiceRun()
+        {
+            bool run = tx_aethervoice_on && RadioDSPRX.IsAetherVoiceMode(current_dsp_mode);
+            if (update && (run != tx_aethervoice_run_dsp || force))
+            {
+                WDSP.SetTXAAetherVoiceRun(WDSP.id(thread, 0), run);
+                tx_aethervoice_run_dsp = run;
+            }
+        }
+
+        private int tx_aethervoice_mode_dsp = 0;
+        private int tx_aethervoice_mode = 0;
+        public int TXAetherVoiceMode
+        {
+            get { return tx_aethervoice_mode; }
+            set
+            {
+                tx_aethervoice_mode = value;
+                if (update && (value != tx_aethervoice_mode_dsp || force))
+                {
+                    WDSP.SetTXAAetherVoiceMode(WDSP.id(thread, 0), value);
+                    tx_aethervoice_mode_dsp = value;
+                }
+            }
+        }
+
+        private double tx_av_body_drive = 0.0, tx_av_body_tune = 100.0, tx_av_body_mix = 0.5;
+        private double tx_av_body_drive_dsp = 0.0, tx_av_body_tune_dsp = 100.0, tx_av_body_mix_dsp = 0.5;
+        public void SetTXAetherVoiceBody(double drive_db, double tune_hz, double mix)
+        {
+            tx_av_body_drive = drive_db;
+            tx_av_body_tune = tune_hz;
+            tx_av_body_mix = mix;
+            if (update && (drive_db != tx_av_body_drive_dsp || tune_hz != tx_av_body_tune_dsp || mix != tx_av_body_mix_dsp || force))
+            {
+                WDSP.SetTXAAetherVoiceBody(WDSP.id(thread, 0), drive_db, tune_hz, mix);
+                tx_av_body_drive_dsp = drive_db;
+                tx_av_body_tune_dsp = tune_hz;
+                tx_av_body_mix_dsp = mix;
+            }
+        }
+
+        private double tx_av_clarity_tune = 5000.0, tx_av_clarity_harmonics = 6.0, tx_av_clarity_mix = 0.5;
+        private double tx_av_clarity_tune_dsp = 5000.0, tx_av_clarity_harmonics_dsp = 6.0, tx_av_clarity_mix_dsp = 0.5;
+        public void SetTXAetherVoiceClarity(double tune_hz, double harmonics_db, double mix)
+        {
+            tx_av_clarity_tune = tune_hz;
+            tx_av_clarity_harmonics = harmonics_db;
+            tx_av_clarity_mix = mix;
+            if (update && (tune_hz != tx_av_clarity_tune_dsp || harmonics_db != tx_av_clarity_harmonics_dsp || mix != tx_av_clarity_mix_dsp || force))
+            {
+                WDSP.SetTXAAetherVoiceClarity(WDSP.id(thread, 0), tune_hz, harmonics_db, mix);
+                tx_av_clarity_tune_dsp = tune_hz;
+                tx_av_clarity_harmonics_dsp = harmonics_db;
+                tx_av_clarity_mix_dsp = mix;
+            }
+        }
 
 		private bool notch_160_dsp = false;
 		private bool notch_160 = false;

@@ -42,7 +42,11 @@ namespace Thetis
         private readonly Console _console;
         private readonly Setup _setup;
         private readonly AetherVoiceLogo _logo;
-        private readonly AetherToggleButton _btnOn, _btnEven, _btnOdd;
+        private readonly AetherToggleButton _btnOn, _btnEven, _btnOdd, _btnRX, _btnTX;
+        private readonly Label _title;
+        private readonly ToolTip _tips;
+        private bool _tx;                                   // false = receive, true = transmit
+        private AetherVoiceSetupControls _s;                // the Setup controls for the side shown
         private readonly AetherKnob _bodyDrive, _bodyTune, _bodyMix, _clarityTune, _clarityAir, _clarityMix;
         private readonly Label _status;
         private readonly Timer _timer;
@@ -52,6 +56,7 @@ namespace Thetis
         {
             _console = console;
             _setup = console.SetupForm;
+            _s = _setup.AetherVoiceRX;
 
             Text = "AetherVoice - RX";
             FormBorderStyle = FormBorderStyle.None;
@@ -64,7 +69,7 @@ namespace Thetis
             Icon = console.Icon;
 
             // title bar: drag to move, x to close
-            Label title = new Label
+            Label title = _title = new Label
             {
                 Text = "AetherVoice — RX",
                 ForeColor = kTextPrimary,
@@ -101,16 +106,25 @@ namespace Thetis
             _btnOn = new AetherToggleButton { Text = "ON", Bypass = true, Location = new Point(12, 118), Size = new Size(54, 24) };
             _btnEven = new AetherToggleButton { Text = "Even", Location = new Point(256, 118), Size = new Size(62, 24) };
             _btnOdd = new AetherToggleButton { Text = "Odd", Location = new Point(324, 118), Size = new Size(62, 24) };
-            ToolTip tips = new ToolTip();
-            tips.SetToolTip(_btnOn, "Turn AetherVoice on or off for every receiver (voice modes only).");
+            ToolTip tips = _tips = new ToolTip();
             tips.SetToolTip(_btnEven, "Aphex-style asymmetric shaping: mostly even harmonics, warmer, with Big Bottom low-end saturation.");
             tips.SetToolTip(_btnOdd, "Behringer-style symmetric shaping: odd harmonics, brighter and edgier, with a low-end compressor.");
-            _btnOn.Click += (s, e) => { if (!_syncing) _setup.AetherVoiceRXEnable.Checked = !_setup.AetherVoiceRXEnable.Checked; };
-            _btnEven.Click += (s, e) => { if (!_syncing) _setup.AetherVoiceRXMode.SelectedIndex = 0; };
-            _btnOdd.Click += (s, e) => { if (!_syncing) _setup.AetherVoiceRXMode.SelectedIndex = 1; };
+            _btnOn.Click += (s, e) => { if (!_syncing) _s.Enable.Checked = !_s.Enable.Checked; };
+            _btnEven.Click += (s, e) => { if (!_syncing) _s.Mode.SelectedIndex = 0; };
+            _btnOdd.Click += (s, e) => { if (!_syncing) _s.Mode.SelectedIndex = 1; };
             Controls.Add(_btnOn);
             Controls.Add(_btnEven);
             Controls.Add(_btnOdd);
+
+            // RX / TX: which side the window controls (AetherSDR has an editor for each)
+            _btnRX = new AetherToggleButton { Text = "RX", Location = new Point(520, 118), Size = new Size(52, 24) };
+            _btnTX = new AetherToggleButton { Text = "TX", Location = new Point(576, 118), Size = new Size(52, 24) };
+            tips.SetToolTip(_btnRX, "Show the receive settings.");
+            tips.SetToolTip(_btnTX, "Show the transmit settings (saved in each TX profile).");
+            _btnRX.Click += (s, e) => ShowSide(false);
+            _btnTX.Click += (s, e) => ShowSide(true);
+            Controls.Add(_btnRX);
+            Controls.Add(_btnTX);
 
             // bracket labels and knobs: Body | gap | Clarity (AetherSDR's Poo | Doo)
             const int knobY = 176, k = 76, gap = 12;
@@ -144,12 +158,12 @@ namespace Thetis
             tips.SetToolTip(_clarityAir, "Air: how hard the high band is driven into the harmonic generator (Harmonics in Setup).");
             tips.SetToolTip(_clarityMix, "Clarity mix: how much of the generated harmonics is added.");
 
-            _bodyDrive.ValueChanged += (s, e) => setUpDown(_setup.AetherVoiceRXBodyDrive, _bodyDrive.Value, 1);
-            _bodyTune.ValueChanged += (s, e) => setUpDown(_setup.AetherVoiceRXBodyTune, _bodyTune.Value, 0);
-            _bodyMix.ValueChanged += (s, e) => setUpDown(_setup.AetherVoiceRXBodyMix, _bodyMix.Value * 100, 0);
-            _clarityTune.ValueChanged += (s, e) => setUpDown(_setup.AetherVoiceRXClarityTune, _clarityTune.Value, 0);
-            _clarityAir.ValueChanged += (s, e) => setUpDown(_setup.AetherVoiceRXClarityHarmonics, _clarityAir.Value, 1);
-            _clarityMix.ValueChanged += (s, e) => setUpDown(_setup.AetherVoiceRXClarityMix, _clarityMix.Value * 100, 0);
+            _bodyDrive.ValueChanged += (s, e) => setUpDown(_s.BodyDrive, _bodyDrive.Value, 1);
+            _bodyTune.ValueChanged += (s, e) => setUpDown(_s.BodyTune, _bodyTune.Value, 0);
+            _bodyMix.ValueChanged += (s, e) => setUpDown(_s.BodyMix, _bodyMix.Value * 100, 0);
+            _clarityTune.ValueChanged += (s, e) => setUpDown(_s.ClarityTune, _clarityTune.Value, 0);
+            _clarityAir.ValueChanged += (s, e) => setUpDown(_s.ClarityHarmonics, _clarityAir.Value, 1);
+            _clarityMix.ValueChanged += (s, e) => setUpDown(_s.ClarityMix, _clarityMix.Value * 100, 0);
 
             Label hint = new Label
             {
@@ -171,16 +185,46 @@ namespace Thetis
             Controls.Add(_status);
 
             // follow Setup, which may also be changed from Setup itself or the console AV button
-            _setup.AetherVoiceRXEnable.CheckedChanged += setupChanged;
-            _setup.AetherVoiceRXMode.SelectedIndexChanged += setupChanged;
-            foreach (NumericUpDownTS ud in new[] { _setup.AetherVoiceRXBodyDrive, _setup.AetherVoiceRXBodyTune, _setup.AetherVoiceRXBodyMix,
-                _setup.AetherVoiceRXClarityTune, _setup.AetherVoiceRXClarityHarmonics, _setup.AetherVoiceRXClarityMix })
-                ud.ValueChanged += setupChanged;
+            // (or by loading a TX profile)
+            hookSetup(_setup.AetherVoiceRX, true);
+            hookSetup(_setup.AetherVoiceTX, true);
 
             _timer = new Timer { Interval = 16 };     // AetherSDR's panel tick
             _timer.Tick += (s, e) => tick();
 
+            ShowSide(false);
+        }
+
+        // switch the window between the receive and transmit settings
+        public void ShowSide(bool tx)
+        {
+            _tx = tx;
+            _s = tx ? _setup.AetherVoiceTX : _setup.AetherVoiceRX;
+            _title.Text = "AetherVoice \u2014 " + (tx ? "TX" : "RX");
+            Text = "AetherVoice - " + (tx ? "TX" : "RX");
+            _btnRX.Checked = !tx;
+            _btnTX.Checked = tx;
+            _tips.SetToolTip(_btnOn, tx ? "Turn AetherVoice on or off on transmit (voice modes only). Saved in each TX profile."
+                                        : "Turn AetherVoice on or off for every receiver (voice modes only).");
+            _logo.Update(-120.0);
             syncFromSetup();
+        }
+
+        private void hookSetup(AetherVoiceSetupControls s, bool add)
+        {
+            EventHandler h = setupChanged;
+            if (add)
+            {
+                s.Enable.CheckedChanged += h;
+                s.Mode.SelectedIndexChanged += h;
+                foreach (NumericUpDownTS ud in s.UpDowns) ud.ValueChanged += h;
+            }
+            else
+            {
+                s.Enable.CheckedChanged -= h;
+                s.Mode.SelectedIndexChanged -= h;
+                foreach (NumericUpDownTS ud in s.UpDowns) ud.ValueChanged -= h;
+            }
         }
 
         protected override void OnShown(EventArgs e)
@@ -219,11 +263,8 @@ namespace Thetis
             if (disposing)
             {
                 _timer.Dispose();
-                _setup.AetherVoiceRXEnable.CheckedChanged -= setupChanged;
-                _setup.AetherVoiceRXMode.SelectedIndexChanged -= setupChanged;
-                foreach (NumericUpDownTS ud in new[] { _setup.AetherVoiceRXBodyDrive, _setup.AetherVoiceRXBodyTune, _setup.AetherVoiceRXBodyMix,
-                    _setup.AetherVoiceRXClarityTune, _setup.AetherVoiceRXClarityHarmonics, _setup.AetherVoiceRXClarityMix })
-                    ud.ValueChanged -= setupChanged;
+                hookSetup(_setup.AetherVoiceRX, false);
+                hookSetup(_setup.AetherVoiceTX, false);
             }
             base.Dispose(disposing);
         }
@@ -245,15 +286,15 @@ namespace Thetis
             _syncing = true;
             try
             {
-                _btnOn.Checked = _setup.AetherVoiceRXEnable.Checked;
-                _btnEven.Checked = _setup.AetherVoiceRXMode.SelectedIndex != 1;
-                _btnOdd.Checked = _setup.AetherVoiceRXMode.SelectedIndex == 1;
-                _bodyDrive.SetValue((double)_setup.AetherVoiceRXBodyDrive.Value);
-                _bodyTune.SetValue((double)_setup.AetherVoiceRXBodyTune.Value);
-                _bodyMix.SetValue((double)_setup.AetherVoiceRXBodyMix.Value / 100.0);
-                _clarityTune.SetValue((double)_setup.AetherVoiceRXClarityTune.Value);
-                _clarityAir.SetValue((double)_setup.AetherVoiceRXClarityHarmonics.Value);
-                _clarityMix.SetValue((double)_setup.AetherVoiceRXClarityMix.Value / 100.0);
+                _btnOn.Checked = _s.Enable.Checked;
+                _btnEven.Checked = _s.Mode.SelectedIndex != 1;
+                _btnOdd.Checked = _s.Mode.SelectedIndex == 1;
+                _bodyDrive.SetValue((double)_s.BodyDrive.Value);
+                _bodyTune.SetValue((double)_s.BodyTune.Value);
+                _bodyMix.SetValue((double)_s.BodyMix.Value / 100.0);
+                _clarityTune.SetValue((double)_s.ClarityTune.Value);
+                _clarityAir.SetValue((double)_s.ClarityHarmonics.Value);
+                _clarityMix.SetValue((double)_s.ClarityMix.Value / 100.0);
             }
             finally
             {
@@ -272,19 +313,20 @@ namespace Thetis
 
         private void updateStatus()
         {
-            if (!_setup.AetherVoiceRXEnable.Checked)
+            DSPMode mode = _tx ? _console.radio.GetDSPTX(0).CurrentDSPMode : _console.RX1DSPMode;
+            if (!_s.Enable.Checked)
             {
                 _status.Text = "Off";
                 _status.ForeColor = kTextDim;
             }
-            else if (!RadioDSPRX.IsAetherVoiceMode(_console.RX1DSPMode))
+            else if (!RadioDSPRX.IsAetherVoiceMode(mode))
             {
-                _status.Text = "Paused in " + _console.RX1DSPMode + " (voice modes only)";
+                _status.Text = "Paused in " + mode + " (voice modes only)";
                 _status.ForeColor = Color.FromArgb(0x8a, 0xa8, 0xc0);
             }
             else
             {
-                _status.Text = "Active";
+                _status.Text = _tx ? "Active on transmit" : "Active";
                 _status.ForeColor = kAmber;
             }
         }
@@ -292,9 +334,10 @@ namespace Thetis
         private void tick()
         {
             double wet = -120.0;
-            if (_console.PowerOn && _setup.AetherVoiceRXEnable.Checked)
+            // the TX exciter only processes audio while transmitting
+            if (_console.PowerOn && _s.Enable.Checked && (!_tx || _console.MOX))
             {
-                try { wet = WDSP.GetRXAAetherVoiceWetRms(WDSP.id(0, 0)); }
+                try { wet = _tx ? WDSP.GetTXAAetherVoiceWetRms(WDSP.id(1, 0)) : WDSP.GetRXAAetherVoiceWetRms(WDSP.id(0, 0)); }
                 catch { }
             }
             _logo.Update(wet);

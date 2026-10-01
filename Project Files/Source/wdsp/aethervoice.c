@@ -299,3 +299,61 @@ void SetRXAAetherVoiceClarity (int channel, double tune_hz, double harmonics_db,
 	calc_aethervoice (a);
 	LeaveCriticalSection (&ch[channel].csDSP);
 }
+
+/********************************************************************************************************
+*																										*
+*										TXA Properties													*
+*																										*
+********************************************************************************************************/
+
+PORT
+void SetTXAAetherVoiceRun (int channel, int run)
+{
+	AETHERVOICE a;
+	EnterCriticalSection (&ch[channel].csDSP);
+	a = txa[channel].aethervoice.p;
+	if (run && !a->run)
+		flush_aethervoice (a);
+	a->run = run;
+	LeaveCriticalSection (&ch[channel].csDSP);
+}
+
+PORT
+double GetTXAAetherVoiceWetRms (int channel)
+{
+	return txa[channel].aethervoice.p->wet_rms_db;
+}
+
+PORT
+void SetTXAAetherVoiceMode (int channel, int mode)
+{
+	EnterCriticalSection (&ch[channel].csDSP);
+	txa[channel].aethervoice.p->mode = mode ? 1 : 0;
+	LeaveCriticalSection (&ch[channel].csDSP);
+}
+
+PORT
+void SetTXAAetherVoiceBody (int channel, double drive_db, double tune_hz, double mix)
+{
+	AETHERVOICE a;
+	EnterCriticalSection (&ch[channel].csDSP);
+	a = txa[channel].aethervoice.p;
+	a->body_drive_db = av_clamp (drive_db, 0.0, 24.0);
+	a->body_tune_hz = av_clamp (tune_hz, 50.0, 160.0);
+	a->body_mix = av_clamp (mix, 0.0, 1.0);
+	calc_aethervoice (a);
+	LeaveCriticalSection (&ch[channel].csDSP);
+}
+
+PORT
+void SetTXAAetherVoiceClarity (int channel, double tune_hz, double harmonics_db, double mix)
+{
+	AETHERVOICE a;
+	EnterCriticalSection (&ch[channel].csDSP);
+	a = txa[channel].aethervoice.p;
+	a->clarity_tune_hz = av_clamp (tune_hz, 1000.0, 10000.0);
+	a->clarity_harmonics_db = av_clamp (harmonics_db, 0.0, 24.0);
+	a->clarity_mix = av_clamp (mix, 0.0, 1.0);
+	calc_aethervoice (a);
+	LeaveCriticalSection (&ch[channel].csDSP);
+}

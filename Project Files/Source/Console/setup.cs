@@ -2210,7 +2210,7 @@ namespace Thetis
         {
             EventArgs e = EventArgs.Empty;
 
-            applyAetherVoiceRX(); // Kainos: setupKainos.cs
+            applyAetherVoice(); // Kainos: setupKainos.cs
 
             // General Tab
             comboRadioModel_SelectedIndexChanged(this, e);
@@ -3084,6 +3084,7 @@ namespace Thetis
                 if (isTXProfileSettingDifferent<string>(dr, "TXParaEQData", console.EQForm.ParaEQTXData, out sReportOut)) sReport += "TX ParaEQ changed" + Environment.NewLine; ;
                 if (isTXProfileSettingDifferent<int>(dr, "TXEQNumBands", console.EQForm.NumBands, out sReportOut)) sReport += sReportOut;
                 if (isTXProfileSettingDifferent<bool>(dr, "TXEQEnabled", console.EQForm.TXEQEnabled, out sReportOut)) sReport += sReportOut;
+                sReport += aetherVoiceTXProfileReport(dr); // Kainos: setupKainos.cs
                 int[] eq = console.EQForm.TXEQ;
                 if (isTXProfileSettingDifferent<int>(dr, "TXEQPreamp", eq[0], out sReportOut)) sReport += sReportOut;
                 for (int i = 1; i < 11; i++)
@@ -3284,6 +3285,7 @@ namespace Thetis
                 if (DB.ConvertFromDBVal<string>(dr["TXParaEQData"]) != console.EQForm.ParaEQTXData) return true;
                 if (DB.ConvertFromDBVal<int>(dr["TXEQNumBands"]) != console.EQForm.NumBands) return true;
                 if (DB.ConvertFromDBVal<bool>(dr["TXEQEnabled"]) != console.EQForm.TXEQEnabled) return true;
+                if (aetherVoiceTXProfileDiffers(dr)) return true; // Kainos: setupKainos.cs
                 int[] eq = console.EQForm.TXEQ;
                 if (DB.ConvertFromDBVal<int>(dr["TXEQPreamp"]) != eq[0]) return true;
                 for (int i = 1; i < 11; i++)
@@ -3474,6 +3476,7 @@ namespace Thetis
 
             console.EQForm.HighlightTXProfileSaveItems(bHighlight);
             console.HighlightTXProfileSaveItems(bHighlight);
+            highlightAetherVoiceTXProfileItems(bHighlight); // Kainos: setupKainos.cs
 
             Common.HightlightControl(chkDSPLevelerEnabled, bHighlight);
             Common.HightlightControl(udDSPLevelerThreshold, bHighlight);
@@ -3656,6 +3659,7 @@ namespace Thetis
             dr["TXParaEQData"] = console.EQForm.ParaEQTXData;
             dr["TXEQNumBands"] = console.EQForm.NumBands;
             dr["TXEQEnabled"] = console.EQForm.TXEQEnabled;            
+            saveAetherVoiceTXProfile(dr); // Kainos: setupKainos.cs
             int[] eq = console.EQForm.TXEQ;
             dr["TXEQPreamp"] = eq[0];
             for (int i = 1; i < 11; i++)
@@ -9580,6 +9584,7 @@ namespace Thetis
             console.EQForm.ParaEQTXData = (string)dr["TXParaEQData"];
 
             console.EQForm.TXEQEnabled = (bool)dr["TXEQEnabled"];
+            loadAetherVoiceTXProfile(dr); // Kainos: setupKainos.cs
             console.EQForm.NumBands = (int)dr["TXEQNumBands"];
 
             eq[0] = (int)dr["TXEQPreamp"];
