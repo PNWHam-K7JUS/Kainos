@@ -619,7 +619,7 @@ namespace Thetis
             this.Opacity = 0f; // FadeIn below. Note: console form has 0% set in form designer
 
             LogTool.ShowNewLog(this.Handle);
-            LogTool.AddLogEntry("Thetis is loading...", "THET", false);
+            LogTool.AddLogEntry("Kainos is loading...", "THET", false);
 
             Display.specready = false;
             bool bShowReleaseNotes = false;
@@ -694,10 +694,10 @@ namespace Thetis
             {
                 if (Environment.Is64BitProcess)
                     app_data_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                    + "\\OpenHPSDR\\Thetis-x64\\";
+                    + "\\OpenHPSDR\\Kainos-x64\\";
                 else
                     app_data_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                        + "\\OpenHPSDR\\Thetis\\";
+                        + "\\OpenHPSDR\\Kainos\\";
             }
 
 #if(DEBUG)
@@ -890,9 +890,9 @@ namespace Thetis
             {
                 if (ex.Message.Contains("does not belong to table", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    string msg = "The database is incorrectly configured for this version of Thetis.\n\n" +
+                    string msg = "The database is incorrectly configured for this version of Kainos.\n\n" +
                         "This is most likely because the database has not yet been updated.\n\n" +
-                        "Try holding either CTRL key BEFORE Thetis is re-launched,\n" +
+                        "Try holding either CTRL key BEFORE Kainos is re-launched,\n" +
                         "and KEEP IT HELD until you see a message at which point you may release it.";
 
                     MessageBox.Show(msg, "Database Error",
@@ -1383,7 +1383,7 @@ namespace Thetis
 
             if (bOk)
             {
-                string s = "\n\nThetis v" + Common.GetVerNum(true, false) + " command line help :\n\n";
+                string s = "\n\nKainos v" + Common.GetVerNum(true, false) + " command line help :\n\n";
 
                 s += "  -help   this help\n\n";
                 s += "  -autostart         attempt to power on radio at start up\n";
@@ -1393,8 +1393,8 @@ namespace Thetis
                 s += "  -touch             provide touch support for containers to simulate mouse down/move/up\n";
                 s += "  -logshutdown       generate shutdown_log.txt when closing down\n\n";
 
-                s += "  -datapath:c:\\thetisdatafolder\\                  use this data folder for everything\n";
-                s += "  -datapath:c:\\thetisdatafolder\\ -autostart       as above, with autostart\n";
+                s += "  -datapath:c:\\kainosdatafolder\\                  use this data folder for everything\n";
+                s += "  -datapath:c:\\kainosdatafolder\\ -autostart       as above, with autostart\n";
                 s += "  \"-datapath:c:\\test with spaces\\\"                use this data folder for everything, but with spaces in the path\n";
                 s += "  \"-datapath:c:\\test with spaces\\\" -autostart     as above, with autostart\n\n";
 
@@ -1539,10 +1539,10 @@ namespace Thetis
             if (string.IsNullOrEmpty(app_data_path))
             {
                 app_data_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                    + "\\OpenHPSDR\\Thetis\\";
+                   + "\\OpenHPSDR\\Kainos\\";
                 if (Environment.Is64BitProcess)
                     app_data_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                    + "\\OpenHPSDR\\Thetis-x64\\";
+                    + "\\OpenHPSDR\\Kainos-x64\\";
 
 #if(DEBUG)
                 app_data_path += "Debug\\";
@@ -1589,9 +1589,9 @@ namespace Thetis
                 // could not find exception for column not found //MW0LGE_21k9rc6
                 if (ex.Message.Contains("does not belong to table", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    string msg = "The database is incorrectly configured for this version of Thetis.\n\n" +
+                    string msg = "The database is incorrectly configured for this version of Kainos.\n\n" +
                         "This is most likely because the database has not yet been updated.\n\n" +
-                        "Try holding either CTRL key BEFORE Thetis is re-launched,\n" +
+                        "Try holding either CTRL key BEFORE Kainos is re-launched,\n" +
                         "and KEEP IT HELD until you see a message at which point you may release it.";
 
                     MessageBox.Show(msg, "Database Error",
@@ -4040,7 +4040,7 @@ namespace Thetis
                         }
                         else
                         {
-                            DialogResult dr = MessageBox.Show($"The version of hardware stored in the database is not known by this version of Thetis [{hw.ToString()}]. Are you using the correct version ?",
+                            DialogResult dr = MessageBox.Show($"The version of hardware stored in the database is not known by this version of Kainos [{hw.ToString()}]. Are you using the correct version ?",
                             "Hardware version issue",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
@@ -21512,7 +21512,7 @@ namespace Thetis
 
             if (_check_for_bad_adc && adc_oload_num == -1)
             {
-                MessageBox.Show("There has been an issue obtaining the ADC overload state. This will not be performed until the power is turned off/on inside Thetis.",
+                MessageBox.Show("There has been an issue obtaining the ADC overload state. This will not be performed until the power is turned off/on inside Kainos.",
                     "ADC Overload Issue",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
@@ -52322,7 +52322,7 @@ namespace Thetis
                 if (Common.AltlKeyDown && Common.ShiftKeyDown && Common.CtrlKeyDown)
                 {
                     DialogResult dr = MessageBox.Show("CTRL+ALT+SHIFT key combo has been detected.\n\n" +
-                    "The location of the main Thetis console window and Setup will be moved to the primary monitor.\n\n" +
+                    "The location of the main Kainos console window and Setup will be moved to the primary monitor.\n\n" +
                     "If other forms are 'missing' you can use Setup->Tools->[Reposition Forms] to recover them.\n\n\n" +
                     "Do you want to do this?\n\n\n" +
                     "NOTE: release the keys",

@@ -42,7 +42,7 @@ namespace Thetis.Midi2Cat
         int startDelay = 5;
         int MsgToShow = 0;
         // The messages are spoof... we need all the time to ensure the consoles are synchronised with setup, otherwise bad things happen...
-        string[] startupMessages = {"Closing Thetis Midi Input","Closing Thetis Midi Output","Attaching Midi Input and Output to Midi Setup","Midi Setup is opening Midi input and output", "Synchronising Console Controls with Midi Setup", "Initialising Database."};
+        string[] startupMessages = {"Closing Kainos Midi Input","Closing Kainos Midi Output","Attaching Midi Input and Output to Midi Setup","Midi Setup is opening Midi input and output", "Synchronising Console Controls with Midi Setup", "Initialising Database."};
 
         public Midi2CatSetupForm(string DbFile)
         {

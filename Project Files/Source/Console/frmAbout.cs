@@ -152,7 +152,7 @@ namespace Thetis
 
         private void btnCopyContributors_Click(object sender, EventArgs e)
         {
-            string text = "Thetis\n";
+            string text = "Kainos (based on Thetis)\n";
             foreach(string s in lstVersions.Items)
             {
                 text += s + "\n";

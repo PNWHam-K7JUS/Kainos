@@ -68,10 +68,10 @@ namespace Thetis
 
     internal static class CMASIOConfig
     {
-        //SOFTWARE\\OpenHPSDR\\Thetis-x64
+        //SOFTWARE\\OpenHPSDR\\Kainos-x64
         //ASIOdrivername
         //ASIOblocknum
-        private const string _registry_path = @"SOFTWARE\OpenHPSDR\Thetis-x64";
+        private const string _registry_path = @"SOFTWARE\OpenHPSDR\Kainos-x64";
 
         private static RegistryKey openRegistryKey()
         {

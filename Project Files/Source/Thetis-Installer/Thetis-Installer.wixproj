@@ -6,7 +6,7 @@
     <ProductVersion>3.5</ProductVersion>
     <ProjectGuid>{B3FB4FDC-D517-4C56-872D-9E86627B5A53}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>Thetis_v2.8.x</OutputName>
+    <OutputName>Kainos_v2.8.x</OutputName>
     <OutputType>Package</OutputType>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
@@ -37,7 +37,7 @@
     <ProductVersion>3.5</ProductVersion>
     <ProjectGuid>{b3fb4fdc-d517-4c56-872d-9e86627b5a53}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>Thetis</OutputName>
+    <OutputName>Kainos</OutputName>
     <OutputType>Package</OutputType>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
@@ -94,7 +94,7 @@
 	-->
   <!-- rename the output msi with Version number -->
   <Target Name="AfterBuild">
-    <GetAssemblyIdentity AssemblyFiles="..\..\Bin\$(Platform)\$(Configuration)\Thetis.exe">
+    <GetAssemblyIdentity AssemblyFiles="..\..\Bin\$(Platform)\$(Configuration)\Kainos.exe">
       <Output TaskParameter="Assemblies" ItemName="AssemblyInfo" />
     </GetAssemblyIdentity>
     <PropertyGroup>
@@ -102,6 +102,6 @@
       <Pattern>^(\d+.\d+.\d+)</Pattern>
       <AssemblyVersion>$([System.Text.RegularExpressions.Regex]::Match($(In), $(Pattern)))</AssemblyVersion>
     </PropertyGroup>
-    <Move SourceFiles="..\..\bin\Installers\$(OutputName).msi" DestinationFiles="..\..\bin\Installers\Thetis-v$(AssemblyVersion).$(Platform).msi" />
+    <Move SourceFiles="..\..\bin\Installers\$(OutputName).msi" DestinationFiles="..\..\bin\Installers\Kainos-v$(AssemblyVersion).$(Platform).msi" />
   </Target>
 </Project>

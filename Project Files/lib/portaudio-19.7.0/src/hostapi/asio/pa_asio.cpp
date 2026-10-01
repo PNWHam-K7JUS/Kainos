@@ -1273,7 +1273,7 @@ PaError PaAsio_Initialize( PaUtilHostApiRepresentation **hostApi, PaHostApiIndex
 
         //[2.10.3.11]MW0LGE portaudio W4WMT
         // check to see if cmASIO will be using a driver
-        const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Thetis-x64";
+        const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Kainos-x64";
         const LPCSTR valueName = "ASIOdrivername";
         char szData[32] = { 0 };
         DWORD szDataSize = 32;  //length of ASIO driver names are limited to 32 bytes, including the zero terminator

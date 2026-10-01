@@ -82,13 +82,13 @@ namespace Thetis
                     return true;
                 }
 
-                DialogResult dr = MessageBox.Show("There is another Thetis instance running.\nAre you sure you want to continue?", "Continue?", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                DialogResult dr = MessageBox.Show("There is another Kainos (or Thetis) instance running.\nAre you sure you want to continue?", "Continue?", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                 if (dr == DialogResult.No) return false;
                 return true;
             }
             catch (Exception ex)
             {
-                DialogResult dr = MessageBox.Show("There was an issue trying to determine if another Thetis instance is running.\nAre you sure you want to continue?\n\n" + ex.GetType().Name + ": " + ex.Message, "Continue?", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                DialogResult dr = MessageBox.Show("There was an issue trying to determine if another Kainos (or Thetis) instance is running.\nAre you sure you want to continue?\n\n" + ex.GetType().Name + ": " + ex.Message, "Continue?", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                 if (dr == DialogResult.No) return false;
                 return true;
             }

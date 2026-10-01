@@ -3,11 +3,11 @@
   <String Id="Language">1033</String>
   <!-- Supported language and codepage codes can be found here: http://www.tramontana.co.hu/wix/lesson2.php#2.4 -->
 
-  <String Id="ApplicationName">Thetis</String>
+  <String Id="ApplicationName">Kainos</String>
   <String Id="ManufacturerName">OpenHPSDR</String>
   <String Id="ManufacturerFullName">Doug Wigley, W5WC</String>
   <String Id="ProductDescription">Software Defined Radio</String>
-  <String Id="Comments">Installs Thetis</String>
+  <String Id="Comments">Installs Kainos</String>
 
   <String Id="LicenseRtf" Overridable="yes">Eula-en.rtf</String>
 
@@ -20,7 +20,7 @@
   <String Id="FeatureMainProgramDescription">The main version including all dependencies.</String>
   <String Id="FeatureMainProgramTitle">Main program</String>
 
-  <String Id="ServiceDisplayName">Thetis</String>
+  <String Id="ServiceDisplayName">Kainos</String>
   <String Id="ServiceDescription">Controls a Software Defined Radio</String>
 
  </WixLocalization>

@@ -303,7 +303,7 @@
             this.labelTS1.Name = "labelTS1";
             this.labelTS1.Size = new System.Drawing.Size(126, 42);
             this.labelTS1.TabIndex = 1;
-            this.labelTS1.Text = "Thetis";
+            this.labelTS1.Text = "Kainos";
             // 
             // frmAbout
             // 
@@ -331,7 +331,7 @@
             this.MinimizeBox = false;
             this.Name = "frmAbout";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "About Thetis";
+            this.Text = "About Kainos";
             this.ResumeLayout(false);
             this.PerformLayout();
 

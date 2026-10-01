@@ -13560,7 +13560,7 @@ namespace Thetis
                         }
                         break;
                     case 9:
-                        sendMsg("Is running Thetis v" + Common.GetVerNum(true, true));
+                        sendMsg("Is running Kainos v" + Common.GetVerNum(true, true));
                         break;
                     case 10:
                         sendMsg("Is starting a net on : " + formatNumber(tx_freq) + " MHz");
@@ -32068,7 +32068,7 @@ namespace Thetis
                                     if (!resizeDX(out string err))
                                     {
                                         ShutdownDX();
-                                        MessageBox.Show("Unable to resize DirectX render target (target size changed). DirectX has been shut down.\n\n" + err, "Thetis DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                                        MessageBox.Show("Unable to resize DirectX render target (target size changed). DirectX has been shut down.\n\n" + err, "Kainos DirectX", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                                         break;
                                     }
                                 }
@@ -38666,7 +38666,7 @@ namespace Thetis
                 {
                     _renderTarget.PushAxisAlignedClip(contentRect, AntialiasMode.Aliased);
                     float emptyHeight = contentRect.Height * 0.10f;
-                    plotText("This list can not be used whilst Thetis", contentRect.Left + (contentRect.Width / 2f), contentRect.Top + (contentRect.Height * 0.42f), rect.Width, wave.FontSize * 0.80f, textColour, nFade, wave.FontFamily, wave.FontStyle, false, true, contentRect.Width * 0.80f, false, emptyHeight);
+                    plotText("This list can not be used whilst Kainos", contentRect.Left + (contentRect.Width / 2f), contentRect.Top + (contentRect.Height * 0.42f), rect.Width, wave.FontSize * 0.80f, textColour, nFade, wave.FontFamily, wave.FontStyle, false, true, contentRect.Width * 0.80f, false, emptyHeight);
                     plotText("   is being run in Administrator mode  ", contentRect.Left + (contentRect.Width / 2f), contentRect.Top + (contentRect.Height * 0.52f), rect.Width, wave.FontSize * 0.80f, textColour, nFade, wave.FontFamily, wave.FontStyle, false, true, contentRect.Width * 0.80f, false, emptyHeight);
                     _renderTarget.PopAxisAlignedClip();
                     wave.SetRenderLayout(contentRect, new SharpDX.RectangleF(), new SharpDX.RectangleF(), rowPitch, 0f, false, new List<clsWaveRecord.WaveRecordHitRegion>());

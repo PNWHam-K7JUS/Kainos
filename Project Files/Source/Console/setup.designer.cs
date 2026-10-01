@@ -8566,7 +8566,7 @@
             this.chkFirewallCheck.Size = new System.Drawing.Size(98, 23);
             this.chkFirewallCheck.TabIndex = 39;
             this.chkFirewallCheck.Text = "Firewall Check";
-            this.toolTip1.SetToolTip(this.chkFirewallCheck, "Use this to re-apply default firewall rules if you are having issues.\r\nThetis nee" +
+            this.toolTip1.SetToolTip(this.chkFirewallCheck, "Use this to re-apply default firewall rules if you are having issues.\r\nKainos nee" +
         "ds to be run as administrator for this to work.\r\n");
             this.chkFirewallCheck.UseVisualStyleBackColor = true;
             this.chkFirewallCheck.Click += new System.EventHandler(this.chkFirewallCheck_Click);
@@ -8678,7 +8678,7 @@
             this.chkHL2IOBoardPresent.Size = new System.Drawing.Size(96, 17);
             this.chkHL2IOBoardPresent.TabIndex = 8;
             this.chkHL2IOBoardPresent.Text = "HL2 I/O Board";
-            this.toolTip1.SetToolTip(this.chkHL2IOBoardPresent, "Thetis power cycle is required if the I/O board is re-enabled.");
+            this.toolTip1.SetToolTip(this.chkHL2IOBoardPresent, "Kainos power cycle is required if the I/O board is re-enabled.");
             this.chkHL2IOBoardPresent.UseVisualStyleBackColor = true;
             this.chkHL2IOBoardPresent.Visible = false;
             this.chkHL2IOBoardPresent.CheckedChanged += new System.EventHandler(this.chkHL2IOBoardPresent_CheckedChanged);
@@ -9141,7 +9141,7 @@
             this.comboGeneralProcessPriority.Name = "comboGeneralProcessPriority";
             this.comboGeneralProcessPriority.Size = new System.Drawing.Size(112, 21);
             this.comboGeneralProcessPriority.TabIndex = 0;
-            this.toolTip1.SetToolTip(this.comboGeneralProcessPriority, "Sets the process priority of the Thetis software.");
+            this.toolTip1.SetToolTip(this.comboGeneralProcessPriority, "Sets the process priority of the Kainos software.");
             this.comboGeneralProcessPriority.SelectedIndexChanged += new System.EventHandler(this.comboGeneralProcessPriority_SelectedIndexChanged);
             // 
             // grpGeneralOptions
@@ -11797,7 +11797,7 @@
             this.chkAutoLaunchTryToClose.Size = new System.Drawing.Size(81, 17);
             this.chkAutoLaunchTryToClose.TabIndex = 36;
             this.chkAutoLaunchTryToClose.Text = "Try to close";
-            this.toolTip1.SetToolTip(this.chkAutoLaunchTryToClose, "Thetis will try to close everything it has opened at launch. This will be done on" +
+            this.toolTip1.SetToolTip(this.chkAutoLaunchTryToClose, "Kainos will try to close everything it has opened at launch. This will be done on" +
         " shutdown.");
             this.chkAutoLaunchTryToClose.UseVisualStyleBackColor = true;
             // 
@@ -43187,7 +43187,7 @@
             this.btnNR3_model_load.Size = new System.Drawing.Size(75, 23);
             this.btnNR3_model_load.TabIndex = 2;
             this.btnNR3_model_load.Text = "Use Model";
-            this.toolTip1.SetToolTip(this.btnNR3_model_load, "Select a model that RNnoise will use. Note: if the format is bad, Thetis will pro" +
+            this.toolTip1.SetToolTip(this.btnNR3_model_load, "Select a model that RNnoise will use. Note: if the format is bad, Kainos will pro" +
         "bably crash !");
             this.btnNR3_model_load.UseVisualStyleBackColor = true;
             this.btnNR3_model_load.Click += new System.EventHandler(this.btnNR3_model_load_Click);
@@ -47383,7 +47383,7 @@
             this.chkHighlightTXProfileSaveItems.Size = new System.Drawing.Size(172, 17);
             this.chkHighlightTXProfileSaveItems.TabIndex = 76;
             this.chkHighlightTXProfileSaveItems.Text = "Highlight TX Profile Save Items";
-            this.toolTip1.SetToolTip(this.chkHighlightTXProfileSaveItems, "Enabling this will highlight in yellow all settings throughout Thetis that will b" +
+            this.toolTip1.SetToolTip(this.chkHighlightTXProfileSaveItems, "Enabling this will highlight in yellow all settings throughout Kainos that will b" +
         "e saved\r\nwith a tx profile and consequently recovered when the tx profile is use" +
         "d.");
             this.chkHighlightTXProfileSaveItems.UseVisualStyleBackColor = true;
@@ -47476,7 +47476,7 @@
             this.chkTXInhibit.Size = new System.Drawing.Size(161, 16);
             this.chkTXInhibit.TabIndex = 68;
             this.chkTXInhibit.Text = "Update with TX Inhibit state";
-            this.toolTip1.SetToolTip(this.chkTXInhibit, "Thetis will update on TX inhibit state change");
+            this.toolTip1.SetToolTip(this.chkTXInhibit, "Kainos will update on TX inhibit state change");
             this.chkTXInhibit.CheckedChanged += new System.EventHandler(this.chkTXInhibit_CheckedChanged);
             // 
             // chkTXInhibitReverse
@@ -47497,8 +47497,8 @@
             this.chkSaveTXProfileOnExit.Name = "chkSaveTXProfileOnExit";
             this.chkSaveTXProfileOnExit.Size = new System.Drawing.Size(215, 18);
             this.chkSaveTXProfileOnExit.TabIndex = 67;
-            this.chkSaveTXProfileOnExit.Text = "Auto Save TX Profile on Thetis close";
-            this.toolTip1.SetToolTip(this.chkSaveTXProfileOnExit, "Automatically saves the current TX Profile when Thetis is closed");
+            this.chkSaveTXProfileOnExit.Text = "Auto Save TX Profile on Kainos close";
+            this.toolTip1.SetToolTip(this.chkSaveTXProfileOnExit, "Automatically saves the current TX Profile when Kainos is closed");
             this.chkSaveTXProfileOnExit.CheckedChanged += new System.EventHandler(this.chkSaveTXProfileOnExit_CheckedChanged);
             // 
             // chkAutoSaveTXProfile
@@ -59339,7 +59339,7 @@
             this.chkUseRX1vfoaForRX2vfoa.Size = new System.Drawing.Size(206, 17);
             this.chkUseRX1vfoaForRX2vfoa.TabIndex = 19;
             this.chkUseRX1vfoaForRX2vfoa.Text = "Use RX1 VFOa for RX2 VFOa (in+out)";
-            this.toolTip1.SetToolTip(this.chkUseRX1vfoaForRX2vfoa, "Thetis does not have VFOa for RX2. Use RX1 VFOa for RX2 VFOa");
+            this.toolTip1.SetToolTip(this.chkUseRX1vfoaForRX2vfoa, "Kainos does not have VFOa for RX2. Use RX1 VFOa for RX2 VFOa");
             this.chkUseRX1vfoaForRX2vfoa.UseVisualStyleBackColor = true;
             this.chkUseRX1vfoaForRX2vfoa.CheckedChanged += new System.EventHandler(this.chkUseRX1vfoaForRX2vfoa_CheckedChanged);
             // 
@@ -59352,7 +59352,7 @@
             this.chkCopyRX2VFObToVFOa.Size = new System.Drawing.Size(215, 17);
             this.chkCopyRX2VFObToVFOa.TabIndex = 18;
             this.chkCopyRX2VFObToVFOa.Text = "Duplicate RX2 VFOb to RX2 VFOa (out)";
-            this.toolTip1.SetToolTip(this.chkCopyRX2VFObToVFOa, "Thetis does not have VFOa for RX2. This option will duplicate vfob to vfoa");
+            this.toolTip1.SetToolTip(this.chkCopyRX2VFObToVFOa, "Kainos does not have VFOa for RX2. This option will duplicate vfob to vfoa");
             this.chkCopyRX2VFObToVFOa.UseVisualStyleBackColor = true;
             this.chkCopyRX2VFObToVFOa.CheckedChanged += new System.EventHandler(this.chkCopyRX2VFObToVFOa_CheckedChanged);
             // 
@@ -59599,7 +59599,7 @@
             this.txtN1MM_ID_RX_2.Name = "txtN1MM_ID_RX_2";
             this.txtN1MM_ID_RX_2.Size = new System.Drawing.Size(110, 20);
             this.txtN1MM_ID_RX_2.TabIndex = 73;
-            this.txtN1MM_ID_RX_2.Text = "Thetis_2";
+            this.txtN1MM_ID_RX_2.Text = "Kainos_2";
             this.toolTip1.SetToolTip(this.txtN1MM_ID_RX_2, "The unique ID for RX2 data");
             this.txtN1MM_ID_RX_2.TextChanged += new System.EventHandler(this.txtN1MM_RXn_ID_TextChanged);
             // 
@@ -59610,7 +59610,7 @@
             this.txtN1MM_ID_RX_1.Name = "txtN1MM_ID_RX_1";
             this.txtN1MM_ID_RX_1.Size = new System.Drawing.Size(110, 20);
             this.txtN1MM_ID_RX_1.TabIndex = 72;
-            this.txtN1MM_ID_RX_1.Text = "Thetis_1";
+            this.txtN1MM_ID_RX_1.Text = "Kainos_1";
             this.toolTip1.SetToolTip(this.txtN1MM_ID_RX_1, "The unique ID for RX1 data");
             this.txtN1MM_ID_RX_1.TextChanged += new System.EventHandler(this.txtN1MM_RXn_ID_TextChanged);
             // 
@@ -60474,7 +60474,7 @@
             this.chkBoxIND.Size = new System.Drawing.Size(111, 31);
             this.chkBoxIND.TabIndex = 7;
             this.chkBoxIND.Text = "Independent";
-            this.toolTip1.SetToolTip(this.chkBoxIND, "Check to use the PowerMate Tune Step \r\n\r\nUncheck to use the main Thetis Tune Step" +
+            this.toolTip1.SetToolTip(this.chkBoxIND, "Check to use the PowerMate Tune Step \r\n\r\nUncheck to use the main Kainos Tune Step" +
         "");
             // 
             // labelTS469

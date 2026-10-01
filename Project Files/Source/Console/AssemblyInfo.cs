@@ -47,11 +47,11 @@ using System.Runtime.CompilerServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 //
-[assembly: AssemblyTitle("Thetis")]
+[assembly: AssemblyTitle("Kainos")]
 [assembly: AssemblyDescription("Software Defined Radio Application")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("OpenHPSDR")]
-[assembly: AssemblyProduct("Thetis")]
+[assembly: AssemblyProduct("Kainos")]
 [assembly: AssemblyCopyright("2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]		
