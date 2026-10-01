@@ -122,6 +122,7 @@ namespace Thetis
 			timer1.Interval = TIMER_INTERVAL;
 			timer1.Start();
 			this.ClientSize = this.BackgroundImage.Size;
+			layoutOverlay();
 			this.ShowInTaskbar = false;
 		}
 
@@ -214,8 +215,8 @@ namespace Thetis
             // 
             // Splash
             // 
-            this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
-            this.ClientSize = new System.Drawing.Size(400, 320);
+            this.BackgroundImage = global::Thetis.Properties.Resources.kainos_splash;
+            this.ClientSize = new System.Drawing.Size(720, 307);
             this.Controls.Add(this.lblVersion);
             this.Controls.Add(this.pnlStatus);
             this.Controls.Add(this.lblTimeRemaining);
@@ -368,9 +369,26 @@ namespace Thetis
 			}
 			catch 
 			{
-				this.BackgroundImage = Properties.Resources.thetis_logo2;
+				this.BackgroundImage = Properties.Resources.kainos_splash;
 			}
+
+			this.ClientSize = this.BackgroundImage.Size;
+			layoutOverlay();
         }
+        // Kainos: keep the status, progress bar and countdown centred along the bottom edge
+        // whatever size the background image is (the default image is no longer 400x320)
+        private void layoutOverlay()
+        {
+            int left = (this.ClientSize.Width - panel1.Width) / 2;
+            int top = this.ClientSize.Height - panel1.Height - 12;
+
+            panel1.Location = new Point(left, top);
+            lblStatus.Location = new Point(left, top + 3);
+            pnlStatus.Location = new Point(left + 9, top + 21);
+            lblVersion.Location = new Point(left + 6, top + 41);
+            lblTimeRemaining.Location = new Point(left + 206, top + 41);
+        }
+
         // Internal method for setting reference points.
         private void SetReferenceInternal()
 		{

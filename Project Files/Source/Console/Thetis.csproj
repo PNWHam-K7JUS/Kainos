@@ -467,6 +467,7 @@
     </Compile>
     <Compile Include="clsProgressLog.cs" />
     <Compile Include="clsSingleInstance.cs" />
+    <Compile Include="clsThetisSettingsImport.cs" />
     <Compile Include="clsThetisSkinService.cs" />
     <Compile Include="clsTouchHandler.cs" />
     <Compile Include="frmAbout.cs">
@@ -898,6 +899,7 @@
       <SubType>Form</SubType>
     </Compile>
     <None Include="Resources\thetis-logo2.png" />
+    <None Include="Resources\kainos-splash.png" />
     <None Include="Resources\ob_power.png" />
     <None Include="Resources\ob_circle.png" />
     <None Include="Resources\ob_square.png" />

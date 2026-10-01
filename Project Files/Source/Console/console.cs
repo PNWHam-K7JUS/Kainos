@@ -690,6 +690,7 @@ namespace Thetis
                 }
             }
 
+            string thetis_data_path = ""; // Kainos: for the one-time Thetis settings import
             if (string.IsNullOrEmpty(app_data_path))
             {
                 if (Environment.Is64BitProcess)
@@ -698,9 +699,13 @@ namespace Thetis
                 else
                     app_data_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
                         + "\\OpenHPSDR\\Kainos\\";
+
+                thetis_data_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+                    + (Environment.Is64BitProcess ? "\\OpenHPSDR\\Thetis-x64\\" : "\\OpenHPSDR\\Thetis\\");
             }
 
 #if(DEBUG)
+            if (!string.IsNullOrEmpty(thetis_data_path)) thetis_data_path += "Debug\\";
             app_data_path += "Debug\\";
 #endif
             AppDataPath = app_data_path;
@@ -714,6 +719,9 @@ namespace Thetis
 
             if (!Directory.Exists(AppDataPath))
                 Directory.CreateDirectory(AppDataPath);
+
+            if (!string.IsNullOrEmpty(thetis_data_path))
+                ThetisSettingsImport.OfferOnce(AppDataPath, thetis_data_path); // Kainos: one-time offer to bring Thetis settings across
 
             _use_additional_sas = !Common.HasArg(args, "-nospec"); // prevent the use of additional spec analysers           
             _touch_support = Common.HasArg(args, "-touch"); // configure touch support for mouse down/up/move, used primarily by containers, and ucMeter

@@ -55,6 +55,8 @@
             this.lstContributors.FormattingEnabled = true;
             this.lstContributors.ItemHeight = 16;
             this.lstContributors.Items.AddRange(new object[] {
+            "K7JUS, Justin (Kainos)",
+            "",
             "NR0V, Warren (WDSP & too many other contributions to list)",
             "G8NJJ, Laurence (G2, Andromeda & protocols)",
             "N1GP, Rick (Firmware related changes)",
