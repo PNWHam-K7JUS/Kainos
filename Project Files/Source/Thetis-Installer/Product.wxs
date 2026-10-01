@@ -80,7 +80,7 @@
     <WixVariable Id="WixUIDialogBmp" Value="binary/thetis_background.bmp"/>
 
     <!-- Define icons (ID should not be longer than 18 chars") -->
-    <Icon Id="icon.ico" SourceFile="binary/Thetis.ico" />
+    <Icon Id="icon.ico" SourceFile="binary/Kainos.ico" />
     <Property Id="ARPPRODUCTICON" Value="icon.ico" />
     <Property Id="ARPCOMMENTS" Value="!(loc.ArpComments)" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/PNWHam-K7JUS/Kainos" />
