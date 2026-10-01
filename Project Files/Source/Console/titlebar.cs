@@ -57,7 +57,7 @@ namespace Thetis
             if (sRevision == ".0") sRevision = "";
 
             string version = Common.GetVerNum() + sRevision;
-            string s = "Thetis";
+            string s = "Kainos";
 
             string sBits = Common.Is64Bit ? " x64" : " x86";
 

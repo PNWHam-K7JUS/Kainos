@@ -3,11 +3,12 @@
   <String Id="Language">1033</String>
   <!-- Supported language and codepage codes can be found here: http://www.tramontana.co.hu/wix/lesson2.php#2.4 -->
 
-  <String Id="ApplicationName">Thetis</String>
-  <String Id="ManufacturerName">OpenHPSDR</String>
-  <String Id="ManufacturerFullName">Doug Wigley, W5WC</String>
+  <String Id="ApplicationName">Kainos</String>
+  <String Id="ManufacturerName">Justin Cron - K7JUS</String>
+  <String Id="ManufacturerFullName">Justin Cron, K7JUS</String>
   <String Id="ProductDescription">Software Defined Radio</String>
-  <String Id="Comments">Installs Thetis</String>
+  <String Id="Comments">Kainos by Justin Cron, K7JUS. Based on Thetis by Doug Wigley W5WC, Richard Samphire MW0LGE, Reid Campbell MI0BOT, Warren Pratt NR0V (WDSP) and the OpenHPSDR community, derived from PowerSDR by FlexRadio Systems. Licensed under the GNU GPL. Version</String>
+  <String Id="ArpComments">Based on Thetis by Doug Wigley W5WC, Richard Samphire MW0LGE, Reid Campbell MI0BOT, Warren Pratt NR0V (WDSP) and the OpenHPSDR community, derived from PowerSDR by FlexRadio Systems. Licensed under the GNU GPL.</String>
 
   <String Id="LicenseRtf" Overridable="yes">Eula-en.rtf</String>
 
@@ -20,7 +21,7 @@
   <String Id="FeatureMainProgramDescription">The main version including all dependencies.</String>
   <String Id="FeatureMainProgramTitle">Main program</String>
 
-  <String Id="ServiceDisplayName">Thetis</String>
+  <String Id="ServiceDisplayName">Kainos</String>
   <String Id="ServiceDescription">Controls a Software Defined Radio</String>
 
  </WixLocalization>

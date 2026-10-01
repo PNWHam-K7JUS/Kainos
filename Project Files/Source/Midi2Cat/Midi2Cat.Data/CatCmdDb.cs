@@ -485,7 +485,7 @@ namespace Midi2Cat.Data
         RX2ModeSAM = 288,
         [CatCommandAttribute("RX2 Mode DRM", ControlType.Button)] // DH1KLM_21g
         RX2ModeDRM = 289,
-        [CatCommandAttribute("Close Thetis", ControlType.Button)] // DH1KLM_21g 
+        [CatCommandAttribute("Close Kainos", ControlType.Button)] // DH1KLM_21g 
         CloseConsole = 290,
         [CatCommandAttribute("Toggle TX VFOA VFOB", ControlType.Button, true)] // DH1KLM_21g
         ToggleTX = 291,

@@ -474,7 +474,7 @@ namespace Thetis
 
             string force_info = force_upgrade ? "Force database update requested.\n\n" : "";
             
-            DialogResult dr = MessageBox.Show(force_info + "This version [" + Common.GetVerNum() + "] of Thetis requires your database [" + version + "] to be updated.\n\n" +
+            DialogResult dr = MessageBox.Show(force_info + "This version [" + Common.GetVerNum() + "] of Kainos requires your database [" + version + "] to be updated.\n\n" +
                 "A new updated database will be created, and your old database merged into it. It will be made active.",
                 "Database Manager",
                 MessageBoxButtons.OK,
@@ -961,7 +961,7 @@ namespace Thetis
 
         public static void MakeActiveDB(Guid guid)
         {
-            DialogResult dr = MessageBox.Show("Do you want to activate the selected database? This will cause Thetis to restart.",
+            DialogResult dr = MessageBox.Show("Do you want to activate the selected database? This will cause Kainos to restart.",
             "Database Manager Issue",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question, MessageBoxDefaultButton.Button2, Common.MB_TOPMOST);
@@ -1416,7 +1416,7 @@ namespace Thetis
                         catch { }
                         if (ok)
                         {
-                            DialogResult dr = MessageBox.Show("The database was imported sucessfully. Thetis will now restart.",
+                            DialogResult dr = MessageBox.Show("The database was imported sucessfully. Kainos will now restart.",
                             "Database Manager",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
@@ -1733,7 +1733,7 @@ namespace Thetis
                 DatabaseInfo db_info_json = JsonConvert.DeserializeObject<DatabaseInfo>(jsonString);
                 string desc = db_info_json.Description;
                 string datetime = Common.DateTimeStringForFile();
-                string save_file = $"Thetis_database_export_{desc}_{datetime}.xml";
+                string save_file = $"Kainos_database_export_{desc}_{datetime}.xml";
                 string myDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
                 SaveFileDialog saveFileDialog = new SaveFileDialog
@@ -1782,9 +1782,9 @@ namespace Thetis
                 string datetime = Common.DateTimeStringForFile();
                 string save_file;
                 if(string.IsNullOrEmpty(desc))
-                    save_file = $"Thetis_database_export_backup_{datetime}.xml";
+                    save_file = $"Kainos_database_export_backup_{datetime}.xml";
                 else
-                    save_file = $"Thetis_database_export_backup_{desc}_{datetime}.xml";
+                    save_file = $"Kainos_database_export_backup_{desc}_{datetime}.xml";
 
                 string myDocumentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 

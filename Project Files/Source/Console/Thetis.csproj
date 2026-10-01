@@ -7,10 +7,10 @@
     <ProjectGuid>{831AEB2F-CA78-4057-85D7-32B4816ED6AE}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ApplicationIcon>Resources\Thetis2_256.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\kainos.ico</ApplicationIcon>
     <AssemblyKeyContainerName>
     </AssemblyKeyContainerName>
-    <AssemblyName>Thetis</AssemblyName>
+    <AssemblyName>Kainos</AssemblyName>
     <AssemblyOriginatorKeyFile>
     </AssemblyOriginatorKeyFile>
     <DefaultClientScript>JScript</DefaultClientScript>
@@ -467,6 +467,7 @@
     </Compile>
     <Compile Include="clsProgressLog.cs" />
     <Compile Include="clsSingleInstance.cs" />
+    <Compile Include="clsThetisSettingsImport.cs" />
     <Compile Include="clsThetisSkinService.cs" />
     <Compile Include="clsTouchHandler.cs" />
     <Compile Include="frmAbout.cs">
@@ -898,6 +899,7 @@
       <SubType>Form</SubType>
     </Compile>
     <None Include="Resources\thetis-logo2.png" />
+    <None Include="Resources\kainos-splash.png" />
     <None Include="Resources\ob_power.png" />
     <None Include="Resources\ob_circle.png" />
     <None Include="Resources\ob_square.png" />
@@ -931,6 +933,7 @@
     <Content Include="Resources\paflt.png" />
     <Content Include="Resources\paok.png" />
     <Content Include="Resources\Thetis2_256.ico" />
+    <Content Include="Resources\kainos.ico" />
     <Content Include="Resources\Thetis2_48.ico" />
     <None Include="Resources\resizegrab.png" />
     <None Include="Resources\dockIcon_float.png" />

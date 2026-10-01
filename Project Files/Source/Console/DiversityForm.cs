@@ -1474,6 +1474,7 @@ namespace Thetis
             using (MemoryStream memoryStream = new MemoryStream(bytes))
             {
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
+                binaryFormatter.Binder = TypeRenameBinder.Create(); // Kainos: accept settings saved under the old Thetis assembly name
                 return (T)binaryFormatter.Deserialize(memoryStream);
             }
         }

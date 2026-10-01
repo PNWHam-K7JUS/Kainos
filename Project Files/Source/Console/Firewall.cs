@@ -76,10 +76,10 @@ namespace Thetis
 {
     internal class Firewall
     {
-        private const string _IN_TCP = "Thetis Allow IN TCP";
-        private const string _OUT_TCP = "Thetis Allow OUT TCP";
-        private const string _IN_UDP = "Thetis Allow IN UDP";
-        private const string _OUT_UDP = "Thetis Allow OUT UDP";
+        private const string _IN_TCP = "Kainos Allow IN TCP";
+        private const string _OUT_TCP = "Kainos Allow OUT TCP";
+        private const string _IN_UDP = "Kainos Allow IN UDP";
+        private const string _OUT_UDP = "Kainos Allow OUT UDP";
 
         public static void Setup()
         {
@@ -99,7 +99,7 @@ namespace Thetis
             if (!Common.IsAdministrator())
             {
                 //msgbox need to be admin !
-                MessageBox.Show("To reset Thetis firewall entries please run Thetis 'As Administrator'.", "Firewall - No Administrator Rights", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                MessageBox.Show("To reset Kainos firewall entries please run Kainos 'As Administrator'.", "Firewall - No Administrator Rights", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                 return;
             }
 
@@ -114,7 +114,7 @@ namespace Thetis
             }
             catch 
             {
-                MessageBox.Show("There was a problem removing existing firewall entries. Please configure manually.\nThetis.exe needs UDP/TCP in/out, all ports", "Firewall - Problem", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                MessageBox.Show("There was a problem removing existing firewall entries. Please configure manually.\nKainos.exe needs UDP/TCP in/out, all ports", "Firewall - Problem", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
                 return;
             }
 
@@ -131,7 +131,7 @@ namespace Thetis
             }
             else
             {
-                MessageBox.Show("There was a problem configuring the firewall. Please configure manually.\nThetis.exe needs UDP/TCP in/out, all ports", "Firewall - Problem", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
+                MessageBox.Show("There was a problem configuring the firewall. Please configure manually.\nKainos.exe needs UDP/TCP in/out, all ports", "Firewall - Problem", MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
             }                    
         }
 

@@ -181,6 +181,12 @@ namespace Thetis
     //however the serialized data still has the old names
     public sealed class TypeRenameBinder : SerializationBinder
     {
+        // Kainos: data serialized before the assembly was renamed from Thetis to Kainos
+        // (built-in country data, meter settings, imported Thetis databases) still names
+        // the 'Thetis' assembly, so map that back to this assembly
+        private static readonly string _this_assembly = typeof(TypeRenameBinder).Assembly.FullName;
+        private static readonly Regex _legacy_assembly = new Regex(@"(?<![\w.])Thetis(, Version=[^,\]]*, Culture=[^,\]]*, PublicKeyToken=[^,\]]*)?(?=$|\])", RegexOptions.Compiled);
+
         private readonly Dictionary<string, Type> _map;
 
         public TypeRenameBinder(Dictionary<string, Type> map)
@@ -200,6 +206,9 @@ namespace Thetis
 
             if (_map.TryGetValue(typeName, out mapped))
                 return mapped;
+
+            assemblyName = _legacy_assembly.Replace(assemblyName, _this_assembly);
+            typeName = _legacy_assembly.Replace(typeName, _this_assembly); // generic arguments carry their own assembly names
 
             return Type.GetType(typeName + ", " + assemblyName, true);
         }

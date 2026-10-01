@@ -608,7 +608,7 @@ void unloadASIO()
 
 long getASIODriverString(void* szData)
 {
-	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Thetis-x64";
+	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Kainos-x64";
 	const LPCSTR valueName = "ASIOdrivername";
 
 	DWORD szDataSize = 32;  //length of ASIO driver names are limited to 32 bytes, including the zero terminator
@@ -633,7 +633,7 @@ long getASIODriverString(void* szData)
 
 long getASIOBlockNum(void* dwData)
 {
-	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Thetis-x64";
+	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Kainos-x64";
 	const LPCSTR valueName = "ASIOblocknum";
 
 	DWORD dwDataSize = sizeof(REG_DWORD);
@@ -690,7 +690,7 @@ long asioStop()
 //[2.10.3.13]MW0LGE get base channel numbers for input and output, and input mode
 long getASIOBaseInputChannel(void* dwData)
 {
-	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Thetis-x64";
+	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Kainos-x64";
 	const LPCSTR valueName = "ASIObaseinchannel";
 
 	DWORD dwDataSize = sizeof(REG_DWORD);
@@ -712,7 +712,7 @@ long getASIOBaseInputChannel(void* dwData)
 }
 long getASIOBaseOutputChannel(void* dwData)
 {
-	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Thetis-x64";
+	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Kainos-x64";
 	const LPCSTR valueName = "ASIObaseoutchannel";
 
 	DWORD dwDataSize = sizeof(REG_DWORD);
@@ -734,7 +734,7 @@ long getASIOBaseOutputChannel(void* dwData)
 }
 long getASIOInputMode(void* dwData)
 {
-	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Thetis-x64";
+	const LPCSTR subKey = "SOFTWARE\\OpenHPSDR\\Kainos-x64";
 	const LPCSTR valueName = "ASIOinputmode";
 
 	DWORD dwDataSize = sizeof(REG_DWORD);

@@ -55,6 +55,8 @@
             this.lstContributors.FormattingEnabled = true;
             this.lstContributors.ItemHeight = 16;
             this.lstContributors.Items.AddRange(new object[] {
+            "K7JUS, Justin (Kainos)",
+            "",
             "NR0V, Warren (WDSP & too many other contributions to list)",
             "G8NJJ, Laurence (G2, Andromeda & protocols)",
             "N1GP, Rick (Firmware related changes)",
@@ -303,7 +305,7 @@
             this.labelTS1.Name = "labelTS1";
             this.labelTS1.Size = new System.Drawing.Size(126, 42);
             this.labelTS1.TabIndex = 1;
-            this.labelTS1.Text = "Thetis";
+            this.labelTS1.Text = "Kainos";
             // 
             // frmAbout
             // 
@@ -331,7 +333,7 @@
             this.MinimizeBox = false;
             this.Name = "frmAbout";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "About Thetis";
+            this.Text = "About Kainos";
             this.ResumeLayout(false);
             this.PerformLayout();
 

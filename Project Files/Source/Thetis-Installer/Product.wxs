@@ -8,17 +8,17 @@
 <!-- 32-bit / 64-bit variables -->
 <?if $(var.Platform) = x64 ?>
 <?define Win64 = "yes" ?>
-<?define UpgradeCode = "1FB8D39E-FC39-4D30-BD10-F8DFD2F6C2D4"?>
-<?define ProductName = "Thetis HL2" ?>
-<?define ThetisName = "Thetis"?>
+<?define UpgradeCode = "455D3DD7-855B-40C6-A204-19793E883AF0"?>
+<?define ProductName = "Kainos HL2" ?>
+<?define ThetisName = "Kainos"?>
 <?define VC145 = "Microsoft_VC145_CRT_x64.msm" ?>
 <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
 <?define FilesPath = "..\..\Bin\$(var.Platform)\$(var.Configuration)\" ?>
 <?else ?>
 <?define Win64 = "no" ?>
-<?define UpgradeCode = "B888F619-2F38-4853-BE77-65DF1A224538"?>
-<?define ProductName = "Thetis (32-bit)" ?>
-<?define ThetisName = "Thetis"?>
+<?define UpgradeCode = "76707510-B683-45AF-91B7-6EDAA384448D"?>
+<?define ProductName = "Kainos (32-bit)" ?>
+<?define ThetisName = "Kainos"?>
 <?define VC145 = "Microsoft_VC145_CRT_x86.msm" ?>
 <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
 <?define FilesPath = "..\..\Bin\$(var.Platform)\$(var.Configuration)\" ?>
@@ -61,7 +61,7 @@
 
     <WixVariable Id="WixUILicenseRtf" Value="GNU_GENERAL_PUBLIC_LICENSE.rtf" />
 
-    <Feature Id="ProductFeature" Title="Thetis" Level="1" ConfigurableDirectory="INSTALLFOLDER">
+    <Feature Id="ProductFeature" Title="Kainos" Level="1" ConfigurableDirectory="INSTALLFOLDER">
       <ComponentGroupRef Id="ProductComponents" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
@@ -80,8 +80,10 @@
     <WixVariable Id="WixUIDialogBmp" Value="binary/thetis_background.bmp"/>
 
     <!-- Define icons (ID should not be longer than 18 chars") -->
-    <Icon Id="icon.ico" SourceFile="binary/Thetis.ico" />
+    <Icon Id="icon.ico" SourceFile="binary/Kainos.ico" />
     <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+    <Property Id="ARPCOMMENTS" Value="!(loc.ArpComments)" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/PNWHam-K7JUS/Kainos" />
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
  
     <!-- 
@@ -119,7 +121,7 @@
 
       <Directory Id="$(var.PlatformProgramFilesFolder)">
         <Directory Id="HPSDRFolder" Name="OpenHPSDR">
-          <Directory Id="INSTALLFOLDER" Name="Thetis-HL2">
+          <Directory Id="INSTALLFOLDER" Name="Kainos-HL2">
 		  </Directory>
         </Directory>
       </Directory>
@@ -139,20 +141,20 @@
 
   <Fragment>
     <DirectoryRef Id="DesktopFolder">
-      <Component Id="DesktopShortcut" Guid="3A24B19E-E692-4530-ABD8-6E7B737D2060">       
+      <Component Id="DesktopShortcut" Guid="0EF7DFF8-89CE-4545-8591-F7B893075EC4">       
         <Shortcut Id="ProgramDesktopShortcut"
                   Name="$(var.ThetisName)"
-                  Description="Run Thetis"
-                  Target="[INSTALLFOLDER]Thetis.exe"
+                  Description="Run Kainos"
+                  Target="[INSTALLFOLDER]Kainos.exe"
                   WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKLM" Key="Software\OpenHPSDR\$(var.ThetisName)"
                 Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
-      <Component Id="DesktopShortcutHL2" Guid="2B5082FF-264C-481D-948D-1930362AAAFB">       
+      <Component Id="DesktopShortcutHL2" Guid="A7401519-C804-49A1-9762-A3F0311AF7B5">       
         <Shortcut Id="ProgramDesktopShortcutHL2"
                   Name="$(var.ThetisName)-HL2"
-                  Description="Run HL2 Thetis"
-                  Target="[INSTALLFOLDER]Thetis.exe"
+                  Description="Run HL2 Kainos"
+                  Target="[INSTALLFOLDER]Kainos.exe"
                   Arguments="-dbid:HL2"
                   WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKLM" Key="Software\OpenHPSDR\$(var.ThetisName)-HL2"
@@ -165,14 +167,14 @@
               
         <Shortcut Id="ThetisShortcut"
                   Name="$(var.ThetisName)"
-                  Description="Run Thetis"
-                  Target="[INSTALLFOLDER]Thetis.exe"
+                  Description="Run Kainos"
+                  Target="[INSTALLFOLDER]Kainos.exe"
                   WorkingDirectory="INSTALLFOLDER"
                   />
         <Shortcut Id="ThetisShortcutHL2"
                   Name="$(var.ThetisName)-HL2"
-                  Description="Run HL2 Thetis"
-                  Target="[INSTALLFOLDER]Thetis.exe"
+                  Description="Run HL2 Kainos"
+                  Target="[INSTALLFOLDER]Kainos.exe"
                   Arguments="-dbid:HL2"
                   WorkingDirectory="INSTALLFOLDER"
                   />
@@ -241,12 +243,12 @@
       <Component Id="fwException" Guid="*" Transitive="yes">
         <Condition>Privileged</Condition>
         <File Id="ThetisEXE"
-              Source="$(var.FilesPath)Thetis.exe"
+              Source="$(var.FilesPath)Kainos.exe"
               KeyPath="yes">
 
 			<fire:FirewallException Id="thetis_$(var.Platform)_tcp"
                       Name="$(var.ThetisName) (TCP In)"
-                      Description="TCP In-bound Firewall rule for OpenHPSDR SDRs running Thetis"
+                      Description="TCP In-bound Firewall rule for OpenHPSDR SDRs running Kainos"
                       Protocol="tcp"
                       Scope="any"
                       IgnoreFailure="no"
@@ -254,7 +256,7 @@
 			
 			<fire:FirewallException Id="thetis_$(var.Platform)_udp"
                       Name="$(var.ThetisName) (UDP In)"
-                      Description="UDP In-bound Firewall rule for OpenHPSDR SDRs running Thetis"
+                      Description="UDP In-bound Firewall rule for OpenHPSDR SDRs running Kainos"
                       Protocol="udp"
                       Scope="any"
                       IgnoreFailure="no"
@@ -534,7 +536,7 @@
 		-->
 		<Component Guid="*">
 			<File Id="Thetis.exe.config"
-				  Source="$(var.FilesPath)Thetis.exe.config"
+				  Source="$(var.FilesPath)Kainos.exe.config"
 				  KeyPath="yes"
 				  Checksum="yes"
               />

@@ -49,7 +49,7 @@ namespace Thetis
 {
     public partial class frmAbout : Form
     {
-        private const string GITHUB_VERSION_JSON_RAW = @"https://raw.githubusercontent.com/ramdor/Thetis/refs/heads/master/version.json";
+        private const string GITHUB_VERSION_JSON_RAW = @"https://raw.githubusercontent.com/PNWHam-K7JUS/Kainos/refs/heads/main/version.json"; // Kainos: check our own releases, not upstream Thetis
 
         private class ThetisVersionInfo
         {
@@ -152,7 +152,7 @@ namespace Thetis
 
         private void btnCopyContributors_Click(object sender, EventArgs e)
         {
-            string text = "Thetis\n";
+            string text = "Kainos (based on Thetis)\n";
             foreach(string s in lstVersions.Items)
             {
                 text += s + "\n";

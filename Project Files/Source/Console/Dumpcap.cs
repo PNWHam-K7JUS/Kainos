@@ -178,7 +178,7 @@ namespace Thetis
             {
                 try
                 {
-                    string sArguments = String.Format("-i {0} -b filesize:{1} -b files:{2} -w dumpcap_thetis.pcapng", m_nInterface, m_nFileSizeKB, m_nNumberOfFiles);
+                    string sArguments = String.Format("-i {0} -b filesize:{1} -b files:{2} -w dumpcap_kainos.pcapng", m_nInterface, m_nFileSizeKB, m_nNumberOfFiles);
 
                     if (!Directory.Exists(workingFolder))
                         Directory.CreateDirectory(workingFolder);
