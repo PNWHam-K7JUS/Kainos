@@ -337,6 +337,21 @@ namespace Thetis
         [DllImport("wdsp.dll", EntryPoint = "GetRXAAetherVoiceWetRms", CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetRXAAetherVoiceWetRms(int channel);
 
+        [DllImport("wdsp.dll", EntryPoint = "SetTXAAetherVoiceRun", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetTXAAetherVoiceRun(int channel, bool run);
+
+        [DllImport("wdsp.dll", EntryPoint = "SetTXAAetherVoiceMode", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetTXAAetherVoiceMode(int channel, int mode);
+
+        [DllImport("wdsp.dll", EntryPoint = "SetTXAAetherVoiceBody", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetTXAAetherVoiceBody(int channel, double drive_db, double tune_hz, double mix);
+
+        [DllImport("wdsp.dll", EntryPoint = "SetTXAAetherVoiceClarity", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetTXAAetherVoiceClarity(int channel, double tune_hz, double harmonics_db, double mix);
+
+        [DllImport("wdsp.dll", EntryPoint = "GetTXAAetherVoiceWetRms", CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetTXAAetherVoiceWetRms(int channel);
+
         [DllImport("wdsp.dll", EntryPoint = "SetTXAEQRun", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetTXAEQRun(int channel, bool run);
 

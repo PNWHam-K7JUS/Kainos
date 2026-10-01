@@ -92,8 +92,8 @@ namespace Thetis
         private void chkAetherVoice_CheckedChanged(object sender, EventArgs e)
         {
             chkAetherVoice.BackColor = chkAetherVoice.Checked ? button_selected_color : SystemColors.Control;
-            if (!IsSetupFormNull && SetupForm.AetherVoiceRXEnable.Checked != chkAetherVoice.Checked)
-                SetupForm.AetherVoiceRXEnable.Checked = chkAetherVoice.Checked;
+            if (!IsSetupFormNull && SetupForm.AetherVoiceRX.Enable.Checked != chkAetherVoice.Checked)
+                SetupForm.AetherVoiceRX.Enable.Checked = chkAetherVoice.Checked;
         }
 
         private void chkAetherVoice_MouseDown(object sender, MouseEventArgs e)
