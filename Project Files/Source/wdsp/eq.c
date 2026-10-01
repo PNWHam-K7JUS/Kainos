@@ -510,7 +510,6 @@ EQP create_eqp (int run, int size, int nc, int mp, double *in, double *out, int 
 	// NOTE:  'nc' must be >= 'size'
 	EQP a = (EQP) malloc0 (sizeof (eqp));
 	double* impulse;
-	OutputDebugStringA ("Kainos WDSP test: create_eqp, wdsp.dll built " __DATE__ " " __TIME__ "\n"); // Kainos: Phase 3 DLL-load check, remove after confirming
 	a->run = run;
 	a->size = size;
 	a->nc = nc;
