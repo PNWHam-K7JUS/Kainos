@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
@@ -380,6 +381,82 @@ namespace Thetis
         private readonly List<KeyValuePair<AetherStripParam, AetherKnob>> _knobs = new List<KeyValuePair<AetherStripParam, AetherKnob>>();
         private readonly StripViz _viz;
         private readonly AetherToggleButton _btnCurve, _btnHistory;
+        private readonly AetherToggleButton _btnRec, _btnPlay;
+        private bool _recordingHere;                       // this window started the current recording
+
+        // the monitor file for each side, in Thetis's audio folder
+        private string monitorFile(bool rx)
+        {
+            return Path.Combine(_console.ARP.AudioFolder, "kainosaudio", rx ? "KainosAudioRX.wav" : "KainosAudioTX.wav");
+        }
+
+        // REC: records the processed audio for the tab shown. Transmit records the transmitter output (after
+        // Kainos Audio and the Thetis leveler, TX filter and ALC), so key up into a dummy load while it runs;
+        // receive records the receiver output. Thetis's own recording source settings are restored at once.
+        private void toggleRecord()
+        {
+            clsAudioRecordPlayback arp = _console.ARP;
+            string error;
+            if (arp.IsRecording && !_recordingHere)
+            {
+                // another Thetis recording is running: leave it alone
+                MessageBox.Show("Thetis is already recording something else. Stop that recording first.", "Kainos Audio",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (arp.IsRecording)
+            {
+                if (!arp.StopRecord(out error) && error != null) MessageBox.Show(error, "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _recordingHere = false;
+                updateMonitorButtons();
+                return;
+            }
+            if (arp.IsPlaying) arp.StopPlayback(out error);
+            string file = monitorFile(_rx);
+            try { Directory.CreateDirectory(Path.GetDirectoryName(file)); } catch { }
+            AudioRecordTxSource txs = arp.TxSource;
+            AudioRecordRxSource rxs = arp.RxSource;
+            arp.TxSource = AudioRecordTxSource.TransmitterOutputIQ;
+            arp.RxSource = AudioRecordRxSource.ReceiverOutputAudio;
+            string started = arp.RecordToFileFromWDSP("kainosaudio", file, 0, out error, true);
+            arp.TxSource = txs;
+            arp.RxSource = rxs;
+            if (started == null)
+                MessageBox.Show("Recording could not start.\r\n\r\n" + error, "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            else _recordingHere = true;
+            updateMonitorButtons();
+        }
+
+        // PLAY: plays the last recording for this tab through the PC audio output set in Thetis's recording
+        // settings; nothing is transmitted
+        private void togglePlay()
+        {
+            clsAudioRecordPlayback arp = _console.ARP;
+            string error;
+            if (arp.IsPlaying) { arp.StopPlayback(out error); updateMonitorButtons(); return; }
+            string file = monitorFile(_rx);
+            if (!File.Exists(file))
+            {
+                MessageBox.Show("Nothing recorded yet on this tab. Press REC first" + (_rx ? "." : ", then transmit into a dummy load."),
+                    "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (arp.IsRecording) arp.StopRecord(out error);
+            if (!arp.PlayFileViaPCAudio("kainosaudio", file, arp.OutputPCDeviceID, out error))
+                MessageBox.Show("Playback could not start.\r\n\r\n" + error, "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            updateMonitorButtons();
+        }
+
+        private void updateMonitorButtons()
+        {
+            if (_console.ARP == null) return;
+            bool rec = _console.ARP.IsRecording, play = _console.ARP.IsPlaying;
+            if (!rec) _recordingHere = false;
+            _btnRec.Checked = rec && _recordingHere;
+            _btnRec.Text = rec && _recordingHere ? "\u25cf REC" : "REC";
+            _btnPlay.Checked = play;
+            _btnPlay.Text = play ? "\u25a0 STOP" : "PLAY";
+        }
 
         private void syncViewButtons()
         {
@@ -459,6 +536,14 @@ namespace Thetis
             // bottom-left: TX indicator and BYPASS
             _btnBypass = new AetherToggleButton { Text = "BYPASS", Bypass = true, Location = new Point(10, 520), Size = new Size(170, 28) };
             _btnBypass.Click += (s, e) => _strip.Bypass = !_strip.Bypass;
+
+            // REC / PLAY monitor, as in AetherSDR: record this side's processed audio, then hear it on the PC
+            _btnRec = new AetherToggleButton { Text = "REC", Bypass = true, Location = new Point(10, 486), Size = new Size(82, 28) };
+            _btnPlay = new AetherToggleButton { Text = "PLAY", Bypass = true, Location = new Point(98, 486), Size = new Size(82, 28) };
+            _btnRec.Click += (s, e) => toggleRecord();
+            _btnPlay.Click += (s, e) => togglePlay();
+            Controls.Add(_btnRec);
+            Controls.Add(_btnPlay);
             Controls.Add(_btnBypass);
             _status = new Label
             {
@@ -530,6 +615,9 @@ namespace Thetis
             _tabRX.Checked = rx;
             _tabTX.Checked = !rx;
             _tips.SetToolTip(_btnBypass, "Bypass the whole " + (rx ? "receive" : "transmit") + " chain (strip and AetherVoice) without changing any settings.");
+            _tips.SetToolTip(_btnRec, rx ? "Record the processed receive audio." :
+                "Record your processed transmit audio: press REC, transmit into a dummy load, then press REC again to stop.");
+            _tips.SetToolTip(_btnPlay, "Play the last " + (rx ? "receive" : "transmit") + " recording through the PC's speakers (nothing is transmitted).");
             _list.Invalidate();
             ShowPage(_lastPage[rx ? 1 : 0]);
         }
@@ -800,6 +888,7 @@ namespace Thetis
 
         private void tick()
         {
+            updateMonitorButtons();
             DSPMode mode = _rx ? _console.RX1DSPMode : _console.radio.GetDSPTX(0).CurrentDSPMode;
             // meters are live while transmitting (AetherTX) or receiving on RX1 (AetherRX)
             bool live = _console.PowerOn && (_rx ? !_console.MOX : _console.MOX);
