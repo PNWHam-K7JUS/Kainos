@@ -188,6 +188,7 @@ void xpipe (int stream, int pos, double** buffs)
 			xvacOUT(rx, 0, buff);																// data to VAC
 			break;
 		case 1: // Audio data
+			xkdigi_rx(rx, buffs[0]);															// Kainos: RTTY / CW decoders' copy of the audio (kdigi.c)
 			xradae_rx(rx, buffs[0]);															// [v2.10.3.16] FreeDV RADEV1 RX splice -- in-place on the rcvr audio buffer
 																								// so that BOTH the speaker path (xMixAudio in xcmaster) AND
 																								// the VAC/TCI/scope/recorder branches below see the decoded speech.
@@ -232,6 +233,7 @@ void xpipe (int stream, int pos, double** buffs)
 			xvacOUT(rx, 0, buff);																// data to VAC
 			break;
 		case 1: // Audio data
+			xkdigi_rx(rx, buffs[0]);															// Kainos: RTTY / CW decoders' copy of the audio (kdigi.c)
 			xradae_rx(rx, buffs[0]);															// [v2.10.3.16] FreeDV RADEV1 RX splice -- same as RX1 path above
 			if (GetRadaeRxEnabled(rx) != 0)
 			{
@@ -266,6 +268,7 @@ void xpipe (int stream, int pos, double** buffs)
 				if (pip.xmtr[0].txvac == 1)  { xvacIN(1, buff, 0);  xvacIN(0, buff, 1); }
 			}
 			xradae_tx(buff);																	// [v2.10.3.16] FreeDV RADEV1 TX splice (no-op when disabled)
+			xkdigi_tx(buff);																	// Kainos: RTTY transmit audio in place of the mic (kdigi.c; no-op when off)
 			xrecordwave(0, 1, 0, buff);															// wav recorder 0 //[2.10.3.6]MW0LGE moved after vac
 			xrecordwave(1, 1, 0, buff);															// wav recorder 1
 			break;

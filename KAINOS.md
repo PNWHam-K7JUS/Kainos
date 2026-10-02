@@ -258,6 +258,13 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
   - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
+### RTTY (native)
+
+- The RTTY menu item (next to CWX) opens a terminal. In Kainos layout it splits the screen: it docks under the panadapter, which gives up its height (`kainosRttyDockHeight`), and Pop out moves it to its own window (always a window in Classic).
+- Audio: `kdigi.c` in ChannelMaster, spliced into `xpipe` (pipe.c) beside the RADE splices: `xkdigi_rx` copies each receiver's demodulated audio (left channel, before RADE) into a ring the console reads (`KDigiRxTap` / `KDigiRxRead`); `xkdigi_tx` replaces the mic audio with what the console writes (`KDigiTxEnable` / `KDigiTxWrite`) while sending, after the RADE and VAC splices, so Thetis's mic gain, processing, drive and ALC follow as for any audio. Single-reader / single-writer rings with interlocked counters.
+- Modem (`KainosRtty.cs`, no UI): 45.45 baud (50, 75), 170 Hz shift (200, 425, 850), amateur Baudot (ITA2 letters, US figures), 1 start / 5 data / 1.5 stop. Receive: each tone mixed to zero and averaged over one bit, (mark - space) / (mark + space), characters framed from the start bit's edge and sampled at each bit's middle; a quality figure squelches and each character's bits must be clear on average (SQL sets both). Unshift on space. Send: phase-continuous AFSK, mark then LTRS to open, LTRS while idle, shifts as needed. Tones 2125 / 2295 Hz in the audio (centre 2210); mark is the lower tone on LSB / DIGL and the higher on USB / DIGU (REV swaps). Tested offline: clean copy to about 12 dB SNR in the signal's bandwidth, no characters from noise alone, 20 Hz mistuning copies.
+- Terminal (`consoleKainosRtty.cs`): RX1 / RX2, shift, baud, REV, USOS, the M / S tuning bars with the quality line, SQL and TX level (dB); received text (sent text in red), type-ahead (Enter starts sending what's typed, then each key goes out as typed; Esc or RX returns to receive once the queue is sent; ABORT stops at once), their call (double-click a word in the text), macros CQ / ANS / 599 / 73 / MY with `{MY}` from the RADE callsign setting and `{CALL}`. Sending keys MOX; un-keying elsewhere stops it. Settings are kept in a hidden Setup box (`txtKainosRtty`).
+
 ### Installer
 
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.

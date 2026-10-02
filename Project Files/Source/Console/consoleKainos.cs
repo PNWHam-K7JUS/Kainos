@@ -78,6 +78,7 @@ namespace Thetis
             panelModeSpecificPhone.Controls.Add(chkAetherVoice);
 
             addRadeControls();
+            addRttyControls();          // consoleKainosRtty.cs
             matchKainosMenuItems();     // consoleKainosLayout.cs
         }
 

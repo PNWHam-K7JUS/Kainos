@@ -355,6 +355,9 @@ namespace Thetis
         private readonly List<Item> _items = new List<Item>();
         private Item _hover;
 
+        // the text to show for button i (default: its label)
+        public Func<int, string, string> LabelFor = (i, label) => label;
+
         public KainosActionGrid(int columns)
         {
             _columns = columns;
@@ -383,7 +386,7 @@ namespace Thetis
                 it.Rect = new RectangleF((i % _columns) * (w + gap), (i / _columns) * (h + gap), w, h);
                 bool on = false;
                 try { on = it.On(); } catch { }
-                KainosUI.DrawButton(e.Graphics, it.Rect, it.Label, on, true, it == _hover, it.Tone, Math.Max(9f, KainosUI.S(12)));
+                KainosUI.DrawButton(e.Graphics, it.Rect, LabelFor(i, it.Label), on, true, it == _hover, it.Tone, Math.Max(9f, KainosUI.S(12)));
             }
         }
 
