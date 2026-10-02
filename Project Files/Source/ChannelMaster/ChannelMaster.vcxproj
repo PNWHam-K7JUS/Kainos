@@ -225,6 +225,7 @@
     <ClInclude Include="obbuffs.h" />
     <ClInclude Include="pipe.h" />
     <ClInclude Include="pro.h" />
+    <ClInclude Include="kdigi.h" />
     <ClInclude Include="radae.h" />
     <ClInclude Include="radae_micdsp.h" />
     <ClInclude Include="r8brain_wrap.h" />
@@ -260,6 +261,7 @@
     <ClCompile Include="obbuffs.c" />
     <ClCompile Include="pipe.c" />
     <ClCompile Include="pro.c" />
+    <ClCompile Include="kdigi.c" />
     <ClCompile Include="radae.c" />
     <ClCompile Include="radae_micdsp.c" />
     <ClCompile Include="r8brain_wrap.cpp">

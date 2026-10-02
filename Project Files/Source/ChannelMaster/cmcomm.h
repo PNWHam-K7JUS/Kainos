@@ -48,6 +48,7 @@ Christos Nikolaou can be reached by email at : sv1eia@gmail.com
 #include "ivac.h"
 #include "pipe.h"
 #include "radae.h"
+#include "kdigi.h"
 #include "tci.h"
 #include "ring.h"
 #include "router.h"
