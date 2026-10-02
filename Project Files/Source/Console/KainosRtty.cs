@@ -222,7 +222,7 @@ namespace Thetis
             for (double c = Nominal - AfcRange; c <= Nominal + AfcRange; c += 2)
             {
                 double pm = peak(c - Shift / 2, hz), ps = peak(c + Shift / 2, hz);
-                if (Math.Min(pm, ps) < noise * 4) continue;          // both tones clearly there
+                if (Math.Min(pm, ps) < noise * 8) continue;          // both tones clearly there (9 dB over the noise)
                 double score = pm + ps;
                 if (score > bestScore) { bestScore = score; best = c; }
             }

@@ -28,7 +28,7 @@ namespace Thetis
     partial class Display
     {
         // The RTTY terminal's mark and space tones on its receiver's panadapter: a gold line for mark and an ice line
-        // for space, labelled at the top, where the decoder (with AFC, where it has moved them) is listening
+        // for space, labelled near the bottom (the flag and the scale are at the top), where the decoder (with AFC, where it has moved them) is listening
         private static void drawKainosDigiMarkersDX2D(int rx, int W, int H, int nVerticalShift)
         {
             if (console == null || W <= 0 || _d2dRenderTarget == null) return;
@@ -49,13 +49,18 @@ namespace Thetis
             };
             string[] labels = { "M", "S" };
             float top = nVerticalShift + 18, bottom = nVerticalShift + H;
+            float[] xs = new float[2];
+            for (int i = 0; i < 2 && i < tones.Length; i++) xs[i] = (float)((tones[i] - low - fDiff) / width * W);
             for (int i = 0; i < tones.Length && i < 2; i++)
             {
                 if (brushes[i] == null) continue;
-                float x = (float)((tones[i] - low - fDiff) / width * W);
+                float x = xs[i];
                 if (x < 0 || x > W) continue;
-                drawLineDX2D(brushes[i], x, top, x, bottom, 1.5f);
-                _d2dRenderTarget.DrawText(labels[i], fontDX2d_callout, new SharpDX.Mathematics.Interop.RawRectangleF(x + 3, top, x + 20, top + 16), brushes[i], DrawTextOptions.None);
+                drawLineDX2D(brushes[i], x, top, x, bottom, 2f);
+                // each label on the outer side of its line, so the two don't run together
+                bool leftSide = x < xs[1 - i];
+                float ly = bottom - 40, lx = leftSide ? x - 13 : x + 3;
+                _d2dRenderTarget.DrawText(labels[i], fontDX2d_callout, new SharpDX.Mathematics.Interop.RawRectangleF(lx, ly, lx + 16, ly + 16), brushes[i], DrawTextOptions.None);
             }
         }
     }
