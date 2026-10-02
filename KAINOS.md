@@ -216,13 +216,22 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - BAND: the band buttons of whichever band panel Thetis shows (HF, GEN or VHF, swapped by its VHF+ / HF buttons), mode, filter, then width, shift, low and high.
   - Checked: the column, METERS (a live multimeter at the column width) and BAND captured from the running program; a second start reused the same meter container.
 - **Stage 3b (RX, TX, single-column dock):**
-  - RX tab: Thetis's Master AF, RX1 AF, RX2 AF and AGC gain sliders (label above, slider full width), AGC mode, preamp or step attenuator (whichever Thetis shows), and squelch, moved into the column. TX tab: drive (and tune power when Thetis shows it), then the mode panel Thetis shows for the current mode (phone, CW, digital or FM: mic, COMP, VOX, DEXP, TX profile, RX/TX EQ, AV...), pinned. The column is `KainosUI.S(352)` wide so the 336-pixel mode panels fit.
+  - RX tab: Thetis's Master AF, RX1 AF, RX2 AF and AGC gain sliders (label above, slider full width), AGC mode, preamp or step attenuator (whichever Thetis shows), and squelch, moved into the column. TX tab: drive (and tune power when Thetis shows it), then the mode panel Thetis shows for the current mode (phone, CW, digital or FM: mic, COMP, VOX, DEXP, TX profile, RX/TX EQ, AV...), pinned. The column is `KainosUI.S(312)` wide; the mode panels are laid out for 336 pixels, so the shown one is scaled down to fit (place, size and font of the panel and everything in it, `kainosFitPanel`), with the exact originals kept and put back in Classic, after a skin load and when the UI scale changes.
   - The column's content area is a viewport `Panel` under the tab bar, so controls scrolled out of it are clipped; the column never changes the `Visible` of a Thetis control (Thetis shows RX2 AF only with RX2 on, swaps preamp and step attenuator...). Pinned controls are parked off screen when their tab is off or they are scrolled out.
   - Thetis's `ExpandDisplay` (also run at start-up) re-parents the AF, AGC and preamp controls to `panelSoundControls`: the column watches `ParentChanged` on every control it moved in, takes Thetis's new parent and place as the Classic home, and moves the control back.
   - Thetis's collapsed display (its Collapse menu) has its own layout: while it is collapsed the dock and column step aside (everything moved in goes home) and come back when it is expanded.
   - Tab state: "meters,band,-rx": tabs turned off are written with "-"; a tab not listed (new in a later version) starts on.
   - The dock is a single column (`KainosUI.S(80)` wide) from the top of the left side to the status bar, and the panadapter starts beside it (`panelDisplay.Left`, put back in Classic).
   - Checked: captured with all tabs on and with BAND off (TX shows drive and the phone panel).
+- **Stage 3c (EQ, KAINOS AUDIO, FREEDV, MEMORY; METERS menu):** `consoleKainosTabs.cs`. New tabs start off (`AddSection(..., defaultOn: false)`; the tab state lists every tab, "-" for off).
+  - EQ: RX EQ and TX EQ (clicks and right clicks on Thetis's `chkRXEQ` / `chkTXEQ`), Equalizer... (Thetis's EQ window).
+  - KAINOS AUDIO: a chip per stage of the receive and transmit chains in the strip's chain order (final limiter last on transmit), on / off through `AetherStrip.Set(stage, 0, ...)` (Exciter through the AetherVoice Setup box), BYPASS, Open... (Kainos Audio on that side; right click on a stage does the same).
+  - FREEDV: a status line (RADE off, or sync, SNR and the last callsign of the RADE receiver), RADE RX1 / RX2, FreeDV..., Reporter....
+  - MEMORY: the first 12 memories (name or group, frequency, mode); a click calls `Console.RecallMemory`. Memories... opens Thetis's Memory window.
+  - `KainosActionGrid` (code-driven Kainos buttons), `KainosTextLine`, `KainosMemoryList`.
+  - METERS right-click menu (on the container and its display area): Multimeter / Cross needle / Magic eye (`RemoveMeterType` + `AddMeter`; the type is saved, `txtKainosMeterType`), Meter settings... (`ShowMultiMeterSetupTab`), Get the FTDX-5000 meter skin (OE3IDE)..., Hide meters.
+  - FTDX-5000: offered once, when the METERS container is first created (`txtKainosFtdxOffered`), and from the menu. Kainos reads OE3IDE's skin list (the server Kainos lists) for the current link to "FTDX-5000 (multimeter)" and hands it to `ThetisSkinService.DownloadFile` as a meter skin; Setup's own download handler unpacks it into the Meters folder and refreshes the meters. Nothing of OE3IDE's is shipped with Kainos.
+  - Checked: captured with the new tabs on, and with RX / TX only (the scaled phone panel).
 
 ### Installer
 

@@ -105,6 +105,7 @@ namespace Thetis
                 _kainosColumn.AddSection("band", "BAND", kainosBandMeasure, kainosBandArrange);
                 _kainosColumn.AddSection("rx", "RX", w => kainosRowsHeight(kainosRxRows), r => kainosRowsArrange(kainosRxRows, r));
                 _kainosColumn.AddSection("tx", "TX", kainosTxMeasure, kainosTxArrange);
+                kainosAddMoreSections();        // EQ, KAINOS AUDIO, FREEDV, MEMORY: consoleKainosTabs.cs
                 _kainosColumn.TabsChanged += (s, e) =>
                 {
                     KainosColumnTabs = _kainosColumn.TabState;
@@ -127,9 +128,10 @@ namespace Thetis
                         c.LocationChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
 
                 Shown += (s, e) => { _kainosShown = true; if (_kainosLayout) BeginInvoke(new Action(kainosAttachMeter)); };
-                KainosUI.ScaleChanged += (s, e) => positionKainosColumn();
+                KainosUI.ScaleChanged += (s, e) => { kainosUnfitPanels(); positionKainosColumn(); };
             }
             _kainosColumn.TabState = KainosColumnTabs;
+            kainosUnfitPanels();        // a skin load can have set the mode panels' layout again
             kainosPartsOn();
             if (_kainosShown) kainosAttachMeter();
             positionKainosColumn();
@@ -178,6 +180,7 @@ namespace Thetis
             foreach (KeyValuePair<Control, Size> kv in _kainosCollapsed.ToList())
                 kv.Key.Size = kv.Value;
             _kainosCollapsed.Clear();
+            kainosUnfitPanels();
             foreach (Control p in kainosModePanels) kainosUnpin(p);
             if (_kainosMeter != null) kainosUnpin(_kainosMeter);
         }
@@ -263,7 +266,7 @@ namespace Thetis
                 }
                 if (!_kainosPartsOn) { kainosPartsOn(); positionKainosDock(); }
 
-                int width = KainosUI.S(352);
+                int width = KainosUI.S(312);
                 int x = ClientSize.Width - width - 4;
                 int top = menuStrip1.Bottom + 4;
                 int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
@@ -435,6 +438,7 @@ namespace Thetis
         {
             Control p = kainosModePanel;
             int rows = kainosRowsHeight(kainosTxRows);
+            if (p != null) kainosFitPanel(p, w);
             return rows + (p != null ? KainosUI.S(8) + p.Height : 0);
         }
 
@@ -445,9 +449,72 @@ namespace Thetis
             Control shown = kainosModePanel;
             foreach (Control p in kainosModePanels)
             {
-                if (p == shown) kainosPin(p, new Rectangle(r.Left, y, r.Width, p.Height), false);
+                if (p == shown)
+                {
+                    kainosFitPanel(p, r.Width);
+                    kainosPin(p, new Rectangle(r.Left, y, r.Width, p.Height), false);
+                }
                 else if (p.Left > -10000) p.Location = new Point(-20000, -20000);
             }
+        }
+
+        // The mode panels are laid out for 336 pixels; in a narrower column the panel and everything in it (place,
+        // size and font) is scaled down to fit. The exact original values are kept and put back in Classic, after a
+        // skin load and when the UI scale changes, so nothing drifts.
+        private class KainosPanelFit
+        {
+            public float Factor;
+            public readonly Dictionary<Control, KeyValuePair<Rectangle, Font>> Original = new Dictionary<Control, KeyValuePair<Rectangle, Font>>();
+        }
+        private readonly Dictionary<Control, KainosPanelFit> _kainosFits = new Dictionary<Control, KainosPanelFit>();
+
+        private void kainosFitPanel(Control panel, int width)
+        {
+            KainosPanelFit fit;
+            if (!_kainosFits.TryGetValue(panel, out fit))
+            {
+                fit = new KainosPanelFit { Factor = 1f };
+                kainosRecord(panel, fit);
+                _kainosFits[panel] = fit;
+            }
+            int w0 = fit.Original[panel].Key.Width;
+            float f = Math.Min(1f, width / (float)Math.Max(1, w0));
+            if (Math.Abs(f - fit.Factor) < 0.005f) return;
+            fit.Factor = f;
+            panel.SuspendLayout();
+            foreach (KeyValuePair<Control, KeyValuePair<Rectangle, Font>> kv in fit.Original)
+            {
+                Rectangle b = kv.Value.Key;
+                Font font = kv.Value.Value;
+                if (kv.Key == panel) kv.Key.Size = new Size((int)Math.Round(b.Width * f), (int)Math.Round(b.Height * f));
+                else kv.Key.SetBounds((int)Math.Round(b.X * f), (int)Math.Round(b.Y * f), (int)Math.Round(b.Width * f), (int)Math.Round(b.Height * f));
+                if (font != null && f < 1f) kv.Key.Font = new Font(font.FontFamily, font.Size * f, font.Style, font.Unit);
+                else if (font != null) kv.Key.Font = font;
+            }
+            panel.ResumeLayout();
+        }
+
+        private static void kainosRecord(Control c, KainosPanelFit fit)
+        {
+            fit.Original[c] = new KeyValuePair<Rectangle, Font>(c.Bounds, c.Font);
+            foreach (Control child in c.Controls) kainosRecord(child, fit);
+        }
+
+        private void kainosUnfitPanels()
+        {
+            foreach (KeyValuePair<Control, KainosPanelFit> pf in _kainosFits)
+            {
+                if (pf.Value.Factor >= 0.999f) continue;
+                pf.Key.SuspendLayout();
+                foreach (KeyValuePair<Control, KeyValuePair<Rectangle, Font>> kv in pf.Value.Original)
+                {
+                    Rectangle b = kv.Value.Key;
+                    if (kv.Key == pf.Key) kv.Key.Size = b.Size; else kv.Key.Bounds = b;
+                    kv.Key.Font = kv.Value.Value;
+                }
+                pf.Key.ResumeLayout();
+            }
+            _kainosFits.Clear();
         }
 
         #endregion
@@ -466,6 +533,7 @@ namespace Thetis
             if (string.IsNullOrEmpty(KainosMeterId) || all == null || !all.ContainsKey(KainosMeterId))
             {
                 KainosMeterId = MeterManager.AddMeterContainer(1, false);
+                KainosMeterType = MeterType.ANANMM.ToString();
                 MeterManager.clsMeter m = MeterManager.MeterFromId(KainosMeterId);
                 if (m != null)
                 {
@@ -477,12 +545,14 @@ namespace Thetis
                 MeterManager.AutoContainerHeight(KainosMeterId, true);
                 KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
                 all = MeterManager.MeterContainers;
+                BeginInvoke(new Action(() => kainosOfferFtdx(true)));     // once: OE3IDE's FTDX-5000 skin
             }
             if (all == null || !all.ContainsKey(KainosMeterId)) return;
             ucMeter uc = all[KainosMeterId];
             if (_kainosMeter != uc)
             {
                 _kainosMeter = uc;
+                kainosHookMeterMenu(uc);
                 uc.LocationChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
                 uc.SizeChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
             }
@@ -521,7 +591,7 @@ namespace Thetis
         private class Section
         {
             public string Key, Title;
-            public bool On;
+            public bool On, DefaultOn;
             public Func<int, int> Measure;
             public Action<Rectangle> Arrange;
             public RectangleF TabRect;
@@ -545,22 +615,23 @@ namespace Thetis
             Controls.Add(Viewport);
         }
 
-        public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange)
+        public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
         {
-            _sections.Add(new Section { Key = key, Title = title, On = true, Measure = measure, Arrange = arrange });
+            _sections.Add(new Section { Key = key, Title = title, On = defaultOn, DefaultOn = defaultOn, Measure = measure, Arrange = arrange });
         }
 
         public bool IsOn(string key) { Section s = _sections.Find(x => x.Key == key); return s != null && s.On; }
 
         // "meters,band,-rx": tabs that are on, and "-" before the ones turned off; a tab not listed (new in this
-        // version of Kainos) starts on
+        // version of Kainos) starts as its section says
         public string TabState
         {
             get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key)); }
             set
             {
                 string[] items = (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (Section s in _sections) s.On = !items.Contains("-" + s.Key);
+                foreach (Section s in _sections)
+                    s.On = items.Contains(s.Key) || (!items.Contains("-" + s.Key) && s.DefaultOn);
                 Invalidate();
             }
         }
