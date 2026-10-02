@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Text;
@@ -160,6 +161,7 @@ namespace Thetis
             }
 
             RadeEnabledChanged?.Invoke(this, EventArgs.Empty);
+            RadaeEnabledChangedHandlers?.Invoke(rx + 1, on);       // meter containers that hide without RADE
             FreeDVReporter.FreeDVReporterManager.Update(this);     // report while RADE is on, if asked to
             return true;
         }
@@ -244,6 +246,51 @@ namespace Thetis
             StringBuilder sb = new StringBuilder(32);
             int n = Rade.GetRadaeRemoteCallsign(rx, sb, sb.Capacity);
             return n > 0 ? sb.ToString().Trim() : "";
+        }
+
+        #endregion
+
+        #region Meters and panadapter overlay (from Thetis-RADE)
+
+        // Thetis-RADE's meter code (MeterManager, frmMeterDisplay) uses these names. rx is 1 or 2.
+        public delegate void RadaeEnabledChanged(int rx, bool enabled);
+        public RadaeEnabledChanged RadaeEnabledChangedHandlers;
+        public bool RadaeRx1Enabled { get { return RadeEnabledOn(0); } }
+        public bool RadaeRx2Enabled { get { return RadeEnabledOn(1); } }
+
+        // The RADE status overlay at the top right of each panadapter (display.cs), per receiver and on
+        // transmit; set from Setup > DSP > FreeDV (RADE). It shows only while that receiver has RADE on.
+        public bool RadeMeasureRx1 { get; set; } = true;
+        public bool RadeMeasureRx2 { get; set; } = true;
+        public bool RadeMeasureTx { get; set; } = true;
+
+        // the RADE readings for meter containers, polled with the other receiver meters (rx is 1 or 2)
+        private void radeMeterReadings(int rx)
+        {
+            int i = rx - 1;
+            Dictionary<Reading, float> values = rx == 1 ? _RX1MeterValues : _RX2MeterValues;
+            if (!RadeEnabledOn(i))
+            {
+                // idle values while RADE is off, so nothing freezes at its last reading
+                values[Reading.RADAE_SYNC] = 0;
+                values[Reading.RADAE_SNR_DB] = 0;
+                values[Reading.RADAE_RX_LEVEL_DB] = -120;
+                values[Reading.RADAE_CLIP] = 0;
+                values[Reading.RADAE_EOO_DECODE] = 0;
+                return;
+            }
+            if (MeterManager.RequiresUpdate(rx, Reading.RADAE_SYNC)) values[Reading.RADAE_SYNC] = Rade.GetRadaeSync(i);
+            if (MeterManager.RequiresUpdate(rx, Reading.RADAE_SNR_DB)) values[Reading.RADAE_SNR_DB] = Rade.GetRadaeSnrDb(i);
+            if (MeterManager.RequiresUpdate(rx, Reading.RADAE_RX_LEVEL_DB)) values[Reading.RADAE_RX_LEVEL_DB] = Rade.GetRadaeRxLevelDb(i);
+            if (MeterManager.RequiresUpdate(rx, Reading.RADAE_CLIP)) values[Reading.RADAE_CLIP] = Rade.GetRadaeClip(i);
+            if (MeterManager.RequiresUpdate(rx, Reading.RADAE_EOO_DECODE)) values[Reading.RADAE_EOO_DECODE] = Rade.GetRadaeEooDecodePulse(i);
+        }
+
+        // the encoder's mic level and clip, while transmitting
+        private void radeMeterReadingsTX()
+        {
+            updateMetersReading(Reading.RADAE_TX_MIC_LEVEL_DB, Rade.GetRadaeTxMicLevelDb(), 0);
+            updateMetersReading(Reading.RADAE_TX_MIC_CLIP, Rade.GetRadaeTxMicClip(), 0);
         }
 
         #endregion

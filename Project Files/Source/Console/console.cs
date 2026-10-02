@@ -47986,6 +47986,7 @@ namespace Thetis
                         else
                             _RX1MeterValues[Reading.ESTIMATED_PBSNR] = 0f;
                     }
+                    radeMeterReadings(1); // Kainos: consoleRade.cs (RADE meters)
 
                     ////[2.10.3.9]MW0LGE sub rx (future)
                     //if (SubRXEnabled)
@@ -48030,6 +48031,7 @@ namespace Thetis
                 {
                     updateMetersReading(Reading.MIC, (float)Math.Max(-195.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.MIC)), 0);
                     updateMetersReading(Reading.MIC_PK, (float)Math.Max(-195.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.MIC_PK)), 0);
+                    radeMeterReadingsTX(); // Kainos: consoleRade.cs (RADE meters)
                     updateMetersReading(Reading.EQ, (float)Math.Max(-30.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.EQ)), 0);
                     updateMetersReading(Reading.EQ_PK, (float)Math.Max(-30.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.EQ_PK)), 0);
                     updateMetersReading(Reading.LEVELER, (float)Math.Max(-30.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.LEVELER)), 0);
@@ -48191,6 +48193,7 @@ namespace Thetis
                         else
                             _RX2MeterValues[Reading.ESTIMATED_PBSNR] = 0f;
                     }
+                    radeMeterReadings(2); // Kainos: consoleRade.cs (RADE meters)
 
                     if(MeterManager.RequiresUpdate(2, Reading.SIGNAL_MAX_BIN) || (TCIServer != null && TCIServer.SensorRequiresUpdate(2, Reading.SIGNAL_MAX_BIN)))
                     {
@@ -48207,6 +48210,7 @@ namespace Thetis
                 {
                     updateMetersReading(Reading.MIC, (float)Math.Max(-195.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.MIC)), 0);
                     updateMetersReading(Reading.MIC_PK, (float)Math.Max(-195.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.MIC_PK)), 0);
+                    radeMeterReadingsTX(); // Kainos: consoleRade.cs (RADE meters)
                     updateMetersReading(Reading.EQ, (float)Math.Max(-30.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.EQ)), 0);
                     updateMetersReading(Reading.EQ_PK, (float)Math.Max(-30.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.EQ_PK)), 0);
                     updateMetersReading(Reading.LEVELER, (float)Math.Max(-30.0f, -WDSP.CalculateTXMeter(1, WDSP.MeterType.LEVELER)), 0);

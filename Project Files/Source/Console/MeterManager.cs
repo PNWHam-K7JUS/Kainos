@@ -37,6 +37,11 @@ mw0lge@grange-lane.co.uk
 // its original terms and is not affected by this dual-licensing statement in any way.        //
 // Richard Samphire can be reached by email at :  mw0lge@grange-lane.co.uk                    //
 //============================================================================================//
+//
+//============================================================================================//
+// Modified by Christos Nikolaou (SV1EIA) 2026 -- thetis-rade fork                       //
+// Christos Nikolaou can be reached by email at : sv1eia@gmail.com                            //
+//============================================================================================//
 
 using System;
 using System.Collections.Generic;
@@ -172,6 +177,18 @@ namespace Thetis
 
         ADC_MAX_MAG = 73,
 
+        // RADE V1 modem readings.  Per-RX selection lives in the meter
+        // container's "RX1 data" / "RX2 data" radio button -- the same
+        // Reading enum value is used for both receivers, written into
+        // _RX1MeterValues or _RX2MeterValues by the console update loop.
+        RADAE_SYNC = 80,        // 0 or 1
+        RADAE_SNR_DB,           // dB SNR estimate, typically -10..30
+        RADAE_RX_LEVEL_DB,      // dBFS of decoder input peak, -120..0
+        RADAE_CLIP,             // 1 if any block crossed 0.9 fullscale within ~500 ms
+        RADAE_EOO_DECODE,       // pulses to 1 for ~500 ms after each successful EOO callsign decode
+        RADAE_TX_MIC_LEVEL_DB,  // dBFS of post-TXGain mic input peak, -120..0 (TX side)
+        RADAE_TX_MIC_CLIP,      // 1 if TX mic peak crossed 0.8 fullscale within ~500 ms (TX side)
+
         LAST
     }
 
@@ -229,6 +246,14 @@ namespace Thetis
         WAVE_RECORD,
         VOICE_RECORD_PLAY_BUTTONS,
         ACG_MAX_MAG,
+        // RADE V1 modem meters (RX1 side -- legacy)
+        RADAE_SYNC,
+        RADAE_SNR_DB,
+        RADAE_RX_LEVEL_DB,
+        RADAE_CLIP,
+        RADAE_EOO_DECODE,
+        RADAE_TX_MIC_LEVEL_DB,
+        RADAE_TX_MIC_CLIP,
         LAST
     }
     public enum BandGroups
@@ -783,6 +808,13 @@ namespace Thetis
                 _all_readings.Add(Reading.VOLTS);
                 _all_readings.Add(Reading.AMPS);
                 _all_readings.Add(Reading.SIGNAL_MAX_BIN);
+                _all_readings.Add(Reading.RADAE_SYNC);
+                _all_readings.Add(Reading.RADAE_SNR_DB);
+                _all_readings.Add(Reading.RADAE_RX_LEVEL_DB);
+                _all_readings.Add(Reading.RADAE_CLIP);
+                _all_readings.Add(Reading.RADAE_EOO_DECODE);
+                _all_readings.Add(Reading.RADAE_TX_MIC_LEVEL_DB);
+                _all_readings.Add(Reading.RADAE_TX_MIC_CLIP);
 
                 // text
                 _all_readings_text.Add("time_utc");
@@ -2121,6 +2153,41 @@ namespace Thetis
                         value = 0f;
                     }
                     break;
+                case Reading.RADAE_SYNC:
+                    {
+                        value = 0f;
+                    }
+                    break;
+                case Reading.RADAE_SNR_DB:
+                    {
+                        value = 0f;
+                    }
+                    break;
+                case Reading.RADAE_RX_LEVEL_DB:
+                    {
+                        value = -120f;
+                    }
+                    break;
+                case Reading.RADAE_CLIP:
+                    {
+                        value = 0f;
+                    }
+                    break;
+                case Reading.RADAE_EOO_DECODE:
+                    {
+                        value = 0f;
+                    }
+                    break;
+                case Reading.RADAE_TX_MIC_LEVEL_DB:
+                    {
+                        value = -120f;
+                    }
+                    break;
+                case Reading.RADAE_TX_MIC_CLIP:
+                    {
+                        value = 0f;
+                    }
+                    break;
                 case Reading.VOLTS:
                     {
                         value = 0f;
@@ -2155,6 +2222,15 @@ namespace Thetis
                 case MeterType.AGC: return 0;
                 case MeterType.AGC_GAIN: return 0;
                 case MeterType.ESTIMATED_PBSNR: return 0;
+                case MeterType.RADAE_SYNC: return 0;
+                case MeterType.RADAE_SNR_DB: return 0;
+                case MeterType.RADAE_RX_LEVEL_DB: return 0;
+                case MeterType.RADAE_CLIP: return 0;
+                case MeterType.RADAE_EOO_DECODE: return 0;
+
+                case MeterType.RADAE_TX_MIC_LEVEL_DB: return 1;
+                case MeterType.RADAE_TX_MIC_CLIP: return 1;
+
 
                 case MeterType.MIC: return 1;
                 case MeterType.PWR: return 1;
@@ -2228,6 +2304,13 @@ namespace Thetis
                 case MeterType.CFC_GAIN: return "CFC Compression Gain";
                 case MeterType.MAGIC_EYE: return "Magic Eye";
                 case MeterType.ESTIMATED_PBSNR: return "Estimated PBSNR";
+                case MeterType.RADAE_SYNC: return "RADE Sync";
+                case MeterType.RADAE_SNR_DB: return "RADE SNR";
+                case MeterType.RADAE_RX_LEVEL_DB: return "RADE RX Level";
+                case MeterType.RADAE_CLIP: return "RADE Clip";
+                case MeterType.RADAE_EOO_DECODE: return "RADE Last Callsign";
+                case MeterType.RADAE_TX_MIC_LEVEL_DB: return "RADE TX Mic Level";
+                case MeterType.RADAE_TX_MIC_CLIP: return "RADE TX Mic Clip";
                 case MeterType.ANANMM: return "Anan Multi Meter";
                 case MeterType.CROSS: return "Cross Meter";
                 case MeterType.SWR: return "SWR";
@@ -2272,6 +2355,13 @@ namespace Thetis
                 case Reading.ALC_G: return "ALC Compression";
                 case Reading.ALC_GROUP: return "ALC Group";
                 case Reading.ESTIMATED_PBSNR: return "Estimated PBSNR";
+                case Reading.RADAE_SYNC: return "RADE Sync";
+                case Reading.RADAE_SNR_DB: return "RADE SNR";
+                case Reading.RADAE_RX_LEVEL_DB: return "RADE RX Level";
+                case Reading.RADAE_CLIP: return "RADE Clip";
+                case Reading.RADAE_EOO_DECODE: return "RADE EOO Decodes";
+                case Reading.RADAE_TX_MIC_LEVEL_DB: return "RADE TX Mic Level";
+                case Reading.RADAE_TX_MIC_CLIP: return "RADE TX Mic Clip";
                 case Reading.ALC_PK: return "ALC (pk)";// Peak";
                 case Reading.AMPS: return "Amps";
                 case Reading.AVG_SIGNAL_STRENGTH: return "Signal Average";
@@ -2333,6 +2423,13 @@ namespace Thetis
                 case Reading.ALC_G: return "dB";
                 case Reading.ALC_GROUP: return "dB";
                 case Reading.ESTIMATED_PBSNR: return "dB";
+                case Reading.RADAE_SYNC: return "";
+                case Reading.RADAE_SNR_DB: return "dB";
+                case Reading.RADAE_RX_LEVEL_DB: return "dBFS";
+                case Reading.RADAE_CLIP: return "";
+                case Reading.RADAE_EOO_DECODE: return "";
+                case Reading.RADAE_TX_MIC_LEVEL_DB: return "dBFS";
+                case Reading.RADAE_TX_MIC_CLIP: return "";
                 case Reading.ALC_PK: return "dB";
                 case Reading.AMPS: return "A";
                 case Reading.AVG_SIGNAL_STRENGTH: return "dBm";
@@ -2781,6 +2878,70 @@ namespace Thetis
             ContainerVisibleHandlers?.Invoke(id, visible);
         }
 
+        /* Unified visibility gate for a container.  Returns true if the
+         * container should be hidden by either:
+         *   - "Hide if RX not in use"  (only RX2 can be 'not in use'), or
+         *   - "Hide if RADE not enabled" (per the container's own RX).
+         * RADE-enabled state is read live from the console: RX1 uses
+         * RadaeRx1Enabled, RX2 uses RadaeRx2Enabled. */
+        private static bool containerShouldHide(ucMeter uc)
+        {
+            if (_console == null || uc == null) return false;
+
+            if (uc.RX == 2 && !_console.RX2Enabled && uc.ContainerHidesWhenRXNotUsed)
+                return true;
+
+            if (uc.ContainerHidesWhenRADENotEnabled)
+            {
+                bool radeOn = (uc.RX == 2) ? _console.RadaeRx2Enabled : _console.RadaeRx1Enabled;
+                if (!radeOn) return true;
+            }
+            return false;
+        }
+
+        /* Show or hide a container according to containerShouldHide.
+         * Used by the two "Hide if ..." setters and by the RADE-enable
+         * change handler. */
+        private static void applyContainerVisibilityGates(ucMeter uc)
+        {
+            if (uc == null) return;
+            if (_lstMeterDisplayForms == null || !_lstMeterDisplayForms.ContainsKey(uc.ID)) return;
+
+            bool hide = containerShouldHide(uc);
+            if (hide)
+            {
+                if (uc.Floating)
+                    _lstMeterDisplayForms[uc.ID].Hide();
+                else
+                {
+                    uc.Hide();
+                    uc.Repaint();
+                }
+                containerVisible(uc.ID, false);
+            }
+            else
+            {
+                if (uc.MeterEnabled && !uc.HiddenByMacro)
+                {
+                    frmMeterDisplay frm = _lstMeterDisplayForms[uc.ID];
+                    // For a floating container, uc.Visible stays true while the
+                    // host form is hidden, so checking !uc.Visible would never
+                    // re-show it when its gate (e.g. RADE-enable) opens. Use the
+                    // host form's actual visibility for floating containers.
+                    bool currentlyShown = uc.Floating ? (frm != null && frm.Visible) : uc.Visible;
+                    if (!currentlyShown)
+                    {
+                        if (uc.Floating)
+                            setMeterFloating(uc, frm);
+                        else
+                            returnMeterFromFloating(uc, frm);
+
+                        containerVisible(uc.ID, true);
+                    }
+                }
+            }
+        }
+
         public static void ContainerHidesWhenRXNotUsed(string sId, bool hides)
         {
             lock (_metersLock)
@@ -2789,39 +2950,33 @@ namespace Thetis
                 if (_lstUCMeters == null || !_lstUCMeters.ContainsKey(sId)) return;
                 if (_lstMeterDisplayForms == null || !_lstMeterDisplayForms.ContainsKey(sId)) return;
 
-                clsMeter m = _meters[sId];
                 ucMeter uc = _lstUCMeters[sId];
                 frmMeterDisplay f = _lstMeterDisplayForms[uc.ID];
 
                 uc.ContainerHidesWhenRXNotUsed = hides;
                 f.ContainerHidesWhenRXNotUsed = hides;
 
-                //hide if this is for an rx that is not in use, otherwise show it
-                //atm this is only a consideration for rx2
-                bool hide = m.RX == 2 && (!m.RX2Enabled && uc.ContainerHidesWhenRXNotUsed);
-                if (hide)
-                {
-                    if (uc.Floating)
-                        _lstMeterDisplayForms[uc.ID].Hide();
-                    else
-                    {
-                        uc.Hide();
-                        uc.Repaint();
-                    }
-                    containerVisible(uc.ID, false);
-                }
-                else
-                {
-                    if (uc.MeterEnabled && !uc.Visible & !uc.HiddenByMacro)
-                    {
-                        if (uc.Floating)
-                            setMeterFloating(uc, _lstMeterDisplayForms[uc.ID]);
-                        else
-                            returnMeterFromFloating(uc, _lstMeterDisplayForms[uc.ID]);
+                // Re-evaluate visibility under both gates.
+                applyContainerVisibilityGates(uc);
+            }
+        }
 
-                        containerVisible(uc.ID, true);
-                    }
-                }
+        public static void ContainerHidesWhenRADENotEnabled(string sId, bool hides)
+        {
+            lock (_metersLock)
+            {
+                if (_meters == null || !_meters.ContainsKey(sId)) return;
+                if (_lstUCMeters == null || !_lstUCMeters.ContainsKey(sId)) return;
+                if (_lstMeterDisplayForms == null || !_lstMeterDisplayForms.ContainsKey(sId)) return;
+
+                ucMeter uc = _lstUCMeters[sId];
+                frmMeterDisplay f = _lstMeterDisplayForms[uc.ID];
+
+                uc.ContainerHidesWhenRADENotEnabled = hides;
+                f.ContainerHidesWhenRADENotEnabled = hides;
+
+                // Re-evaluate visibility under both gates.
+                applyContainerVisibilityGates(uc);
             }
         }
         public static void LockContainer(string sId, bool locked)
@@ -3121,6 +3276,17 @@ namespace Thetis
 
                 ucMeter uc = _lstUCMeters[sId];
                 return uc.ContainerHidesWhenRXNotUsed;
+            }
+        }
+        public static bool ContainerHidesWhenRADENotEnabled(string sId)
+        {
+            lock (_metersLock)
+            {
+                if (_lstUCMeters == null) return false;
+                if (!_lstUCMeters.ContainsKey(sId)) return false;
+
+                ucMeter uc = _lstUCMeters[sId];
+                return uc.ContainerHidesWhenRADENotEnabled;
             }
         }
         public static bool ContainerIsHidden(string sId)
@@ -3596,6 +3762,7 @@ namespace Thetis
 
             _console.RX2EnabledChangedHandlers += OnRX2EnabledChanged;
             _console.RX2EnabledPreChangedHandlers += OnRX2EnabledPreChanged;
+            _console.RadaeEnabledChangedHandlers += OnRadaeEnabledChanged;
 
             _console.EQChangedHandlers += OnEQChanged;
             _console.LevelerChangedHandlers += OnLevelerChanged;
@@ -3707,6 +3874,7 @@ namespace Thetis
 
             _console.RX2EnabledChangedHandlers -= OnRX2EnabledChanged;
             _console.RX2EnabledPreChangedHandlers -= OnRX2EnabledPreChanged;
+            _console.RadaeEnabledChangedHandlers -= OnRadaeEnabledChanged;
 
             _console.EQChangedHandlers -= OnEQChanged;
             _console.LevelerChangedHandlers -= OnLevelerChanged;
@@ -5493,6 +5661,13 @@ namespace Thetis
                     //setReading(rx, Reading.SUB_ESTIMATED_PBSNR, ref readings);
 
                     setReading(rx, Reading.SIGNAL_MAX_BIN, ref readings);
+
+                    // [v2.10.3.16] RADE V1 modem readings (RX side)
+                    setReading(rx, Reading.RADAE_SYNC,         ref readings);
+                    setReading(rx, Reading.RADAE_SNR_DB,       ref readings);
+                    setReading(rx, Reading.RADAE_RX_LEVEL_DB,  ref readings);
+                    setReading(rx, Reading.RADAE_CLIP,         ref readings);
+                    setReading(rx, Reading.RADAE_EOO_DECODE,   ref readings);
                 }
                 else
                 {
@@ -5523,6 +5698,10 @@ namespace Thetis
                     setReading(rx, Reading.PWR, ref readings);
                     setReading(rx, Reading.REVERSE_PWR, ref readings);
                     setReading(rx, Reading.SWR, ref readings);
+
+                    // [v2.10.3.16] RADE TX-side mic readings
+                    setReading(rx, Reading.RADAE_TX_MIC_LEVEL_DB, ref readings);
+                    setReading(rx, Reading.RADAE_TX_MIC_CLIP, ref readings);
 
                     if (rx == 1)
                     { // only rx1 data
@@ -5907,8 +6086,8 @@ namespace Thetis
             {
                 containerVisible(m.ID, false);
             }
-            if (m.RX == 2 && (!_console.RX2Enabled && m.ContainerHidesWhenRXNotUsed))
-            {                
+            if (containerShouldHide(m))
+            {
                 return;
             }
 
@@ -5920,7 +6099,7 @@ namespace Thetis
         {
             if (_console == null) return;
 
-            if (m.RX == 2 && (!_console.RX2Enabled && m.ContainerHidesWhenRXNotUsed)) return;
+            if (containerShouldHide(m)) return;
 
             m.Hide();
             m.Repaint();
@@ -5940,6 +6119,23 @@ namespace Thetis
             frm.Show();
             //Common.FadeIn(frm, 100);
             containerVisible(frm.ID, true);
+        }
+        /* RADE enable toggled for an RX.  Re-evaluate the visibility of
+         * every container bound to that RX so "Hide if RADE not enabled"
+         * applies live.  rx is 1 or 2. */
+        private static void OnRadaeEnabledChanged(int rx, bool enabled)
+        {
+            lock (_metersLock)
+            {
+                if (_lstUCMeters == null) return;
+                foreach (KeyValuePair<string, ucMeter> kvp in _lstUCMeters)
+                {
+                    ucMeter ucM = kvp.Value;
+                    if (ucM.RX != rx) continue;
+                    if (_lstMeterDisplayForms == null || !_lstMeterDisplayForms.ContainsKey(ucM.ID)) continue;
+                    applyContainerVisibilityGates(ucM);
+                }
+            }
         }
         private static void OnRX2EnabledChanged(bool enabled)
         {
@@ -6660,7 +6856,8 @@ namespace Thetis
                 DIAL_DISPLAY,
                 OTHER_BUTTONS,
                 WAVE_RECORD,
-                VOICE_RECORD_PLAY_BUTTONS
+                VOICE_RECORD_PLAY_BUTTONS,
+                RADAE_CALL_TEXT
             }
 
             public class clsPercCache
@@ -15482,6 +15679,44 @@ namespace Thetis
             //    return sRet;
             //}
         }
+        /* [v2.10.3.16] RADE last-decoded-callsign text item.  Pulls the
+         * decoded callsign from Rade.GetRadaeRemoteCallsign at render
+         * time (cheap C-side getter under critical section) and draws it
+         * via the renderer's plotText helper.  Modelled on clsClock --
+         * minimal state, fixed UpdateInterval. */
+        internal class clsRadaeCallText : clsMeterItem
+        {
+            private System.Drawing.Color _colour;
+            private System.Drawing.Color _emptyColour;
+            private string _fontFamily;
+            private FontStyle _fontStyle;
+            private float _fontSize;
+            private bool _showLabel;
+            private System.Drawing.Color _labelColour;
+
+            public clsRadaeCallText()
+            {
+                _fontFamily = "Trebuchet MS";
+                _fontStyle = FontStyle.Bold;
+                _fontSize = 22f;
+                _colour = System.Drawing.Color.LimeGreen;
+                _emptyColour = System.Drawing.Color.FromArgb(96, 96, 96);
+                _labelColour = System.Drawing.Color.Gray;
+                _showLabel = true;
+
+                ItemType = MeterItemType.RADAE_CALL_TEXT;
+                StoreSettings = false;
+                UpdateInterval = 500;   /* fast enough for sub-second feedback */
+            }
+
+            public System.Drawing.Color Colour       { get { return _colour; }       set { _colour = value; } }
+            public System.Drawing.Color EmptyColour  { get { return _emptyColour; }  set { _emptyColour = value; } }
+            public System.Drawing.Color LabelColour  { get { return _labelColour; }  set { _labelColour = value; } }
+            public string               FontFamily   { get { return _fontFamily; }   set { _fontFamily = value; } }
+            public FontStyle            Style        { get { return _fontStyle; }    set { _fontStyle = value; } }
+            public float                FontSize     { get { return _fontSize; }     set { _fontSize = value; } }
+            public bool                 ShowLabel    { get { return _showLabel; }    set { _showLabel = value; } }
+        }
         internal class clsWebImage : clsMeterItem
         {
             private PointF _clipTopLeft;
@@ -22652,6 +22887,13 @@ namespace Thetis
                     case MeterType.CFC_GAIN: ret = Reading.CFC_G.ToString(); break;
                     case MeterType.MAGIC_EYE: ret = Reading.SIGNAL_STRENGTH.ToString(); break;
                     case MeterType.ESTIMATED_PBSNR: ret = Reading.ESTIMATED_PBSNR.ToString(); break;
+                    case MeterType.RADAE_SYNC: ret = Reading.RADAE_SYNC.ToString(); break;
+                    case MeterType.RADAE_SNR_DB: ret = Reading.RADAE_SNR_DB.ToString(); break;
+                    case MeterType.RADAE_RX_LEVEL_DB: ret = Reading.RADAE_RX_LEVEL_DB.ToString(); break;
+                    case MeterType.RADAE_CLIP: ret = Reading.RADAE_CLIP.ToString(); break;
+                    case MeterType.RADAE_EOO_DECODE: ret = Reading.RADAE_EOO_DECODE.ToString(); break;
+                    case MeterType.RADAE_TX_MIC_LEVEL_DB: ret = Reading.RADAE_TX_MIC_LEVEL_DB.ToString(); break;
+                    case MeterType.RADAE_TX_MIC_CLIP: ret = Reading.RADAE_TX_MIC_CLIP.ToString(); break;
                     //TODO !!!case MeterType.ANANMM: ret = 7.ToString(); break;
                     case MeterType.CROSS: ret = variable_index == 0 ? Reading.PWR.ToString() : Reading.REVERSE_PWR.ToString(); break;
                     case MeterType.SWR: ret = Reading.SWR.ToString(); break;
@@ -22707,6 +22949,13 @@ namespace Thetis
                     case MeterType.CFC_GAIN: return 1;
                     case MeterType.MAGIC_EYE: return 1;
                     case MeterType.ESTIMATED_PBSNR: return 1;
+                    case MeterType.RADAE_SYNC: return 1;
+                    case MeterType.RADAE_SNR_DB: return 1;
+                    case MeterType.RADAE_RX_LEVEL_DB: return 1;
+                    case MeterType.RADAE_CLIP: return 1;
+                    case MeterType.RADAE_EOO_DECODE: return 1;
+                    case MeterType.RADAE_TX_MIC_LEVEL_DB: return 1;
+                    case MeterType.RADAE_TX_MIC_CLIP: return 1;
                     case MeterType.ANANMM: return 7;
                     case MeterType.CROSS: return 2;
                     case MeterType.SWR: return 1;
@@ -22767,6 +23016,13 @@ namespace Thetis
                     case MeterType.CFC_GAIN: AddCFCGainBar(nDelay, 0, out bBottom, restoreIg); break;
                     case MeterType.MAGIC_EYE: AddMagicEye(nDelay, 0, out bBottom, 0.2f, restoreIg); break;
                     case MeterType.ESTIMATED_PBSNR: AddPBSNRBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_SYNC: AddRadaeSyncBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_SNR_DB: AddRadaeSnrBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_RX_LEVEL_DB: AddRadaeRxLevelBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_CLIP: AddRadaeClipBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_EOO_DECODE: AddRadaeEooDecodeBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_TX_MIC_LEVEL_DB: AddRadaeTxMicLevelBar(nDelay, 0, out bBottom, restoreIg); break;
+                    case MeterType.RADAE_TX_MIC_CLIP: AddRadaeTxMicClipBar(nDelay, 0, out bBottom, restoreIg); break;
                     case MeterType.ANANMM: AddAnanMM(nDelay, 0, out bBottom, restoreIg); break;
                     case MeterType.CROSS: AddCrossNeedle(nDelay, 0, out bBottom, restoreIg); break;
                     case MeterType.SWR: AddSWRBar(nDelay, 0, out bBottom, restoreIg); break;
@@ -23219,6 +23475,453 @@ namespace Thetis
 
                 return cb.ID;
             }
+            // ----------------------------------------------------------
+            //  RADE V1 modem meters.  All three follow the AddPBSNRBar
+            //  template -- a horizontal bar with a labeled scale, a dark
+            //  background plate and a click box.  Only ReadingSource +
+            //  ScaleCalibration + Colour differ.
+            // ----------------------------------------------------------
+            public string AddRadaeSyncBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                clsBarItem cb = new clsBarItem();
+                cb.ParentID = ig.ID;
+                cb.Primary = true;
+                cb.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                cb.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                cb.ReadingSource = Reading.RADAE_SYNC;
+                cb.MMIOVariableIndex = 0;
+                cb.AttackRatio = 0.5f;
+                cb.DecayRatio = 0.2f;
+                cb.UpdateInterval = nMSupdate;
+                cb.HistoryDuration = 4000;
+                cb.ShowHistory = false;
+                cb.PeakHold = false;
+                cb.Colour = System.Drawing.Color.LimeGreen;
+                cb.HistoryColour = System.Drawing.Color.FromArgb(128, System.Drawing.Color.Violet);
+                cb.Style = clsBarItem.BarStyle.Segments;
+                cb.ScaleCalibration.Add(0, new PointF(0, 0));
+                cb.ScaleCalibration.Add(1, new PointF(0.99f, 0));
+                cb.FontColour = System.Drawing.Color.Yellow;
+                cb.ZOrder = 2;
+                cb.Value = cb.ScaleCalibration.OrderBy(p => p.Key).First().Key;
+                cb.HighPoint = cb.ScaleCalibration.OrderBy(p => p.Key).ElementAt(1).Value;
+                addMeterItem(cb);
+
+                clsScaleItem cs = new clsScaleItem();
+                cs.ParentID = ig.ID;
+                cs.TopLeft = cb.TopLeft;
+                cs.Size = cb.Size;
+                cs.ReadingSource = cb.ReadingSource;
+                cs.ZOrder = 3;
+                cs.ShowType = true;
+                addMeterItem(cs);
+
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(cb.TopLeft.X, cb.TopLeft.Y - _fHeight * 0.75f);
+                sc.Size = new SizeF(cb.Size.Width, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                clsClickBox clb = new clsClickBox();
+                clb.ParentID = ig.ID;
+                clb.TopLeft = sc.TopLeft;
+                clb.Size = sc.Size;
+                clb.ChangesGroup = false;
+                clb.PerformsIncDec = true;
+                clb.RelatedMeterItem = cb;
+                addMeterItem(clb);
+
+                fBottom = cb.TopLeft.Y + cb.Size.Height;
+                ig.TopLeft = cb.TopLeft;
+                ig.Size = new SizeF(cb.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_SYNC;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return cb.ID;
+            }
+
+            public string AddRadaeSnrBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                clsBarItem cb = new clsBarItem();
+                cb.ParentID = ig.ID;
+                cb.Primary = true;
+                cb.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                cb.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                cb.ReadingSource = Reading.RADAE_SNR_DB;
+                cb.MMIOVariableIndex = 0;
+                cb.AttackRatio = 0.2f;
+                cb.DecayRatio = 0.05f;
+                cb.UpdateInterval = nMSupdate;
+                cb.HistoryDuration = 4000;
+                cb.ShowHistory = true;
+                cb.PeakHold = false;
+                cb.Colour = System.Drawing.Color.DarkCyan;
+                cb.HistoryColour = System.Drawing.Color.FromArgb(128, System.Drawing.Color.Violet);
+                cb.Style = clsBarItem.BarStyle.Line;
+                /* RADE SNR scale -10..+40 dB (AGC-style template), 0 dB at 20% from left */
+                cb.ScaleCalibration.Add(-10, new PointF(0f,    0));
+                cb.ScaleCalibration.Add(0,   new PointF(0.2f,  0));
+                cb.ScaleCalibration.Add(40,  new PointF(0.99f, 0));
+                cb.FontColour = System.Drawing.Color.Yellow;
+                cb.ZOrder = 2;
+                cb.Value = cb.ScaleCalibration.OrderBy(p => p.Key).First().Key;
+                cb.HighPoint = cb.ScaleCalibration.OrderBy(p => p.Key).ElementAt(1).Value;
+                addMeterItem(cb);
+
+                clsScaleItem cs = new clsScaleItem();
+                cs.ParentID = ig.ID;
+                cs.TopLeft = cb.TopLeft;
+                cs.Size = cb.Size;
+                cs.ReadingSource = cb.ReadingSource;
+                cs.ZOrder = 3;
+                cs.ShowType = true;
+                /* -10..0 (first 20%) red, 0..+40 green */
+                cs.LowColour      = System.Drawing.Color.Red;
+                cs.FontColourLow  = System.Drawing.Color.Red;
+                cs.HighColour     = System.Drawing.Color.Green;
+                cs.FontColourHigh = System.Drawing.Color.Green;
+                addMeterItem(cs);
+
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(cb.TopLeft.X, cb.TopLeft.Y - _fHeight * 0.75f);
+                sc.Size = new SizeF(cb.Size.Width, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                fBottom = cb.TopLeft.Y + cb.Size.Height;
+                ig.TopLeft = cb.TopLeft;
+                ig.Size = new SizeF(cb.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_SNR_DB;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return cb.ID;
+            }
+
+            public string AddRadaeRxLevelBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                clsBarItem cb = new clsBarItem();
+                cb.ParentID = ig.ID;
+                cb.Primary = true;
+                cb.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                cb.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                cb.ReadingSource = Reading.RADAE_RX_LEVEL_DB;
+                cb.MMIOVariableIndex = 0;
+                cb.AttackRatio = 0.2f;
+                cb.DecayRatio = 0.05f;
+                cb.UpdateInterval = nMSupdate;
+                cb.HistoryDuration = 4000;
+                cb.ShowHistory = true;
+                cb.MarkerColour = System.Drawing.Color.Orange;
+                cb.HistoryColour = System.Drawing.Color.FromArgb(128, System.Drawing.Color.CornflowerBlue);
+                cb.Style = clsBarItem.BarStyle.Line;
+                /* ADC-style scale -120..0 dBFS, midpoint -20 */
+                cb.ScaleCalibration.Add(-120, new PointF(0, 0));
+                cb.ScaleCalibration.Add(-20,  new PointF(0.8333f, 0));
+                cb.ScaleCalibration.Add(0,    new PointF(0.99f, 0));
+                cb.FontColour = System.Drawing.Color.Yellow;
+                cb.ZOrder = 2;
+                cb.Value = cb.ScaleCalibration.OrderBy(p => p.Key).First().Key;
+                cb.HighPoint = cb.ScaleCalibration.OrderBy(p => p.Key).ElementAt(1).Value;
+                addMeterItem(cb);
+
+                clsScaleItem cs = new clsScaleItem();
+                cs.ParentID = ig.ID;
+                cs.TopLeft = cb.TopLeft;
+                cs.Size = cb.Size;
+                cs.ReadingSource = cb.ReadingSource;
+                cs.ZOrder = 3;
+                cs.ShowType = true;
+                addMeterItem(cs);
+
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(cb.TopLeft.X, cb.TopLeft.Y - _fHeight * 0.75f);
+                sc.Size = new SizeF(cb.Size.Width, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                fBottom = cb.TopLeft.Y + cb.Size.Height;
+                ig.TopLeft = cb.TopLeft;
+                ig.Size = new SizeF(cb.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_RX_LEVEL_DB;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return cb.ID;
+            }
+
+            public string AddRadaeClipBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                clsBarItem cb = new clsBarItem();
+                cb.ParentID = ig.ID;
+                cb.Primary = true;
+                cb.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                cb.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                cb.ReadingSource = Reading.RADAE_CLIP;
+                cb.MMIOVariableIndex = 0;
+                cb.AttackRatio = 1.0f;     /* snap to 1 instantly */
+                cb.DecayRatio = 0.3f;      /* drop to 0 over a few ticks */
+                cb.UpdateInterval = nMSupdate;
+                cb.HistoryDuration = 4000;
+                cb.ShowHistory = false;
+                cb.PeakHold = false;
+                cb.Colour = System.Drawing.Color.Red;
+                cb.HistoryColour = System.Drawing.Color.FromArgb(128, System.Drawing.Color.Violet);
+                cb.Style = clsBarItem.BarStyle.Segments;
+                cb.ScaleCalibration.Add(0, new PointF(0, 0));
+                cb.ScaleCalibration.Add(1, new PointF(0.99f, 0));
+                cb.FontColour = System.Drawing.Color.Yellow;
+                cb.ZOrder = 2;
+                cb.Value = cb.ScaleCalibration.OrderBy(p => p.Key).First().Key;
+                cb.HighPoint = cb.ScaleCalibration.OrderBy(p => p.Key).ElementAt(1).Value;
+                addMeterItem(cb);
+
+                clsScaleItem cs = new clsScaleItem();
+                cs.ParentID = ig.ID;
+                cs.TopLeft = cb.TopLeft;
+                cs.Size = cb.Size;
+                cs.ReadingSource = cb.ReadingSource;
+                cs.ZOrder = 3;
+                cs.ShowType = true;
+                addMeterItem(cs);
+
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(cb.TopLeft.X, cb.TopLeft.Y - _fHeight * 0.75f);
+                sc.Size = new SizeF(cb.Size.Width, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                clsClickBox clb = new clsClickBox();
+                clb.ParentID = ig.ID;
+                clb.TopLeft = sc.TopLeft;
+                clb.Size = sc.Size;
+                clb.ChangesGroup = false;
+                clb.PerformsIncDec = true;
+                clb.RelatedMeterItem = cb;
+                addMeterItem(clb);
+
+                fBottom = cb.TopLeft.Y + cb.Size.Height;
+                ig.TopLeft = cb.TopLeft;
+                ig.Size = new SizeF(cb.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_CLIP;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return cb.ID;
+            }
+
+            public string AddRadaeTxMicLevelBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                clsBarItem cb = new clsBarItem();
+                cb.ParentID = ig.ID;
+                cb.Primary = true;
+                cb.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                cb.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                cb.ReadingSource = Reading.RADAE_TX_MIC_LEVEL_DB;
+                cb.MMIOVariableIndex = 0;
+                cb.AttackRatio = 0.2f;
+                cb.DecayRatio = 0.05f;
+                cb.UpdateInterval = nMSupdate;
+                cb.HistoryDuration = 4000;
+                cb.ShowHistory = true;
+                cb.MarkerColour = System.Drawing.Color.Orange;
+                cb.HistoryColour = System.Drawing.Color.FromArgb(128, System.Drawing.Color.CornflowerBlue);
+                cb.Style = clsBarItem.BarStyle.Line;
+                /* ADC-style scale -120..0 dBFS, midpoint -20 */
+                cb.ScaleCalibration.Add(-120, new PointF(0, 0));
+                cb.ScaleCalibration.Add(-20,  new PointF(0.8333f, 0));
+                cb.ScaleCalibration.Add(0,    new PointF(0.99f, 0));
+                cb.FontColour = System.Drawing.Color.Yellow;
+                cb.ZOrder = 2;
+                cb.Value = cb.ScaleCalibration.OrderBy(p => p.Key).First().Key;
+                cb.HighPoint = cb.ScaleCalibration.OrderBy(p => p.Key).ElementAt(1).Value;
+                addMeterItem(cb);
+
+                clsScaleItem cs = new clsScaleItem();
+                cs.ParentID = ig.ID;
+                cs.TopLeft = cb.TopLeft;
+                cs.Size = cb.Size;
+                cs.ReadingSource = cb.ReadingSource;
+                cs.ZOrder = 3;
+                cs.ShowType = true;
+                addMeterItem(cs);
+
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(cb.TopLeft.X, cb.TopLeft.Y - _fHeight * 0.75f);
+                sc.Size = new SizeF(cb.Size.Width, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                fBottom = cb.TopLeft.Y + cb.Size.Height;
+                ig.TopLeft = cb.TopLeft;
+                ig.Size = new SizeF(cb.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_TX_MIC_LEVEL_DB;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return cb.ID;
+            }
+
+            public string AddRadaeTxMicClipBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                clsBarItem cb = new clsBarItem();
+                cb.ParentID = ig.ID;
+                cb.Primary = true;
+                cb.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                cb.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                cb.ReadingSource = Reading.RADAE_TX_MIC_CLIP;
+                cb.MMIOVariableIndex = 0;
+                cb.AttackRatio = 1.0f;
+                cb.DecayRatio = 0.3f;
+                cb.UpdateInterval = nMSupdate;
+                cb.HistoryDuration = 4000;
+                cb.ShowHistory = false;
+                cb.PeakHold = false;
+                cb.Colour = System.Drawing.Color.Red;
+                cb.HistoryColour = System.Drawing.Color.FromArgb(128, System.Drawing.Color.Violet);
+                cb.Style = clsBarItem.BarStyle.Segments;
+                cb.ScaleCalibration.Add(0, new PointF(0, 0));
+                cb.ScaleCalibration.Add(1, new PointF(0.99f, 0));
+                cb.FontColour = System.Drawing.Color.Yellow;
+                cb.ZOrder = 2;
+                cb.Value = cb.ScaleCalibration.OrderBy(p => p.Key).First().Key;
+                cb.HighPoint = cb.ScaleCalibration.OrderBy(p => p.Key).ElementAt(1).Value;
+                addMeterItem(cb);
+
+                clsScaleItem cs = new clsScaleItem();
+                cs.ParentID = ig.ID;
+                cs.TopLeft = cb.TopLeft;
+                cs.Size = cb.Size;
+                cs.ReadingSource = cb.ReadingSource;
+                cs.ZOrder = 3;
+                cs.ShowType = true;
+                addMeterItem(cs);
+
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(cb.TopLeft.X, cb.TopLeft.Y - _fHeight * 0.75f);
+                sc.Size = new SizeF(cb.Size.Width, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                clsClickBox clb = new clsClickBox();
+                clb.ParentID = ig.ID;
+                clb.TopLeft = sc.TopLeft;
+                clb.Size = sc.Size;
+                clb.ChangesGroup = false;
+                clb.PerformsIncDec = true;
+                clb.RelatedMeterItem = cb;
+                addMeterItem(clb);
+
+                fBottom = cb.TopLeft.Y + cb.Size.Height;
+                ig.TopLeft = cb.TopLeft;
+                ig.Size = new SizeF(cb.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_TX_MIC_CLIP;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return cb.ID;
+            }
+
+            /* [v2.10.3.16] "RADE Last Callsign" -- displays the most-recent
+             * EOO-decoded remote callsign as text.  Replaces the earlier
+             * pulse-bar implementation now that the FreeDV-GUI rade_text
+             * codec gives us a reliable validated string.  Same MeterType
+             * (RADAE_EOO_DECODE) so saved meter layouts continue to load. */
+            public string AddRadaeEooDecodeBar(int nMSupdate, float fTop, out float fBottom, clsItemGroup restoreIg = null)
+            {
+                clsItemGroup ig = new clsItemGroup();
+                if (restoreIg != null) ig.ID = restoreIg.ID;
+                ig.ParentID = ID;
+
+                /* Background plate -- same dark-grey style the bar meters use. */
+                clsSolidColour sc = new clsSolidColour();
+                sc.ParentID = ig.ID;
+                sc.TopLeft = new PointF(_fPadX, fTop + _fPadY - _fHeight * 0.75f);
+                sc.Size = new SizeF(1f - _fPadX * 2f, _fHeight + _fHeight * 0.75f);
+                sc.Colour = System.Drawing.Color.FromArgb(32, 32, 32);
+                sc.ZOrder = 1;
+                addMeterItem(sc);
+
+                /* The text item itself. */
+                clsRadaeCallText t = new clsRadaeCallText();
+                t.ParentID = ig.ID;
+                t.Primary = true;
+                t.TopLeft = new PointF(_fPadX, fTop + _fPadY);
+                t.Size = new SizeF(1f - _fPadX * 2f, _fHeight);
+                t.UpdateInterval = nMSupdate > 0 ? nMSupdate : 500;
+                t.ZOrder = 2;
+                addMeterItem(t);
+
+                clsClickBox clb = new clsClickBox();
+                clb.ParentID = ig.ID;
+                clb.TopLeft = sc.TopLeft;
+                clb.Size = sc.Size;
+                clb.ChangesGroup = false;
+                clb.PerformsIncDec = true;
+                clb.RelatedMeterItem = t;
+                addMeterItem(clb);
+
+                fBottom = t.TopLeft.Y + t.Size.Height;
+                ig.TopLeft = t.TopLeft;
+                ig.Size = new SizeF(t.Size.Width, fBottom);
+                ig.MeterType = MeterType.RADAE_EOO_DECODE;
+                ig.Order = restoreIg == null ? numberOfMeterGroups() : restoreIg.Order;
+
+                clsFadeCover fc = getFadeCover(ig.ID);
+                if (fc != null) addMeterItem(fc);
+                addMeterItem(ig);
+                return t.ID;
+            }
+
             public string AddAGCGainBar(int nMSupdate, float fTop, out float fBottom,  clsItemGroup restoreIg = null)
             {
                 clsItemGroup ig = new clsItemGroup();
@@ -28300,6 +29003,16 @@ namespace Thetis
                                             solidColor.FadeOnTx = igs.FadeOnTx;
                                             solidColor.Colour = igs.Colour;
                                         }
+                                        foreach (KeyValuePair<string, clsMeterItem> ct in items.Where(o => o.Value.ItemType == clsMeterItem.MeterItemType.RADAE_CALL_TEXT))
+                                        {
+                                            clsRadaeCallText callText = ct.Value as clsRadaeCallText;
+                                            if (callText == null) continue;
+
+                                            callText.FadeOnRx = igs.FadeOnRx;
+                                            callText.FadeOnTx = igs.FadeOnTx;
+                                            callText.LabelColour = igs.TitleColor;   // title  <- "Title:" colour picker
+                                            callText.Colour      = igs.MarkerColour;  // callsign <- indicator (marker) colour picker
+                                        }
                                         foreach (KeyValuePair<string, clsMeterItem> si in items.Where(o => o.Value.ItemType == clsMeterItem.MeterItemType.H_SCALE))
                                         {
                                             clsScaleItem scaleItem = si.Value as clsScaleItem;
@@ -29361,6 +30074,14 @@ namespace Thetis
                                             igs.TitleColor = scaleItem.FontColourType;
                                             igs.ShowType = scaleItem.ShowType;
                                             if (scaleItem.ReadingSource == Reading.PWR || scaleItem.ReadingSource == Reading.REVERSE_PWR) igs.MaxPower = scaleItem.MaxPower;
+                                        }
+                                        foreach (KeyValuePair<string, clsMeterItem> ct in items.Where(o => o.Value.ItemType == clsMeterItem.MeterItemType.RADAE_CALL_TEXT))
+                                        {
+                                            clsRadaeCallText callText = ct.Value as clsRadaeCallText;
+                                            if (callText == null) continue;
+
+                                            igs.TitleColor   = callText.LabelColour;  // title    -> "Title:" picker
+                                            igs.MarkerColour = callText.Colour;        // callsign -> indicator (marker) picker (recall)
                                         }
                                         foreach (KeyValuePair<string, clsMeterItem> fcs in items.Where(o => o.Value.ItemType == clsMeterItem.MeterItemType.FADE_COVER))
                                         {
@@ -32971,6 +33692,9 @@ namespace Thetis
                                     case clsMeterItem.MeterItemType.CLOCK:
                                         renderClock(rect, mi, m);
                                         break;
+                                    case clsMeterItem.MeterItemType.RADAE_CALL_TEXT:
+                                        renderRadaeCallText(rect, mi, m);
+                                        break;
                                     case clsMeterItem.MeterItemType.SIGNAL_TEXT_DISPLAY:
                                         renderSignalTextDisplay(rect, mi, m);
                                         break;
@@ -33442,6 +34166,13 @@ namespace Thetis
                                 generalScale(x, y, w, h, scale, 6, 5, -125, 125, 25, 25, fLineBaseY, fontSizeEmScaled, 255);
                             }
                             break;
+                        case Reading.RADAE_SNR_DB:
+                            {
+                                // -10..+40 dB, 0 at 20% from left; low (-10..0) red, high (0..+40) green.
+                                // labelLowStart -> show "-10" at the far left; boundaryUsesHighColour -> "0" in green.
+                                generalScale(x, y, w, h, scale, 2, 4, -10, 40, 10, 10, fLineBaseY, fontSizeEmScaled, 255, 0.2f, false, false, true, true);
+                            }
+                            break;
                         case Reading.SIGNAL_STRENGTH:
                         case Reading.AVG_SIGNAL_STRENGTH:
                         case Reading.SIGNAL_MAX_BIN:
@@ -33452,6 +34183,13 @@ namespace Thetis
                         case Reading.ADC_PK:
                         case Reading.ADC_AV:
                             {
+                                generalScale(x, y, w, h, scale, 6, 1, -120, 0, 20, 20, fLineBaseY, fontSizeEmScaled, 255);
+                            }
+                            break;
+                        case Reading.RADAE_RX_LEVEL_DB:
+                        case Reading.RADAE_TX_MIC_LEVEL_DB:
+                            {
+                                // ADC-style: -120..0 dBFS, midpoint -20, default colours
                                 generalScale(x, y, w, h, scale, 6, 1, -120, 0, 20, 20, fLineBaseY, fontSizeEmScaled, 255);
                             }
                             break;
@@ -33869,7 +34607,7 @@ namespace Thetis
                     }
                 }
             }
-            private void generalScale(float x,float y,float w,float h,clsScaleItem scale, int lowLongTicks, int highLongTicks, int lowStartNumber, int highEndNumber, int lowIncrement, int highIngrement, float fLineBaseY, float newSize, int nFade, float centrePerc = -1, bool addTrailingPlus = false, bool addAllTrailingPlus = false)
+            private void generalScale(float x,float y,float w,float h,clsScaleItem scale, int lowLongTicks, int highLongTicks, int lowStartNumber, int highEndNumber, int lowIncrement, int highIngrement, float fLineBaseY, float newSize, int nFade, float centrePerc = -1, bool addTrailingPlus = false, bool addAllTrailingPlus = false, bool labelLowStart = false, bool boundaryUsesHighColour = false)
             {
                 float lowToHighPoint = (float)(lowLongTicks - 1) / (float)(lowLongTicks + highLongTicks - 1);
 
@@ -33898,7 +34636,26 @@ namespace Thetis
                     _renderTarget.DrawLine(startPoint, endPoint, highColour, 2f);
                 }
 
-                // markers low                                
+                // opt-in: label the low-start value (e.g. -10) at the far-left edge.
+                // generalScale's low loop starts at i=1, so the start edge is normally
+                // unlabelled; this draws it (left-aligned) in the low font colour.
+                if (labelLowStart)
+                {
+                    if (scale.ShowMarkers)
+                    {
+                        startPoint.X = x;
+                        startPoint.Y = fLineBaseY;
+                        endPoint.X = x;
+                        endPoint.Y = fLineBaseY - (h * 0.3f);
+                        _renderTarget.DrawLine(startPoint, endPoint, lowColour, 2f);
+                    }
+                    string sTextLow0 = lowStartNumber.ToString();
+                    SizeF szLow0 = measureString(sTextLow0, scale.FontFamily, scale.FntStyle, newSize);
+                    SharpDX.RectangleF rLow0 = new SharpDX.RectangleF(x, (fLineBaseY - (h * 0.3f)) - szLow0.Height, szLow0.Width, szLow0.Height);
+                    _renderTarget.DrawText(sTextLow0, getDXTextFormatForFont(scale.FontFamily, newSize, scale.FntStyle), rLow0, fontLowColour);
+                }
+
+                // markers low
                 for (int i = 1; i < lowLongTicks; i++)
                 {
                     if (scale.ShowMarkers)
@@ -33922,7 +34679,9 @@ namespace Thetis
                     string sText = (lowStartNumber + i * lowIncrement).ToString();
                     SizeF szTextSize = measureString(sText, scale.FontFamily, scale.FntStyle, newSize);
                     SharpDX.RectangleF txtrect = new SharpDX.RectangleF(startPoint.X - (szTextSize.Width / 2f), endPoint.Y - szTextSize.Height, szTextSize.Width, szTextSize.Height);
-                    _renderTarget.DrawText(sText, getDXTextFormatForFont(scale.FontFamily, newSize, scale.FntStyle), txtrect, fontLowColour);
+                    // opt-in: the boundary tick (last low tick, e.g. 0) can be drawn in the high font colour
+                    SharpDX.Direct2D1.Brush lowTextBrush = (boundaryUsesHighColour && i == lowLongTicks - 1) ? fontHighColour : fontLowColour;
+                    _renderTarget.DrawText(sText, getDXTextFormatForFont(scale.FontFamily, newSize, scale.FntStyle), txtrect, lowTextBrush);
                 }
                 
                 // markers high
@@ -40534,6 +41293,51 @@ namespace Thetis
                 plotText(sLocDate, rct.X, rct.Y, rect.Width, clk.FontSize * 0.9f, clk.DateColour, 255, clk.FontFamily, clk.Style);
                 rct = new SharpDX.RectangleF(x + (w * 0.132f) + (w * 0.52f), y + (h * 0.6f), w, h);
                 plotText(sUtcDate, rct.X, rct.Y, rect.Width, clk.FontSize * 0.9f, clk.DateColour, 255, clk.FontFamily, clk.Style);
+            }
+            /* [v2.10.3.16] Render the RADE last-decoded callsign as text.
+             * Reads Rade.GetRadaeRemoteCallsign() at draw time --
+             * cheap C-side memcpy under g_radae_cs.  Empty value renders
+             * dim placeholder. */
+            private void renderRadaeCallText(SharpDX.RectangleF rect, clsMeterItem mi, clsMeter m)
+            {
+                clsRadaeCallText t = (clsRadaeCallText)mi;
+
+                float x = (mi.DisplayTopLeft.X / m.XRatio) * rect.Width;
+                float y = (mi.DisplayTopLeft.Y / m.YRatio) * rect.Height;
+                float w = rect.Width  * (mi.Size.Width  / m.XRatio);
+                float h = rect.Height * (mi.Size.Height / m.YRatio);
+
+                /* Pull the live string from the C-side using the owning
+                 * meter's RX index (1 = RX1 → C-side rx=0, 2 = RX2 → C-side
+                 * rx=1).  The container's "RX1 data" / "RX2 data" radio
+                 * button in Setup → Display → Meters drives m.RX, so the
+                 * same "RADE Last Callsign" meter type follows whichever
+                 * receiver the container is bound to. */
+                int radeRx = (m != null && m.RX == 2) ? 1 : 0;
+                var sb = new System.Text.StringBuilder(16);
+                Rade.GetRadaeRemoteCallsign(radeRx, sb, sb.Capacity);
+                string sCall = sb.ToString().Trim();
+                bool empty = string.IsNullOrEmpty(sCall);
+                string sDraw = empty ? "------" : sCall;
+                System.Drawing.Color drawColour = empty ? t.EmptyColour : t.Colour;
+
+                if (t.ShowLabel)
+                {
+                    // title: left-aligned at the top, same scaling as the other measurement titles (scale FontSize 20 base)
+                    float titleSize = (rect.Width / 52f) * (20f / 16f);
+                    SizeF szTitle = measureString("RADE last call", t.FontFamily, t.Style, titleSize);
+                    SharpDX.RectangleF titleRect = new SharpDX.RectangleF(x + (w * 0.02f), y, szTitle.Width, szTitle.Height);
+                    _renderTarget.DrawText("RADE last call", getDXTextFormatForFont(t.FontFamily, titleSize, t.Style), titleRect, getDXBrushForColour(t.LabelColour, 255));
+                }
+
+                // callsign: centred, near the top, kept fully inside the item area (no overlap with the next meter)
+                float callSize = (rect.Width / 52f) * 2.2f;
+                SizeF szCall = measureString(sDraw, t.FontFamily, t.Style, callSize);
+                float callY = y + (h * 0.15f);
+                if (callY + szCall.Height > y + (h * 0.98f)) callY = y + (h * 0.98f) - szCall.Height; // keep bottom inside
+                if (callY < y) callY = y;
+                SharpDX.RectangleF callRect = new SharpDX.RectangleF(x + (w * 0.5f) - (szCall.Width / 2f), callY, szCall.Width, szCall.Height);
+                _renderTarget.DrawText(sDraw, getDXTextFormatForFont(t.FontFamily, callSize, t.Style), callRect, getDXBrushForColour(drawColour, 255));
             }
             private void renderSignalTextDisplay(SharpDX.RectangleF rect, clsMeterItem mi, clsMeter m)
             {

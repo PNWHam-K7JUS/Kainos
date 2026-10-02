@@ -38,6 +38,7 @@ namespace Thetis
         public NumericUpDownTS BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol;
         public TextBoxTS Grid, ReporterMessage;                     // FreeDV Reporter
         public CheckBoxTS Reporting, IgnoreQsy, ReporterUtc;
+        public CheckBoxTS OverlayRX1, OverlayRX2, OverlayTX;        // panadapter status overlay
 
         public Control[] All
         {
@@ -45,7 +46,7 @@ namespace Thetis
             {
                 return new Control[] { Callsign, Version, VersionRX2, MicLevel, RxLevel, RxLevelRX2, MicRNNoise, MicAGC, MicEQ, MicAGCTarget,
                                        BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol,
-                                       Grid, ReporterMessage, Reporting, IgnoreQsy, ReporterUtc };
+                                       Grid, ReporterMessage, Reporting, IgnoreQsy, ReporterUtc, OverlayRX1, OverlayRX2, OverlayTX };
             }
         }
     }
@@ -161,6 +162,21 @@ namespace Thetis
             rep.Controls.Add(repHint);
             tpDSPRade.Controls.Add(rep);
 
+            // the RADE status overlay at the top right of each panadapter (Thetis-RADE's "Measure")
+            GroupBoxTS ov = new GroupBoxTS { Name = "grpRadeOverlay", Text = "RADE status on the panadapter", Location = new Point(450, 354), Size = new Size(264, 46) };
+            r.OverlayRX1 = new CheckBoxTS { Name = "chkRadeOverlayRX1", Text = "RX1", Location = new Point(10, 20), AutoSize = true, Checked = true };
+            r.OverlayRX2 = new CheckBoxTS { Name = "chkRadeOverlayRX2", Text = "RX2", Location = new Point(70, 20), AutoSize = true, Checked = true };
+            r.OverlayTX = new CheckBoxTS { Name = "chkRadeOverlayTX", Text = "Transmit", Location = new Point(130, 20), AutoSize = true, Checked = true };
+            toolTip1.SetToolTip(r.OverlayRX1, "Show sync, SNR, level, clip and the last callsign at the top right of RX1's panadapter while RX1 has RADE on.");
+            toolTip1.SetToolTip(r.OverlayRX2, "The same on RX2's panadapter while RX2 has RADE on.");
+            toolTip1.SetToolTip(r.OverlayTX, "Show the mic level and clip into the encoder on the transmitting panadapter during RADE overs.");
+            ov.Controls.Add(r.OverlayRX1);
+            ov.Controls.Add(r.OverlayRX2);
+            ov.Controls.Add(r.OverlayTX);
+            tpDSPRade.Controls.Add(ov);
+
+            addRadeMeterContainerOption();
+
             foreach (Control c in r.All)
             {
                 if (c is TextBoxTS) ((TextBoxTS)c).TextChanged += rade_Changed;
@@ -191,6 +207,53 @@ namespace Thetis
             return c;
         }
 
+        // Meter containers (Setup > Appearance > Meters/Gadgets): "Hide if no RADE", from Thetis-RADE.
+        // A plain CheckBox: the setting belongs to the selected container, which saves it itself.
+        private CheckBox chkContainer_hideRADEnotenabled;
+
+        private void addRadeMeterContainerOption()
+        {
+            chkContainer_hideRADEnotenabled = new CheckBox
+            {
+                Name = "chkContainer_hideRADEnotenabled",
+                Text = "Hide if\r\nno RADE",
+                AutoSize = true,
+                CheckAlign = chkContainer_hidewhennotused.CheckAlign,
+                TextAlign = chkContainer_hidewhennotused.TextAlign,
+                RightToLeft = chkContainer_hidewhennotused.RightToLeft,
+                Font = chkContainer_hidewhennotused.Font
+            };
+            toolTip1.SetToolTip(chkContainer_hideRADEnotenabled, "Hide this container while its receiver (RX1 or RX2 data) doesn't have RADE on.");
+            chkContainer_hideRADEnotenabled.CheckedChanged += (s, e) =>
+            {
+                if (initializing) return;
+                clsContainerComboboxItem cci = (clsContainerComboboxItem)comboContainerSelect.SelectedItem;
+                if (cci != null) MeterManager.ContainerHidesWhenRADENotEnabled(cci.ID, chkContainer_hideRADEnotenabled.Checked);
+            };
+            grpMultiMeterHolder.Controls.Add(chkContainer_hideRADEnotenabled);
+            // in the column of container options, right-aligned under "Hide if RX not in use"
+            chkContainer_hideRADEnotenabled.Location = new Point(chkContainer_hidewhennotused.Right - chkContainer_hideRADEnotenabled.PreferredSize.Width, 140);
+        }
+
+        // RADE meter types sit in the RX (0) or TX (1) part of the meters list; -1 for any other type
+        private static int radeMeterBlock(MeterType t)
+        {
+            switch (t)
+            {
+                case MeterType.RADAE_SYNC:
+                case MeterType.RADAE_SNR_DB:
+                case MeterType.RADAE_RX_LEVEL_DB:
+                case MeterType.RADAE_CLIP:
+                case MeterType.RADAE_EOO_DECODE:
+                    return 0;
+                case MeterType.RADAE_TX_MIC_LEVEL_DB:
+                case MeterType.RADAE_TX_MIC_CLIP:
+                    return 1;
+                default:
+                    return -1;
+            }
+        }
+
         private void rade_Changed(object sender, EventArgs e)
         {
             if (initializing) return;
@@ -207,6 +270,9 @@ namespace Thetis
         {
             RadeSetupControls r = _rade;
             console.RadeIgnoreQsyRequest = r.IgnoreQsy.Checked;
+            console.RadeMeasureRx1 = r.OverlayRX1.Checked;
+            console.RadeMeasureRx2 = r.OverlayRX2.Checked;
+            console.RadeMeasureTx = r.OverlayTX.Checked;
             console.RadeReporterTimesUtc = r.ReporterUtc.Checked;
             FreeDVReporter.FreeDVReporterManager.Configure(console, r.Callsign.Text, r.Grid.Text, r.ReporterMessage.Text, r.Reporting.Checked);
             try
