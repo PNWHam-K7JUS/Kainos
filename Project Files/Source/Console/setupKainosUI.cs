@@ -55,7 +55,7 @@ namespace Thetis
                 Size = new Size(120, 21)
             };
             comboKainosLayout.Items.AddRange(new object[] { "Classic", "Kainos" });
-            comboKainosLayout.SelectedIndex = 0;
+            comboKainosLayout.SelectedIndex = 1;      // Kainos by default (a fresh install, or settings brought over from Thetis, which has no such setting)
             toolTip1.SetToolTip(comboKainosLayout, "Classic: the Thetis console exactly as your skin draws it.\r\n" +
                 "Kainos: the console in the Kainos colours. Switch back to Classic at any time.");
             comboKainosLayout.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
