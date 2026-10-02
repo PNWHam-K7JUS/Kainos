@@ -30,7 +30,7 @@ namespace Thetis
     // Kainos layout, stage 2: the left dock and the transmit readouts in the status bar.
     //
     // The dock takes the place of Thetis's POWER panel (POWER, RX2) and options panel (MON, TUN, MOX, 2TON, DUP,
-    // PS-A, xPA, REC, PLAY), and adds VOX and VAC1 / VAC2 (from Thetis's VFO panel at the bottom; a right click
+    // PS-A, xPA, REC, PLAY), and adds VOX, the VFO buttons (split, A>B, A<B, swap, zero beat, IF>V) and VAC1 / VAC2 (from Thetis's VFO panel at the bottom; a right click
     // opens their setup, as in Thetis). Its buttons are Kainos-drawn stand-ins for the real Thetis buttons:
     // a click on one is a real click on the Thetis button, so all of Thetis's keying logic runs unchanged, and the
     // dock shows each button's text, state and enabled/visible state as Thetis sets them. The two Thetis panels
@@ -55,6 +55,8 @@ namespace Thetis
                             dockItem(chk2TONE, KainosUI.Tone.Tx), dockItem(chkMON, KainosUI.Tone.Gold),
                             dockItem(chkVOX, KainosUI.Tone.Gold), dockItem(chkRX2SR, KainosUI.Tone.Gold),
                             dockItem(chkFWCATUBypass, KainosUI.Tone.Gold), dockItem(chkExternalPA, KainosUI.Tone.Gold) },
+                    new[] { dockItem(chkVFOSplit, KainosUI.Tone.Gold), dockItem(btnVFOAtoB, KainosUI.Tone.Ice), dockItem(btnVFOBtoA, KainosUI.Tone.Ice),
+                            dockItem(btnVFOSwap, KainosUI.Tone.Ice), dockItem(btnZeroBeat, KainosUI.Tone.Ice), dockItem(btnIFtoVFO, KainosUI.Tone.Ice) },
                     new[] { dockItem(ckQuickRec, KainosUI.Tone.Tx, "REC"), dockItem(ckQuickPlay, KainosUI.Tone.Gold, "PLAY") },
                     new[] { dockItem(chkVAC1, KainosUI.Tone.Ice, "VAC1"), dockItem(chkVAC2, KainosUI.Tone.Ice, "VAC2") },
                 });
@@ -93,7 +95,7 @@ namespace Thetis
             kainosStatusOff();
         }
 
-        private static KainosDock.Item dockItem(CheckBox target, KainosUI.Tone tone, string label = null)
+        private static KainosDock.Item dockItem(ButtonBase target, KainosUI.Tone tone, string label = null)
         {
             return new KainosDock.Item { Target = target, Tone = tone, Label = label };
         }
@@ -200,7 +202,8 @@ namespace Thetis
     {
         internal class Item
         {
-            public CheckBox Target;
+            public ButtonBase Target;       // a check box (on / off) or a plain button
+            public bool On { get { CheckBox c = Target as CheckBox; return c != null && c.Checked; } }
             public KainosUI.Tone Tone;
             public string Label;            // null: the Thetis button's own text
             public RectangleF Rect;         // where it was drawn last
@@ -208,7 +211,7 @@ namespace Thetis
         }
 
         private readonly Console _console;
-        private readonly Item[][] _groups;  // 0: POWER / RX2, 1: transmit and options, 2: quick record / play, 3: VAC
+        private readonly Item[][] _groups;  // 0: POWER / RX2, 1: transmit and options, 2: VFO, 3: quick record / play, 4: VAC
         private Item _hover;
         public bool ShowPower = true, ShowOptions = true;
 
@@ -228,7 +231,7 @@ namespace Thetis
                 foreach (Item it in g)
                 {
                     if (it.Target == null) continue;
-                    it.Target.CheckedChanged += (s, e) => invalidateSafe();
+                    if (it.Target is CheckBox) ((CheckBox)it.Target).CheckedChanged += (s, e) => invalidateSafe();
                     it.Target.EnabledChanged += (s, e) => invalidateSafe();
                     it.Target.VisibleChanged += (s, e) => invalidateSafe();
                     it.Target.TextChanged += (s, e) => invalidateSafe();
@@ -258,7 +261,7 @@ namespace Thetis
             for (int gi = 0; gi < _groups.Length; gi++)
             {
                 List<Item> l = new List<Item>();
-                bool groupOn = gi == 0 ? ShowPower : gi == 3 || ShowOptions;     // record / play are on the options panel
+                bool groupOn = gi == 0 ? ShowPower : (gi == 1 || gi == 3) ? ShowOptions : true;     // record / play are on the options panel
                 foreach (Item it in _groups[gi])
                 {
                     it.Shown = groupOn && targetShown(it);
@@ -303,8 +306,8 @@ namespace Thetis
                 foreach (Item it in grp)
                 {
                     if (!it.Shown) continue;
-                    string text = it.Label ?? it.Target.Text;
-                    KainosUI.DrawButton(g, it.Rect, text, it.Target.Checked, it.Target.Enabled, it == _hover, it.Tone, font);
+                    string text = it.Label ?? it.Target.Text.Replace("&&", "&");
+                    KainosUI.DrawButton(g, it.Rect, text, it.On, it.Target.Enabled, it == _hover, it.Tone, font);
                 }
         }
 

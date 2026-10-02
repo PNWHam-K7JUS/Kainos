@@ -747,20 +747,39 @@ namespace Thetis
     {
         private readonly PrettyTrackBar _target;
         private readonly string _label;
+        private readonly bool _compact;     // one line: label, then the track (the panadapter's bar)
+        private readonly Timer _follow;
+        private int _shownValue = int.MinValue;
+
+        protected override void Dispose(bool disposing) { if (disposing) _follow.Dispose(); base.Dispose(disposing); }
         private static readonly System.Reflection.MethodInfo _onScroll = typeof(PrettyTrackBar).GetMethod("OnScroll",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(object), typeof(EventArgs) }, null);
         private bool _drag;
 
-        public KainosSlider(PrettyTrackBar target, string label)
+        public KainosSlider(PrettyTrackBar target, string label, bool compact = false)
         {
             _target = target;
             _label = label;
+            _compact = compact;
+            // PrettyTrackBar has no value-changed event, and Thetis moves pan / zoom from the panadapter too: follow it
+            _follow = new Timer { Interval = 150 };
+            _follow.Tick += (s, e) => { if (_target.Value != _shownValue && IsHandleCreated && Visible) Invalidate(); };
+            _follow.Start();
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = Color.FromArgb(0x06, 0x0e, 0x17);
             Cursor = Cursors.Hand;
         }
 
-        private RectangleF track { get { return new RectangleF(KainosUI.S(6), Height - KainosUI.S(14), Width - KainosUI.S(12), KainosUI.S(4)); } }
+        private float labelWidth { get { return _compact ? KainosUI.S(_label.Length > 3 ? 40 : 30) : 0; } }
+
+        private RectangleF track
+        {
+            get
+            {
+                if (_compact) return new RectangleF(labelWidth + KainosUI.S(6), Height / 2f - KainosUI.S(2), Width - labelWidth - KainosUI.S(12), KainosUI.S(4));
+                return new RectangleF(KainosUI.S(6), Height - KainosUI.S(14), Width - KainosUI.S(12), KainosUI.S(4));
+            }
+        }
 
         private float norm { get { int span = Math.Max(1, _target.Maximum - _target.Minimum); return (_target.Value - _target.Minimum) / (float)span; } }
 
@@ -770,6 +789,12 @@ namespace Thetis
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            if (_compact)
+                using (Font f = new Font("Segoe UI", Math.Max(7f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush b = new SolidBrush(KainosUI.Faint))
+                using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
+                    g.DrawString(_label, f, b, new RectangleF(2, 0, labelWidth + KainosUI.S(4), Height), sf);
+            else
             using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Regular, GraphicsUnit.Pixel))
             {
                 using (Brush b = new SolidBrush(KainosUI.Dim)) g.DrawString(_label, f, b, 2, 0);
@@ -777,6 +802,7 @@ namespace Thetis
                 using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Far })
                     g.DrawString(_target.Value.ToString(), f, b, new RectangleF(0, 0, Width - 2, KainosUI.S(16)), sf);
             }
+            _shownValue = _target.Value;
             RectangleF t = track;
             using (Brush b = new SolidBrush(KainosUI.Line)) g.FillRectangle(b, t);
             using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, t.X, t.Y, t.Width * norm, t.Height);

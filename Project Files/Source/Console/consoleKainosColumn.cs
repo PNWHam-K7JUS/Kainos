@@ -60,15 +60,13 @@ namespace Thetis
 
         private Control[] kainosCollapseTargets
         {
-            get { return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls, grpVFOA, grpVFOB, panelDSP }; }
-        }
-
-        // Thetis's VFO panel at the bottom keeps its split / copy / swap / zero beat / IF rows; the rows under them
-        // (RIT and XIT, which the flags' RIT/XIT tab has, and VAC1 / VAC2, which are in the dock) are cut off
-        private Size kainosVfoPanelCut(Size full)
-        {
-            int top = new Control[] { chkRIT, chkXIT, udRIT, udXIT, btnRITReset, btnXITReset, chkVAC1, chkVAC2 }.Min(c => c.Top);
-            return new Size(full.Width, Math.Max(0, Math.Min(full.Height, top)));
+            get
+            {
+                // the panels under the panadapter: DSP (the flags' DSP tab), VFO (split / copy / swap / zero beat / IF in
+                // the dock, RIT / XIT on the flags, VAC in the dock), display and multi-RX (the panadapter's bar)
+                return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls,
+                                       grpVFOA, grpVFOB, panelDSP, panelVFO, panelDisplay2, panelMultiRX };
+            }
         }
 
         // the filter controls Thetis never moves (it only looks for the radio buttons inside panelFilter)
@@ -139,7 +137,10 @@ namespace Thetis
                 panelDisplay.SizeChanged += (s, e) => positionKainosColumn();
                 foreach (Control c in Controls)
                     if (!(c is KainosColumn) && !(c is KainosDock))
+                    {
                         c.LocationChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
+                        c.VisibleChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };     // RX2's panels under the panadapter
+                    }
 
                 Shown += (s, e) => { _kainosShown = true; if (_kainosLayout) BeginInvoke(new Action(kainosAttachMeter)); };
                 KainosUI.ScaleChanged += (s, e) => { kainosUnfitPanels(); positionKainosColumn(); };
@@ -173,7 +174,7 @@ namespace Thetis
             kainosMoveIn(kainosRxRows.SelectMany(r => r));
             kainosMoveIn(kainosTxRows.SelectMany(r => r));
             foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
-            kainosCollapse(panelVFO, kainosVfoPanelCut);
+            kainosBarOn();          // the panadapter's bar: consoleKainosBar.cs
             _kainosColumn.Visible = true;
             _kainosPartsOn = true;
         }
@@ -182,6 +183,7 @@ namespace Thetis
         {
             _kainosPartsOn = false;
             _kainosColumn.Visible = false;
+            kainosBarOff();
             foreach (KeyValuePair<Control, KeyValuePair<Control, Point>> kv in _kainosMovedIn.ToList())
             {
                 kv.Key.ParentChanged -= kainosMovedParentChanged;
@@ -331,7 +333,7 @@ namespace Thetis
             int w = Math.Max(200, right - panelDisplay.Left);
             if (panelDisplay.Width != w) panelDisplay.Width = w;
             int top = menuStrip1.Bottom + 4;
-            int bottom = gr_display_basis.Y + gr_display_size_basis.Height + v_delta;
+            int bottom = kainosDisplayBottom();
             if (bottom - top > 100 && (panelDisplay.Top != top || panelDisplay.Height != bottom - top))
                 panelDisplay.SetBounds(panelDisplay.Left, top, panelDisplay.Width, bottom - top);
 
@@ -343,6 +345,24 @@ namespace Thetis
             kainosSetTop(btnDisplayPanCenter, ptbDisplayPan.Top);
             kainosSetTop(lblDisplayZoom, lbl_display_zoom_basis.Y + v_delta + grown);
             kainosSetTop(ptbDisplayZoom, tb_display_zoom_basis.Y + v_delta + grown);
+            positionKainosBar();
+        }
+
+        // with Thetis's panels under the panadapter collapsed, it reaches down to the status bar, or to the top of
+        // whatever Thetis still shows under it (RX2's panels when RX2 is on)
+        private int kainosDisplayBottom()
+        {
+            int thetis = gr_display_basis.Y + gr_display_size_basis.Height + v_delta;
+            int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
+            foreach (Control c in Controls)
+            {
+                if (c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn || c is KainosDock) continue;
+                if (_kainosCollapsed.ContainsKey(c) || c == _kainosMeter || c == grpVFOBetween || kainosModePanels.Contains(c)) continue;
+                if (!c.Visible || c.Width == 0 || c.Height == 0 || c.Top < -10000) continue;
+                if (c.Right <= panelDisplay.Left || c.Left >= panelDisplay.Right || c.Top < thetis - 2) continue;
+                bottom = Math.Min(bottom, c.Top - 4);
+            }
+            return Math.Max(thetis, bottom);
         }
 
         private static void kainosSetTop(Control c, int top) { if (c.Top != top) c.Top = top; }
@@ -847,6 +867,7 @@ namespace Thetis
         private readonly string _caption;
         private readonly KainosUI.Tone _tone;
         private List<ButtonBase> _targets = new List<ButtonBase>();
+        private readonly ComboBox _combo;       // or bound to a Thetis combo box (the panadapter's display mode)
         private bool _hover, _open;
         private static readonly System.Reflection.MethodInfo _onClick = typeof(Control).GetMethod("OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         private static readonly System.Reflection.MethodInfo _onMouseDown = typeof(Control).GetMethod("OnMouseDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
@@ -859,6 +880,13 @@ namespace Thetis
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = KainosUI.Surface;
             Cursor = Cursors.Hand;
+        }
+
+        public KainosDropDown(ComboBox combo) : this(null, KainosUI.Tone.Ice)
+        {
+            _combo = combo;
+            combo.SelectedIndexChanged += changed;
+            combo.EnabledChanged += changed;
         }
 
         public void SetTargets(IEnumerable<ButtonBase> targets)
@@ -878,6 +906,15 @@ namespace Thetis
         private static string label(ButtonBase b) { return b.Text.Replace("&&", "&"); }
         private IEnumerable<ButtonBase> shown { get { return _targets.Where(t => t.Visible && label(t).Length > 0); } }
         private ButtonBase current { get { return shown.FirstOrDefault(t => t is RadioButton && ((RadioButton)t).Checked); } }
+        private string currentText
+        {
+            get
+            {
+                if (_combo != null) return _combo.SelectedIndex >= 0 ? _combo.Text : null;
+                ButtonBase c = current;
+                return c != null ? label(c) : null;
+            }
+        }
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -893,16 +930,18 @@ namespace Thetis
                 using (Pen p = new Pen(_hover || _open ? accent : KainosUI.Line)) g.DrawPath(p, path);
             }
             float pad = KainosUI.S(7);
-            using (Font cap = new Font("Segoe UI", Math.Max(7f, KainosUI.S(9)), FontStyle.Bold, GraphicsUnit.Pixel))
-            using (Brush b = new SolidBrush(KainosUI.Faint))
-                g.DrawString(_caption, cap, b, pad - 2, KainosUI.S(1));
-            ButtonBase c = current;
-            using (Font f = new Font("Segoe UI", Math.Max(9f, KainosUI.S(13)), FontStyle.Bold, GraphicsUnit.Pixel))
-            using (Brush b = new SolidBrush(c != null ? accent : KainosUI.Faint))
-            using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Far, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap })
-                g.DrawString(c != null ? label(c) : "-", f, b, new RectangleF(pad - 2, 0, Width - pad - KainosUI.S(16), Height - KainosUI.S(2)), sf);
+            bool caption = _caption != null && Height >= KainosUI.S(28);
+            if (caption)
+                using (Font cap = new Font("Segoe UI", Math.Max(7f, KainosUI.S(9)), FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush b = new SolidBrush(KainosUI.Faint))
+                    g.DrawString(_caption, cap, b, pad - 2, KainosUI.S(1));
+            string value = currentText;
+            using (Font f = new Font("Segoe UI", Math.Max(9f, KainosUI.S(caption ? 13 : 12)), FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(value != null ? accent : KainosUI.Faint))
+            using (StringFormat sf = new StringFormat { LineAlignment = caption ? StringAlignment.Far : StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap })
+                g.DrawString(value ?? "-", f, b, new RectangleF(pad - 2, 0, Width - pad - KainosUI.S(16), Height - (caption ? KainosUI.S(2) : 0)), sf);
             // the chevron
-            float cx = Width - KainosUI.S(11), cy = Height / 2f + KainosUI.S(3), cw = KainosUI.S(4);
+            float cx = Width - KainosUI.S(11), cy = Height / 2f + (caption ? KainosUI.S(3) : KainosUI.S(1)), cw = KainosUI.S(4);
             using (Pen p = new Pen(KainosUI.Dim, Math.Max(1f, KainosUI.S(1.5f))))
                 g.DrawLines(p, new[] { new PointF(cx - cw, cy - cw / 2), new PointF(cx, cy + cw / 2), new PointF(cx + cw, cy - cw / 2) });
         }
@@ -913,7 +952,7 @@ namespace Thetis
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            if (e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Right && _combo == null)
             {
                 ButtonBase c = current;
                 if (c == null || !c.Enabled) return;
@@ -933,6 +972,14 @@ namespace Thetis
                 Font = new Font("Segoe UI", Math.Max(9f, KainosUI.S(13)), FontStyle.Regular, GraphicsUnit.Pixel),
                 MinimumSize = new Size(Width, 0),
             };
+            if (_combo != null && _combo.Enabled)
+                for (int i = 0; i < _combo.Items.Count; i++)
+                {
+                    int index = i;
+                    ToolStripMenuItem item = new ToolStripMenuItem(_combo.GetItemText(_combo.Items[i])) { Checked = i == _combo.SelectedIndex, ForeColor = KainosUI.Text };
+                    item.Click += (s, a) => { if (_combo.SelectedIndex != index) _combo.SelectedIndex = index; };
+                    menu.Items.Add(item);
+                }
             foreach (ButtonBase t in shown)
             {
                 ButtonBase target = t;
@@ -948,6 +995,7 @@ namespace Thetis
             menu.Closed += (s, a) => { _open = false; Invalidate(); BeginInvoke(new Action(menu.Dispose)); };
             _open = true;
             Invalidate();
+            if (menu.Items.Count == 0) { _open = false; menu.Dispose(); return; }
             menu.Show(this, new Point(0, Height));
         }
 
