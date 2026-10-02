@@ -113,7 +113,8 @@ namespace Thetis
                                               float fOffset, int grid_max, int grid_min, float dbmToPixel, bool local_mox)
         {
             K3DStack st = _k3d[rx == 1 ? 0 : 1];
-            if (!Kainos3D || _d2dRenderTarget == null || _d2dFactory == null || W <= 0 || H <= 0 || data == null)
+            bool powered = console != null && console.PowerOn;      // off: nothing new is coming, so no stack
+            if (!Kainos3D || !powered || _d2dRenderTarget == null || _d2dFactory == null || W <= 0 || H <= 0 || data == null)
             {
                 if (st.Traces.Count > 0 || st.Image != null) k3dClear(st);
                 return;
@@ -178,8 +179,9 @@ namespace Thetis
         // they stay on top of the stack, as over the live trace): paste the stack
         private static void pasteKainos3DStack(int rx, int W, int H, int nVerticalShift)
         {
-            if (!Kainos3D || _d2dRenderTarget == null) return;
             K3DStack st = _k3d[rx == 1 ? 0 : 1];
+            if (console == null || !console.PowerOn) { if (st.Traces.Count > 0 || st.Image != null) k3dClear(st); return; }
+            if (!Kainos3D || _d2dRenderTarget == null) return;
             if (st.Image == null || st.ImageOwner != _d2dRenderTarget) return;
             using (SharpDX.Direct2D1.Bitmap b = st.Image.Bitmap)
                 _d2dRenderTarget.DrawBitmap(b, new RawRectangleF(0, nVerticalShift, W, nVerticalShift + H), 1f, BitmapInterpolationMode.NearestNeighbor);
