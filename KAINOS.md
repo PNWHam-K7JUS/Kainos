@@ -250,6 +250,9 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - The panadapter and the dock start under the menu. The panadapter's bottom stays where Thetis puts it (`gr_display_basis.Y + gr_display_size_basis.Height + v_delta`); its pan and zoom sliders, which Thetis places from the panel's top, move down by what it has grown (and back in Classic).
   - BAND tab: band, mode and filter are drop-downs in one row (`KainosDropDown`: caption, the button that is on; the list ticks it, choosing is a real click; right click is a right click on the one that is on, so the filter's opens Thetis's filter editor). The width / shift / low / high controls stay under them.
   - The column ignores Kainos-collapsed panels when finding its top (Thetis sizes its multimeter box again for a moment on a resize).
+  - Bottom panels: Thetis's DSP panel (`panelDSP`) is collapsed; its buttons are in the flags' DSP tab, which now has every button of that panel but MUTE (in AUDIO): NR, ANF, NB, SNB, BIN, MNF, +MNF. Thetis's VFO panel (`panelVFO`) is cut above its RIT / XIT / VAC rows (`kainosCollapse` takes a size function; this one cuts at the highest of those controls), keeping split, A>B, A<B, zero beat, IF>V and swap.
+  - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
+  - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
 ### Installer
 

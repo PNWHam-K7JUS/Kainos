@@ -47,6 +47,7 @@ namespace Thetis
         private KainosDropDown _kainosBandDrop, _kainosModeDrop, _kainosFilterDrop;
         private KainosButtonGrid _kainosShiftReset;
         private readonly Dictionary<Control, Size> _kainosCollapsed = new Dictionary<Control, Size>();
+        private readonly Dictionary<Control, Func<Size, Size>> _kainosCollapseTo = new Dictionary<Control, Func<Size, Size>>();
         private readonly Dictionary<Control, KeyValuePair<Control, Point>> _kainosMovedIn = new Dictionary<Control, KeyValuePair<Control, Point>>();
         private bool _kainosShown;
         private bool _kainosPlacing;
@@ -59,7 +60,15 @@ namespace Thetis
 
         private Control[] kainosCollapseTargets
         {
-            get { return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls, grpVFOA, grpVFOB }; }
+            get { return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls, grpVFOA, grpVFOB, panelDSP }; }
+        }
+
+        // Thetis's VFO panel at the bottom keeps its split / copy / swap / zero beat / IF rows; the rows under them
+        // (RIT and XIT, which the flags' RIT/XIT tab has, and VAC1 / VAC2, which are in the dock) are cut off
+        private Size kainosVfoPanelCut(Size full)
+        {
+            int top = new Control[] { chkRIT, chkXIT, udRIT, udXIT, btnRITReset, btnXITReset, chkVAC1, chkVAC2 }.Min(c => c.Top);
+            return new Size(full.Width, Math.Max(0, Math.Min(full.Height, top)));
         }
 
         // the filter controls Thetis never moves (it only looks for the radio buttons inside panelFilter)
@@ -164,6 +173,7 @@ namespace Thetis
             kainosMoveIn(kainosRxRows.SelectMany(r => r));
             kainosMoveIn(kainosTxRows.SelectMany(r => r));
             foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
+            kainosCollapse(panelVFO, kainosVfoPanelCut);
             _kainosColumn.Visible = true;
             _kainosPartsOn = true;
         }
@@ -185,6 +195,7 @@ namespace Thetis
             foreach (KeyValuePair<Control, Size> kv in _kainosCollapsed.ToList())
                 kv.Key.Size = kv.Value;
             _kainosCollapsed.Clear();
+            _kainosCollapseTo.Clear();
             kainosUnfitPanels();
             foreach (Control p in kainosModePanels) kainosUnpin(p);
             kainosUnpin(grpVFOBetween);
@@ -223,25 +234,33 @@ namespace Thetis
             }));
         }
 
-        // collapse to zero size; a resize or skin load that sizes it again is caught and the new size kept for Classic
-        private void kainosCollapse(Control c)
+        // collapse to zero size (or the size 'to' gives for the full size); a resize or skin load that sizes it again
+        // is caught and the new size kept for Classic
+        private void kainosCollapse(Control c, Func<Size, Size> to = null)
         {
+            to = to ?? (full => Size.Empty);
+            _kainosCollapseTo[c] = to;
             if (!_kainosCollapsed.ContainsKey(c))
             {
                 _kainosCollapsed[c] = c.Size;
                 c.SizeChanged -= kainosCollapsedSizeChanged;
                 c.SizeChanged += kainosCollapsedSizeChanged;
             }
-            else if (c.Size != Size.Empty) _kainosCollapsed[c] = c.Size;
-            c.Size = Size.Empty;
+            else if (c.Size != to(_kainosCollapsed[c])) _kainosCollapsed[c] = c.Size;
+            c.Size = to(_kainosCollapsed[c]);
         }
 
         private void kainosCollapsedSizeChanged(object sender, EventArgs e)
         {
             Control c = (Control)sender;
-            if (!_kainosPartsOn || !_kainosCollapsed.ContainsKey(c) || c.Size == Size.Empty) return;
+            if (!_kainosPartsOn || !_kainosCollapsed.ContainsKey(c) || !_kainosCollapseTo.ContainsKey(c)) return;
+            Func<Size, Size> to = _kainosCollapseTo[c];
+            if (c.Size == to(_kainosCollapsed[c])) return;
             _kainosCollapsed[c] = c.Size;
-            BeginInvoke(new Action(() => { if (_kainosPartsOn && _kainosCollapsed.ContainsKey(c)) c.Size = Size.Empty; }));
+            BeginInvoke(new Action(() =>
+            {
+                if (_kainosPartsOn && _kainosCollapsed.ContainsKey(c) && _kainosCollapseTo.ContainsKey(c)) c.Size = _kainosCollapseTo[c](_kainosCollapsed[c]);
+            }));
         }
 
         private static IEnumerable<ButtonBase> orderedButtons(Control panel)

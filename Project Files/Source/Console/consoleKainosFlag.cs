@@ -208,21 +208,20 @@ namespace Thetis
             {
                 case "AUDIO":
                     {
-                        KainosActionGrid g = new KainosActionGrid(2);
+                        KainosActionGrid g = new KainosActionGrid(1);
                         CheckBox mute = rx == 1 ? (CheckBox)chkMUT : chkRX2Mute;
-                        CheckBox bin = rx == 1 ? (CheckBox)chkBIN : chkRX2BIN;
                         g.Add("MUTE", () => mute.Checked, () => kainosClick(mute), KainosUI.Tone.Tx);
-                        g.Add("BIN", () => bin.Checked, () => kainosClick(bin), tone);
                         rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
                         rows.Add(g);
                         break;
                     }
                 case "DSP":
                     {
+                        // Thetis's DSP buttons (the panel at the bottom is collapsed): NR, NB, SNB, ANF, BIN, MNF, +MNF
                         KainosButtonGrid g = new KainosButtonGrid(4, KainosUI.Tone.Ice);
                         Control panel = rx == 1 ? (Control)panelDSP : panelRX2DSP;
-                        g.SetTargets(panel.Controls.OfType<CheckBox>().Where(c => c != chkMUT && c != chkBIN && c != chkRX2Mute && c != chkRX2BIN)
-                                         .OrderBy(c => c.Top).ThenBy(c => c.Left).Cast<ButtonBase>());
+                        g.SetTargets(panel.Controls.OfType<ButtonBase>().Where(c => c != chkMUT && c != chkRX2Mute)
+                                         .OrderBy(c => c.Top).ThenBy(c => c.Left));
                         rows.Add(g);
                         break;
                     }
@@ -243,8 +242,9 @@ namespace Thetis
                         g.Add("XIT", () => chkXIT.Checked, () => kainosClick(chkXIT), tone);
                         g.Add("RIT 0", () => false, () => kainosClick(btnRITReset), KainosUI.Tone.Ice);
                         g.Add("XIT 0", () => false, () => kainosClick(btnXITReset), KainosUI.Tone.Ice);
-                        rows.Add(new KainosTextLine(() => "RIT " + udRIT.Value.ToString("+0;-0;0") + " Hz    XIT " + udXIT.Value.ToString("+0;-0;0") + " Hz", () => KainosUI.Dim));
                         rows.Add(g);
+                        rows.Add(new KainosUpDown(udRIT, "RIT", "Hz"));
+                        rows.Add(new KainosUpDown(udXIT, "XIT", "Hz"));
                         break;
                     }
                 case "VAC":
@@ -279,7 +279,7 @@ namespace Thetis
             {
                 int h = c is KainosButtonGrid ? ((KainosButtonGrid)c).PreferredHeight(w)
                       : c is KainosActionGrid ? ((KainosActionGrid)c).PreferredHeight(w)
-                      : c is KainosSlider ? KainosUI.S(40) : KainosUI.S(20);
+                      : c is KainosSlider ? KainosUI.S(40) : c is KainosUpDown ? KainosUI.S(26) : KainosUI.S(20);
                 c.SetBounds(pad, y, w, h);
                 p.Controls.Add(c);
                 y += h + gap;
@@ -663,6 +663,81 @@ namespace Thetis
             if (!_showTabs) return;
             for (int i = 0; i < Tabs.Length; i++)
                 if (_tabRects[i].Contains(e.Location)) { TabClicked?.Invoke(Tabs[i]); return; }
+        }
+    }
+
+    // A Kainos number bound to a Thetis NumericUpDown (RIT, XIT): its label and value, with - and + (its increment),
+    // the mouse wheel over it the same; Thetis's ValueChanged does the rest
+    internal class KainosUpDown : Control
+    {
+        private readonly NumericUpDown _target;
+        private readonly string _label, _unit;
+        private RectangleF _minus, _plus;
+        private int _hover;     // -1 minus, +1 plus
+
+        public KainosUpDown(NumericUpDown target, string label, string unit)
+        {
+            _target = target;
+            _label = label;
+            _unit = unit;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            BackColor = Color.FromArgb(0x06, 0x0e, 0x17);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            float b = Height, gap = KainosUI.S(4);
+            _plus = new RectangleF(Width - b, 0, b, b);
+            _minus = new RectangleF(Width - b * 2 - gap, 0, b, b);
+            float fs = Math.Max(9f, KainosUI.S(12));
+            KainosUI.DrawButton(g, _minus, "-", false, _target.Enabled, _hover == -1, KainosUI.Tone.Ice, fs);
+            KainosUI.DrawButton(g, _plus, "+", false, _target.Enabled, _hover == 1, KainosUI.Tone.Ice, fs);
+            using (Font f = new Font("Segoe UI", fs, FontStyle.Regular, GraphicsUnit.Pixel))
+            using (Font v = new Font("Consolas", fs, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush dim = new SolidBrush(KainosUI.Dim))
+            using (Brush txt = new SolidBrush(_target.Value != 0 ? KainosUI.Text : KainosUI.Faint))
+            using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
+            using (StringFormat sr = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Far })
+            {
+                g.DrawString(_label, f, dim, new RectangleF(2, 0, KainosUI.S(40), Height), sf);
+                g.DrawString(_target.Value.ToString("+0;-0;0") + " " + _unit, v, txt, new RectangleF(0, 0, _minus.Left - KainosUI.S(8), Height), sr);
+            }
+        }
+
+        private void step(int dir)
+        {
+            if (!_target.Enabled || dir == 0) return;
+            decimal v = Math.Max(_target.Minimum, Math.Min(_target.Maximum, _target.Value + dir * _target.Increment));
+            if (v != _target.Value) _target.Value = v;
+            Invalidate();
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            int h = _minus.Contains(e.Location) ? -1 : _plus.Contains(e.Location) ? 1 : 0;
+            Cursor = h != 0 ? Cursors.Hand : Cursors.Default;
+            if (h != _hover) { _hover = h; Invalidate(); }
+        }
+
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = 0; Invalidate(); }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button != MouseButtons.Left) return;
+            if (_minus.Contains(e.Location)) step(-1); else if (_plus.Contains(e.Location)) step(1);
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+            step(Math.Sign(e.Delta));
+            if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true;
         }
     }
 
