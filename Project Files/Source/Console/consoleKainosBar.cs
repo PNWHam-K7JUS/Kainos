@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -37,6 +38,7 @@ namespace Thetis
         private KainosSlider _kbPan, _kbPanMain, _kbPanSub, _kbZoom;
         private KainosButtonGrid _kbCenter, _kbRx, _kbDisp, _kbZoomButtons;
         private KainosDropDown _kbMode;
+        private KainosButtonGrid _kbInfo1, _kbInfo2;
 
         // Thetis's row (inside panelDisplay) that the bar takes over
         private Control[] kainosBarReplaces
@@ -73,11 +75,51 @@ namespace Thetis
             // and an empty size there is a fatal error
             foreach (Control c in kainosBarReplaces) kainosCollapse(c, full => new Size(1, 1));
             _kainosBar.Visible = true;
+            kainosInfoBarOn();
         }
 
         private void kainosBarOff()
         {
             if (_kainosBar != null) _kainosBar.Visible = false;
+            if (_kbInfo1 != null) { _kbInfo1.Visible = false; _kbInfo2.Visible = false; }
+        }
+
+        // The info bar's two buttons (Blobs and Peak by default; Thetis lets each be set to other actions) in Kainos's
+        // style: Kainos buttons laid over Thetis's, bound to them (a click toggles Thetis's, a right click opens its
+        // menu of actions), following their place, size and visibility
+        private void kainosInfoBarOn()
+        {
+            if (infoBar == null) return;
+            if (_kbInfo1 == null)
+            {
+                _kbInfo1 = new KainosButtonGrid(1, KainosUI.Tone.Ice);
+                _kbInfo2 = new KainosButtonGrid(1, KainosUI.Tone.Ice);
+                foreach (KeyValuePair<KainosButtonGrid, CheckBox> kv in new[] { new KeyValuePair<KainosButtonGrid, CheckBox>(_kbInfo1, infoBar.Button1), new KeyValuePair<KainosButtonGrid, CheckBox>(_kbInfo2, infoBar.Button2) })
+                {
+                    KainosButtonGrid proxy = kv.Key;
+                    CheckBox target = kv.Value;
+                    proxy.SetTargets(new ButtonBase[] { target });
+                    EventHandler follow = (s, e) => kainosInfoProxyPlace(proxy, target);
+                    target.LocationChanged += follow;
+                    target.SizeChanged += follow;
+                    target.VisibleChanged += follow;
+                    infoBar.Controls.Add(proxy);
+                }
+            }
+            kainosInfoProxyPlace(_kbInfo1, infoBar.Button1);
+            kainosInfoProxyPlace(_kbInfo2, infoBar.Button2);
+        }
+
+        private void kainosInfoProxyPlace(KainosButtonGrid proxy, CheckBox target)
+        {
+            bool on = _kainosBar != null && _kainosBar.Visible && target.Visible;
+            if (on)
+            {
+                proxy.BackColor = infoBar.BackColor;
+                proxy.SetBounds(target.Left, target.Top + 1, target.Width, Math.Max(1, target.Height - 2));
+                proxy.BringToFront();
+            }
+            if (proxy.Visible != on) proxy.Visible = on;
         }
 
         // the bar fills the bottom of panelDisplay under the info bar; the sliders share what the fixed parts leave
