@@ -365,6 +365,10 @@ namespace Thetis
         [DllImport("wdsp.dll", EntryPoint = "GetRXAStripMeter", CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetRXAStripMeter(int channel, int stage, int meter);
 
+        [DllImport("wdsp.dll", EntryPoint = "GetAetherEqBandMagnitudeDb", CallingConvention = CallingConvention.Cdecl)]
+        public static extern double GetAetherEqBandMagnitudeDb(int type, double freq, double gain, double q, int on, int slope,
+            int family, double probeHz, double samplerate);
+
         [DllImport("wdsp.dll", EntryPoint = "SetTXAEQRun", CallingConvention = CallingConvention.Cdecl)]
         public static extern void SetTXAEQRun(int channel, bool run);
 

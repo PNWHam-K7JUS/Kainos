@@ -130,6 +130,15 @@ AetherSDR's receive chain, on every receiver: gate, compressor and tube from the
 
 Verification: `RadioDSPRX` sends the stage enable as 1 in USB and AM and 0 in DIGU, DIGL and CW; a -12 dB compressor makeup gives -12.0 dB at a real WDSP receiver's output; gate, compressor and tube together run cleanly in mono and binaural.
 
+### Kainos Audio EQ
+
+AetherSDR's parametric EQ (`ClientEq`, copied unchanged) as a strip stage on both sides, in AetherSDR's positions: transmit runs gate, **EQ**, de-esser, compressor, tube; receive runs **EQ**, gate, compressor, tube (`create_aetherstrip`'s `rx` flag picks the order).
+
+- **Bands:** AetherSDR's default 10-band layout (high pass 40 Hz, low shelf 100 Hz, peaks at 200 Hz to 5 kHz, high shelf 8 kHz, low pass 12 kHz), all off and flat until shaped. Each band has frequency, gain, Q, type, on/off and slope; the EQ also has a master gain and a pass-band filter family (Butterworth, Chebyshev, Bessel, Elliptic). Parameter numbers: `AS_EQ_BAND0 + 6 * band + field` (`aetherstrip.h`).
+- **Window:** the EQ page has a response graph (20 Hz to 20 kHz) drawn with AetherSDR's own `bandMagnitudeDb`, exported as `GetAetherEqBandMagnitudeDb`, and a numbered handle per band: drag for frequency and gain (or Q on pass bands), mouse wheel for Q, right-click to switch a band on or off; changing a band switches it on, as AetherSDR's editor does. Below: band buttons, Freq / Gain / Q / Slope knobs for the selected band (knobs that don't apply to its type are dimmed), master gain, type and family.
+- **Saving:** `AetherStrip.Serialize` now writes only values that differ from the defaults, so a shaped EQ adds a few dozen characters to the TX profile or the RX options; older saved strips still load.
+- **Verification:** the wrapper's output is identical to AetherSDR's classes in both chain orders, and the drawing function is identical to `ClientEq::bandMagnitudeDb`.
+
 ### Installer
 
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.

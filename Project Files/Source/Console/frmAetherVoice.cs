@@ -466,6 +466,7 @@ namespace Thetis
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            int alpha = Enabled ? 255 : 70;          // a knob that doesn't apply right now draws dimmed
 
             float d = Math.Min(Width - 4, Height - 4);
             RectangleF ring = new RectangleF((Width - d) / 2f, 0, d, d);
@@ -474,26 +475,26 @@ namespace Thetis
             double n = norm;
 
             // 7:30 clockwise to 4:30 (GDI+ angles run clockwise from 3 o'clock)
-            using (Pen bg = new Pen(kRingBg, thick))
+            using (Pen bg = new Pen(Color.FromArgb(alpha, kRingBg), thick))
                 g.DrawArc(bg, arc, 135f, 270f);
             if (n > 0.0005)
-                using (Pen fg = new Pen(kRingArc, thick))
+                using (Pen fg = new Pen(Color.FromArgb(alpha, kRingArc), thick))
                     g.DrawArc(fg, arc, 135f, (float)(270.0 * n));
 
             double angle = (225.0 - 270.0 * n) * Math.PI / 180.0;
             PointF c = new PointF(ring.X + d / 2f, ring.Y + d / 2f);
             float rOut = d / 2f - thick / 2f, rIn = d / 2f - thick * 1.6f;
-            using (Pen p = new Pen(kPointer, thick * 0.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen p = new Pen(Color.FromArgb(alpha, kPointer), thick * 0.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
                 g.DrawLine(p, c.X + rIn * (float)Math.Cos(angle), c.Y - rIn * (float)Math.Sin(angle),
                               c.X + rOut * (float)Math.Cos(angle), c.Y - rOut * (float)Math.Sin(angle));
 
             using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
             {
                 using (Font f = new Font("Segoe UI", Math.Max(8f, d / 6f), FontStyle.Bold, GraphicsUnit.Pixel))
-                using (Brush b = new SolidBrush(kLabel))
+                using (Brush b = new SolidBrush(Color.FromArgb(alpha, kLabel)))
                     g.DrawString(_label, f, b, ring, sf);
                 using (Font f = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Pixel))
-                using (Brush b = new SolidBrush(kValue))
+                using (Brush b = new SolidBrush(Color.FromArgb(alpha, kValue)))
                     g.DrawString(_format(_value), f, b, new RectangleF(0, Height - 17, Width, 16), sf);
             }
         }

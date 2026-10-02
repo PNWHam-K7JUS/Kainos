@@ -46,8 +46,12 @@ namespace Thetis
 
     internal static class AetherStripDefs
     {
-        public const int Gate = 0, DeEss = 1, Comp = 2, Tube = 3, Reverb = 4, Limiter = 5, Stages = 6, MaxParams = 11;
-        public static readonly string[] StageNames = { "Gate", "De-Esser", "Compressor", "Tube", "Reverb", "Final Output" };
+        public const int Gate = 0, DeEss = 1, Comp = 2, Tube = 3, Reverb = 4, Limiter = 5, Eq = 6, Stages = 7, MaxParams = 70;
+        public const int EqBands = 10, EqBand0 = 10;      // EQ band b's parameters start at EqBand0 + 6 * b (wdsp/aetherstrip.h)
+        public static readonly string[] StageNames = { "Gate", "De-Esser", "Compressor", "Tube", "Reverb", "Final Output", "EQ" };
+        // AetherSDR's default 10-band layout (ClientEq::defaultBand): HP, low shelf, 6 peaks, high shelf, LP
+        static readonly double[] EqFreqs = { 40, 100, 200, 400, 800, 1500, 3000, 5000, 8000, 12000 };
+        static readonly int[] EqTypes = { 4, 1, 0, 0, 0, 0, 0, 0, 2, 3 };
 
         public static readonly List<AetherStripParam> Params = new List<AetherStripParam>();
         public static readonly double[,] Defaults = new double[Stages, MaxParams];
@@ -62,6 +66,19 @@ namespace Thetis
         {
             // enables (param 0): everything off
             for (int s = 0; s < Stages; s++) add(s, 0, null, 0, 1, 0, null, false, true, null, false);
+            // EQ: master gain dB (1), filter family (2), then the bands, all off and flat
+            add(Eq, 1, null, -24, 12, 0, null, false, false, null, false);
+            add(Eq, 2, null, 0, 3, 0, null, false, true, null, false);
+            for (int b = 0; b < EqBands; b++)
+            {
+                int p = EqBand0 + 6 * b;
+                Defaults[Eq, p] = EqFreqs[b];
+                Defaults[Eq, p + 1] = 0;
+                Defaults[Eq, p + 2] = 0.707;
+                Defaults[Eq, p + 3] = EqTypes[b];
+                Defaults[Eq, p + 4] = 0;
+                Defaults[Eq, p + 5] = 12;
+            }
             // gate: mode (1) and the two preset values it snaps are handled by the mode buttons
             add(Gate, 1, null, 0, 1, 0, null, false, true, null, false);
             add(Gate, 2, "Thresh", -80, 0, -40, dB, false, false, "Level below which the gate starts to close.");
@@ -215,7 +232,8 @@ namespace Thetis
             StringBuilder sb = new StringBuilder();
             for (int s = 0; s < AetherStripDefs.Stages; s++)
                 for (int p = 0; p < AetherStripDefs.MaxParams; p++)
-                    sb.Append(s).Append('.').Append(p).Append('=').Append(_values[s, p].ToString("R", CultureInfo.InvariantCulture)).Append(';');
+                    if (_values[s, p] != AetherStripDefs.Defaults[s, p])
+                        sb.Append(s).Append('.').Append(p).Append('=').Append(_values[s, p].ToString("R", CultureInfo.InvariantCulture)).Append(';');
             return sb.ToString();
         }
 
@@ -295,10 +313,10 @@ namespace Thetis
 
         // pages in AetherSDR's chain order; Exciter is AetherVoice TX
         private const int PageExciter = 100;
-        private static readonly int[] PageOrderTX = { AetherStripDefs.Gate, AetherStripDefs.DeEss, AetherStripDefs.Comp, AetherStripDefs.Tube,
-            PageExciter, AetherStripDefs.Reverb, AetherStripDefs.Limiter };
+        private static readonly int[] PageOrderTX = { AetherStripDefs.Gate, AetherStripDefs.Eq, AetherStripDefs.DeEss, AetherStripDefs.Comp,
+            AetherStripDefs.Tube, PageExciter, AetherStripDefs.Reverb, AetherStripDefs.Limiter };
         // AetherSDR's receive chain: gate, compressor, tube, exciter (de-essing and reverb are transmit tools)
-        private static readonly int[] PageOrderRX = { AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, PageExciter };
+        private static readonly int[] PageOrderRX = { AetherStripDefs.Eq, AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, PageExciter };
 
         private readonly Console _console;
         private bool _rx;                                   // the tab shown: receive or transmit
@@ -306,7 +324,7 @@ namespace Thetis
         private AetherStrip _strip;
         private readonly Setup _setup;
         private AetherVoiceSetupControls _av;               // the AetherVoice controls for this side
-        private readonly int[] _lastPage = { AetherStripDefs.Gate, AetherStripDefs.Gate };   // per tab: [0] TX, [1] RX
+        private readonly int[] _lastPage = { AetherStripDefs.Gate, AetherStripDefs.Eq };     // per tab: [0] TX, [1] RX (each chain's first stage)
         private readonly AetherToggleButton _tabRX, _tabTX;
         private readonly StageList _list;
         private readonly Panel _page;
@@ -394,7 +412,7 @@ namespace Thetis
             _pageNote = new Label
             {
                 ForeColor = kTextDim, Font = new Font("Segoe UI", 11f, GraphicsUnit.Pixel),
-                Location = new Point(2, 28), Size = new Size(520, 16)
+                Location = new Point(2, 28), Size = new Size(690, 16)
             };
             _btnOn = new AetherToggleButton { Text = "ON", Bypass = true, Location = new Point(632, 2), Size = new Size(60, 26) };
             _btnOn.Click += (s, e) => toggleStage();
@@ -409,6 +427,8 @@ namespace Thetis
             _page.Controls.Add(_bodyLbl);
             _page.Controls.Add(_clarityLbl);
             _page.Controls.Add(_viz);
+            _eqGraph = new EqGraph(this) { Location = new Point(0, 56), Size = new Size(692, 230), Visible = false };
+            _page.Controls.Add(_eqGraph);
 
             _timer = new Timer { Interval = 33 };
             _timer.Tick += (s, e) => tick();
@@ -467,13 +487,19 @@ namespace Thetis
             _extraButtons.Clear();
             if (_exciterKnobs != null) { foreach (AetherKnob k in _exciterKnobs) { _page.Controls.Remove(k); k.Dispose(); } _exciterKnobs = null; }
             _even = _odd = null;
+            clearEqPage();
 
             _pageTitle.Text = PageName(id);
             _logo.Visible = _bodyLbl.Visible = _clarityLbl.Visible = id == PageExciter;
-            _viz.Visible = id != PageExciter;
+            _viz.Visible = id != PageExciter && id != AetherStripDefs.Eq;
 
             const int knobY = 300, step = 92;
-            if (id == PageExciter)
+            if (id == AetherStripDefs.Eq)
+            {
+                _pageNote.Text = "Parametric EQ: drag a numbered handle to shape the sound. Mouse wheel: Q. Right-click a handle: band on/off.";
+                buildEqPage();
+            }
+            else if (id == PageExciter)
             {
                 _pageNote.Text = _rx ? "AetherVoice on receive: the same settings as the AetherVoice window (RX) and Setup > DSP > AetherVoice."
                                      : "AetherVoice on transmit: the same settings as the AetherVoice window (TX) and Setup > DSP > AetherVoice.";
@@ -659,6 +685,7 @@ namespace Thetis
                 }
             }
             finally { _syncing = false; }
+            syncEq();
             _list.Invalidate();
             _viz.Invalidate();
         }
@@ -742,6 +769,317 @@ namespace Thetis
             if (e.Button != MouseButtons.Left) return;
             ReleaseCapture();
             SendMessage(Handle, 0xA1, (IntPtr)2, IntPtr.Zero);
+        }
+
+        #endregion
+
+        #region EQ page
+
+        // AetherSDR's EQ editor: a response graph with a draggable handle per band, then the selected
+        // band's knobs, type and on/off, the master gain and the filter family.
+        private EqGraph _eqGraph;
+        private int _eqBand = 3;
+        private readonly List<Control> _eqControls = new List<Control>();
+        private AetherKnob _eqFreq, _eqGain, _eqQ, _eqSlope, _eqMaster;
+        private readonly List<AetherToggleButton> _eqBandButtons = new List<AetherToggleButton>();
+        private readonly List<AetherToggleButton> _eqTypeButtons = new List<AetherToggleButton>();
+        private readonly List<AetherToggleButton> _eqFamilyButtons = new List<AetherToggleButton>();
+        private AetherToggleButton _eqBandOn;
+
+        private static readonly string[] EqTypeNames = { "Peak", "Low Shelf", "High Shelf", "Low Pass", "High Pass" };
+        private static readonly string[] EqFamilyNames = { "Butterworth", "Chebyshev", "Bessel", "Elliptic" };
+        internal static readonly Color[] EqBandColors =
+        {
+            Color.FromArgb(0xe0, 0x60, 0x60), Color.FromArgb(0xe0, 0x90, 0x50), Color.FromArgb(0xf2, 0xc1, 0x4e), Color.FromArgb(0xb0, 0xd0, 0x50),
+            Color.FromArgb(0x4d, 0xd8, 0x7a), Color.FromArgb(0x40, 0xc8, 0xc0), Color.FromArgb(0x40, 0xa8, 0xf0), Color.FromArgb(0x70, 0x80, 0xf0),
+            Color.FromArgb(0xa0, 0x70, 0xe8), Color.FromArgb(0xe0, 0x70, 0xc8)
+        };
+
+        internal int EqBand { get { return _eqBand; } }
+        internal double EqRate { get { return _rx ? 48000 : 96000; } }
+
+        internal static int EqParam(int band, int field) { return AetherStripDefs.EqBand0 + 6 * band + field; }
+
+        internal void SelectEqBand(int b)
+        {
+            _eqBand = Math.Max(0, Math.Min(AetherStripDefs.EqBands - 1, b));
+            syncEq();
+        }
+
+        // changes to a band from the graph or knobs switch it on, as AetherSDR's editor does
+        internal void SetEqBand(int b, int field, double value)
+        {
+            if (_strip.Get(AetherStripDefs.Eq, EqParam(b, 4)) == 0 && field != 4) _strip.Set(AetherStripDefs.Eq, EqParam(b, 4), 1);
+            _strip.Set(AetherStripDefs.Eq, EqParam(b, field), value);
+        }
+
+        private void buildEqPage()
+        {
+            int y = 296;
+            for (int b = 0; b < AetherStripDefs.EqBands; b++)
+            {
+                int bb = b;
+                AetherToggleButton btn = new AetherToggleButton { Text = (b + 1).ToString(), Location = new Point(b * 40, y), Size = new Size(36, 24) };
+                btn.Click += (s, e) => SelectEqBand(bb);
+                _tips.SetToolTip(btn, "Select band " + (b + 1));
+                _eqBandButtons.Add(btn);
+                addEq(btn);
+            }
+            _eqBandOn = new AetherToggleButton { Text = "BAND ON", Bypass = true, Location = new Point(412, y), Size = new Size(84, 24) };
+            _eqBandOn.Click += (s, e) => _strip.Set(AetherStripDefs.Eq, EqParam(_eqBand, 4), _strip.Get(AetherStripDefs.Eq, EqParam(_eqBand, 4)) != 0 ? 0 : 1);
+            _tips.SetToolTip(_eqBandOn, "Turn the selected band on or off.");
+            addEq(_eqBandOn);
+
+            y = 330;
+            _eqFreq = new AetherKnob("Freq", 10, 20000, 1000, v => v >= 1000 ? (v / 1000).ToString(v >= 10000 ? "0.0" : "0.00") + " kHz" : v.ToString("0") + " Hz")
+                { ToNorm = v => Math.Log(Math.Max(10, v) / 10) / Math.Log(2000), FromNorm = x => 10 * Math.Pow(2000, x) };
+            _eqGain = new AetherKnob("Gain", -24, 24, 0, v => (v > 0 ? "+" : "") + v.ToString("0.0") + " dB");
+            _eqQ = new AetherKnob("Q", 0.1, 18, 0.707, v => v.ToString(v < 10 ? "0.00" : "0.0"))
+                { ToNorm = v => Math.Log(Math.Max(0.1, v) / 0.1) / Math.Log(180), FromNorm = x => 0.1 * Math.Pow(180, x) };
+            _eqSlope = new AetherKnob("Slope", 12, 48, 12, v => ((int)(Math.Round(v / 12) * 12)) + " dB/oct");
+            _eqMaster = new AetherKnob("Master", -24, 12, 0, v => (v > 0 ? "+" : "") + v.ToString("0.0") + " dB");
+            AetherKnob[] knobs = { _eqFreq, _eqGain, _eqQ, _eqSlope, _eqMaster };
+            int[] field = { 0, 1, 2, 5, -1 };
+            string[] tips = { "Frequency of the selected band.", "Boost or cut of the selected band (peak and shelf bands).",
+                "Width of the selected band (higher is narrower); resonance for low and high pass.",
+                "Steepness of a low or high pass band.", "Output level of the EQ." };
+            for (int i = 0; i < knobs.Length; i++)
+            {
+                AetherKnob k = knobs[i];
+                int f = field[i];
+                k.Location = new Point(i < 4 ? i * 92 : 5 * 92, y);
+                k.Size = new Size(76, 76);
+                k.ValueChanged += (s, e) =>
+                {
+                    if (_syncing) return;
+                    if (f < 0) _strip.Set(AetherStripDefs.Eq, 1, Math.Round(k.Value, 1));
+                    else if (f == 5) SetEqBand(_eqBand, 5, Math.Round(k.Value / 12) * 12);
+                    else SetEqBand(_eqBand, f, k.Value);
+                };
+                _tips.SetToolTip(k, tips[i]);
+                addEq(k);
+            }
+
+            y = 420;
+            for (int t = 0; t < EqTypeNames.Length; t++)
+            {
+                int tt = t;
+                AetherToggleButton btn = new AetherToggleButton { Text = EqTypeNames[t], Location = new Point(t * 92, y), Size = new Size(86, 24) };
+                btn.Click += (s, e) => SetEqBand(_eqBand, 3, tt);
+                _eqTypeButtons.Add(btn);
+                addEq(btn);
+            }
+            y = 456;
+            for (int f = 0; f < EqFamilyNames.Length; f++)
+            {
+                int ff = f;
+                AetherToggleButton btn = new AetherToggleButton { Text = EqFamilyNames[f], Location = new Point(f * 92, y), Size = new Size(86, 24) };
+                btn.Click += (s, e) => _strip.Set(AetherStripDefs.Eq, 2, ff);
+                _tips.SetToolTip(btn, "Filter family for the low and high pass bands.");
+                _eqFamilyButtons.Add(btn);
+                addEq(btn);
+            }
+            Label fam = new Label { Text = "Pass-band family", ForeColor = kTextDim, Font = new Font("Segoe UI", 11f, GraphicsUnit.Pixel),
+                AutoSize = true, Location = new Point(4 * 92 + 4, y + 5) };
+            addEq(fam);
+
+            _eqGraph.Visible = true;
+        }
+
+        private void addEq(Control c)
+        {
+            _page.Controls.Add(c);
+            _eqControls.Add(c);
+        }
+
+        private void clearEqPage()
+        {
+            foreach (Control c in _eqControls) { _page.Controls.Remove(c); c.Dispose(); }
+            _eqControls.Clear();
+            _eqBandButtons.Clear();
+            _eqTypeButtons.Clear();
+            _eqFamilyButtons.Clear();
+            _eqFreq = null;
+            if (_eqGraph != null) _eqGraph.Visible = false;
+        }
+
+        private void syncEq()
+        {
+            if (_eqFreq == null) return;
+            const int E = AetherStripDefs.Eq;
+            bool was = _syncing;
+            _syncing = true;
+            try
+            {
+                int type = (int)Math.Round(_strip.Get(E, EqParam(_eqBand, 3)));
+                _eqFreq.SetValue(_strip.Get(E, EqParam(_eqBand, 0)));
+                _eqGain.SetValue(_strip.Get(E, EqParam(_eqBand, 1)));
+                _eqQ.SetValue(_strip.Get(E, EqParam(_eqBand, 2)));
+                _eqSlope.SetValue(_strip.Get(E, EqParam(_eqBand, 5)));
+                _eqMaster.SetValue(_strip.Get(E, 1));
+                _eqGain.Enabled = type <= 2;              // peak and shelves
+                _eqSlope.Enabled = type >= 3;             // low and high pass
+                for (int b = 0; b < _eqBandButtons.Count; b++) _eqBandButtons[b].Checked = b == _eqBand;
+                for (int t = 0; t < _eqTypeButtons.Count; t++) _eqTypeButtons[t].Checked = t == type;
+                int fam = (int)Math.Round(_strip.Get(E, 2));
+                for (int f = 0; f < _eqFamilyButtons.Count; f++) _eqFamilyButtons[f].Checked = f == fam;
+                _eqBandOn.Checked = _strip.Get(E, EqParam(_eqBand, 4)) != 0;
+            }
+            finally { _syncing = was; }
+            _eqGraph.Invalidate();
+        }
+
+        // the EQ response graph: 20 Hz .. 20 kHz, -24 .. +24 dB, with a handle per band
+        private class EqGraph : Control
+        {
+            private readonly frmAetherStrip _f;
+            private int _drag = -1;
+            private const double FMin = 20, FMax = 20000, DbRange = 24;
+
+            public EqGraph(frmAetherStrip f)
+            {
+                _f = f;
+                SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+                BackColor = kPanel;
+                Cursor = Cursors.Cross;
+            }
+
+            private Rectangle plot { get { return new Rectangle(40, 10, Width - 52, Height - 30); } }
+            private float xOf(double hz) { Rectangle r = plot; return (float)(r.X + r.Width * Math.Log(hz / FMin) / Math.Log(FMax / FMin)); }
+            private double hzOf(float x) { Rectangle r = plot; return FMin * Math.Pow(FMax / FMin, Math.Max(0, Math.Min(1, (x - r.X) / (double)r.Width))); }
+            private float yOf(double db) { Rectangle r = plot; return (float)(r.Y + r.Height * (DbRange - Math.Max(-DbRange, Math.Min(DbRange, db))) / (2 * DbRange)); }
+            private double dbOf(float y) { Rectangle r = plot; return DbRange - 2 * DbRange * (y - r.Y) / r.Height; }
+
+            private double bandDb(int b, double hz, bool forceOn)
+            {
+                AetherStrip st = _f.Strip;
+                const int E = AetherStripDefs.Eq;
+                bool on = st.Get(E, EqParam(b, 4)) != 0 || forceOn;
+                if (!on) return 0;
+                try
+                {
+                    return WDSP.GetAetherEqBandMagnitudeDb((int)Math.Round(st.Get(E, EqParam(b, 3))), st.Get(E, EqParam(b, 0)), st.Get(E, EqParam(b, 1)),
+                        st.Get(E, EqParam(b, 2)), 1, (int)Math.Round(st.Get(E, EqParam(b, 5))), (int)Math.Round(st.Get(E, 2)), hz, _f.EqRate);
+                }
+                catch { return 0; }
+            }
+
+            // the handle sits on the band's own response at its frequency
+            private PointF handle(int b)
+            {
+                AetherStrip st = _f.Strip;
+                double hz = st.Get(AetherStripDefs.Eq, EqParam(b, 0));
+                int type = (int)Math.Round(st.Get(AetherStripDefs.Eq, EqParam(b, 3)));
+                double db = type <= 2 ? st.Get(AetherStripDefs.Eq, EqParam(b, 1)) : 0;
+                return new PointF(xOf(hz), yOf(db));
+            }
+
+            private int hit(Point p)
+            {
+                for (int b = AetherStripDefs.EqBands - 1; b >= 0; b--)
+                {
+                    PointF h = handle(b);
+                    if (Math.Abs(h.X - p.X) <= 9 && Math.Abs(h.Y - p.Y) <= 9) return b;
+                }
+                return -1;
+            }
+
+            protected override void OnMouseDown(MouseEventArgs e)
+            {
+                base.OnMouseDown(e);
+                int b = hit(e.Location);
+                if (b < 0) return;
+                _f.SelectEqBand(b);
+                if (e.Button == MouseButtons.Right)
+                {
+                    AetherStrip st = _f.Strip;
+                    st.Set(AetherStripDefs.Eq, EqParam(b, 4), st.Get(AetherStripDefs.Eq, EqParam(b, 4)) != 0 ? 0 : 1);
+                    return;
+                }
+                if (e.Button == MouseButtons.Left) { _drag = b; Capture = true; }
+            }
+
+            protected override void OnMouseMove(MouseEventArgs e)
+            {
+                base.OnMouseMove(e);
+                if (_drag < 0) { Cursor = hit(e.Location) >= 0 ? Cursors.Hand : Cursors.Cross; return; }
+                AetherStrip st = _f.Strip;
+                int type = (int)Math.Round(st.Get(AetherStripDefs.Eq, EqParam(_drag, 3)));
+                _f.SetEqBand(_drag, 0, Math.Round(Math.Max(10, Math.Min(20000, hzOf(e.X)))));
+                if (type <= 2) _f.SetEqBand(_drag, 1, Math.Round(Math.Max(-24, Math.Min(24, dbOf(e.Y))) * 2) / 2);
+                else _f.SetEqBand(_drag, 2, Math.Round(Math.Max(0.1, Math.Min(18, 0.707 * Math.Pow(2, dbOf(e.Y) / 6))), 2));  // pass bands: height sets Q
+            }
+
+            protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _drag = -1; Capture = false; }
+
+            protected override void OnMouseWheel(MouseEventArgs e)
+            {
+                base.OnMouseWheel(e);
+                int b = _f.EqBand;
+                double q = _f.Strip.Get(AetherStripDefs.Eq, EqParam(b, 2)) * Math.Pow(1.08, Math.Sign(e.Delta));
+                _f.SetEqBand(b, 2, Math.Round(Math.Max(0.1, Math.Min(18, q)), 3));
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Graphics g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+                Rectangle r = plot;
+                using (Pen p = new Pen(kBorder)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
+                using (Brush b = new SolidBrush(Color.FromArgb(0x06, 0x0e, 0x17))) g.FillRectangle(b, r);
+                using (Pen grid = new Pen(kGrid))
+                using (Font f = new Font("Segoe UI", 10f, GraphicsUnit.Pixel))
+                using (Brush txt = new SolidBrush(kTextDim))
+                {
+                    foreach (double hz in new double[] { 50, 100, 200, 500, 1000, 2000, 5000, 10000 })
+                    {
+                        float x = xOf(hz);
+                        g.DrawLine(grid, x, r.Y, x, r.Bottom);
+                        g.DrawString(hz >= 1000 ? (hz / 1000) + "k" : hz.ToString(), f, txt, x - 8, r.Bottom + 2);
+                    }
+                    for (int db = -18; db <= 18; db += 6)
+                    {
+                        float y = yOf(db);
+                        using (Pen p = new Pen(db == 0 ? Color.FromArgb(0x30, 0x44, 0x58) : kGrid)) g.DrawLine(p, r.X, y, r.Right, y);
+                        g.DrawString((db > 0 ? "+" : "") + db, f, txt, 4, y - 7);
+                    }
+                }
+
+                AetherStrip st = _f.Strip;
+                const int E = AetherStripDefs.Eq;
+                bool eqOn = st.Enabled(E);
+                int n = 240;
+                // selected band's own response, faint
+                List<PointF> sel = new List<PointF>(), tot = new List<PointF>();
+                for (int i = 0; i <= n; i++)
+                {
+                    double hz = FMin * Math.Pow(FMax / FMin, i / (double)n), sum = st.Get(E, 1);
+                    for (int b = 0; b < AetherStripDefs.EqBands; b++) sum += bandDb(b, hz, false);
+                    tot.Add(new PointF(xOf(hz), yOf(sum)));
+                    sel.Add(new PointF(xOf(hz), yOf(bandDb(_f.EqBand, hz, true))));
+                }
+                using (Pen p = new Pen(Color.FromArgb(90, EqBandColors[_f.EqBand]), 1.5f)) g.DrawLines(p, sel.ToArray());
+                using (Pen p = new Pen(eqOn ? kAmber : Color.FromArgb(0x80, 0x70, 0x50), 2.2f)) g.DrawLines(p, tot.ToArray());
+
+                using (Font f = new Font("Segoe UI", 10f, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    for (int b = 0; b < AetherStripDefs.EqBands; b++)
+                    {
+                        PointF h = handle(b);
+                        bool on = st.Get(E, EqParam(b, 4)) != 0;
+                        Color c = EqBandColors[b];
+                        RectangleF hr = new RectangleF(h.X - 8, h.Y - 8, 16, 16);
+                        if (on) using (Brush br = new SolidBrush(c)) g.FillEllipse(br, hr);
+                        else using (Brush br = new SolidBrush(Color.FromArgb(0x0b, 0x17, 0x24))) g.FillEllipse(br, hr);
+                        using (Pen p = new Pen(b == _f.EqBand ? Color.White : c, b == _f.EqBand ? 2f : 1.2f)) g.DrawEllipse(p, hr);
+                        using (Brush br = new SolidBrush(on ? Color.FromArgb(0x08, 0x12, 0x1d) : c)) g.DrawString((b + 1).ToString(), f, br, hr, sf);
+                    }
+                if (!eqOn)
+                    using (Font f = new Font("Segoe UI", 11f, GraphicsUnit.Pixel))
+                    using (Brush b = new SolidBrush(kTextMid))
+                        g.DrawString("EQ is off: click ON to hear it", f, b, r.Right - 190, r.Y + 4);
+            }
         }
 
         #endregion
