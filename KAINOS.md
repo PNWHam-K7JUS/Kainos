@@ -194,6 +194,8 @@ Built-in FreeDV RADE (V1 and V2) on RX1, RX2 and the transmitter, ported from [T
 
 ### Kainos layout (roadmap Phase 7)
 
+Kainos is the default layout (Setup > Appearance > Kainos > Layout): a fresh install, or settings brought over from Thetis (which has no such setting), start in it; Classic is the Thetis look.
+
 The console redesign agreed on the design canvas ("Kainos Console Concepts", concept E): the splash-screen colours, a left dock in place of the top controls, one SmartSDR-style slice flag per receiver, an AetherSDR-style right column of toggle tabs (METERS first, with OE3IDE's FTDX-5000 multimeter offered as a download on first use), and RX2 as a second panadapter. It is built in stages, each tested on the radio; Thetis's designer files are not changed, and Setup > Appearance > Kainos > Layout switches between **Classic** (the Thetis console exactly as the skin draws it) and **Kainos**.
 
 - **Display scaling:** Thetis does not declare itself DPI-aware (the `dpiAware` entry in `app.manifest` is commented out), so Windows scales the whole program at 125 % / 150 %; at 1920×1080 and 150 % Kainos has 1280×720 to lay out in. The Kainos layout is designed to fit that. Making the program DPI-aware (sharper text) would affect every Thetis window and is left for a separate test.
