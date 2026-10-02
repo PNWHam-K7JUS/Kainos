@@ -25587,8 +25587,9 @@ namespace Thetis
             if (lb.Items.Count == 0) return 0;
 
             MeterType t = mtci.MeterType;
-            int block = -1;
-            if ( ((int)t > (int)MeterType.NONE) && ((int)t <= (int)MeterType.ESTIMATED_PBSNR) || (int)t == (int)MeterType.ACG_MAX_MAG)
+            int block = radeMeterBlock(t); // Kainos: setupRade.cs (RADE meters list with the RX / TX meters)
+            if (block >= 0) { }
+            else if ( ((int)t > (int)MeterType.NONE) && ((int)t <= (int)MeterType.ESTIMATED_PBSNR) || (int)t == (int)MeterType.ACG_MAX_MAG)
             {
                 block = 0;
             }
@@ -25619,6 +25620,7 @@ namespace Thetis
                         good_block = ((int)mi.MeterType >= (int)MeterType.MAGIC_EYE) && ((int)mi.MeterType < (int)MeterType.LAST);
                         break;
                 }
+                if (radeMeterBlock(mi.MeterType) >= 0) good_block = radeMeterBlock(mi.MeterType) == block; // Kainos
                 if (!good_block) continue;
 
                 if (string.Compare(mtci.ToString(), MeterManager.MeterName(mi.MeterType), true) < 0) return n;
@@ -25667,6 +25669,7 @@ namespace Thetis
             chkLockContainer_CheckedChanged(this, EventArgs.Empty); // force it
 
             chkContainer_hidewhennotused.Checked = MeterManager.ContainerHidesWhenRXNotUsed(cci.ID); //needs to be before the rx2/rx1 data radios below
+            chkContainer_hideRADEnotenabled.Checked = MeterManager.ContainerHidesWhenRADENotEnabled(cci.ID); // Kainos: setupRade.cs
 
             int rx = MeterManager.GetContainerRX(cci.ID);
             switch (rx)
