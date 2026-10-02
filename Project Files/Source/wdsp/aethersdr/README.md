@@ -5,6 +5,7 @@ These files are copied **unchanged** from [AetherSDR](https://github.com/aethers
 | File | Processor |
 |---|---|
 | `ClientGate` | Downward expander / noise gate |
+| `ClientEq` | Parametric EQ (up to 16 bands) |
 | `ClientDeEss` | De-esser |
 | `ClientComp` (+ `ClientPhaseRotator`) | Compressor with drive, phase rotator and output limiter |
 | `ClientTube` | Tube saturation |

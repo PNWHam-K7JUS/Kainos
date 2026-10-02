@@ -63,6 +63,9 @@
     <ClInclude Include="aethersdr\ClientReverb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="aethersdr\ClientEq.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="aethersdr\ClientFinalLimiter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -294,6 +297,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="aethersdr\ClientReverb.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientEq.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="aethersdr\ClientFinalLimiter.cpp">

@@ -28,6 +28,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "aethersdr/ClientTube.h"
 #include "aethersdr/ClientReverb.h"
 #include "aethersdr/ClientFinalLimiter.h"
+#include "aethersdr/ClientEq.h"
+
+#include <cmath>
 
 #include <cstring>
 #include <vector>
@@ -46,12 +49,21 @@ struct _aetherstrip
 	ClientTube tube;
 	ClientReverb reverb;
 	ClientFinalLimiter limiter;
+	ClientEq eq;
+	ClientEq::BandParams bands[AS_EQ_BANDS];	// the EQ bands as last set (ClientEq takes a whole band at a time)
+	const int* preOrder;				// stage order before AetherVoice (per side)
+	int preCount;
 	bool wasEnabled[AS_NSTAGES];		// to reset a stage's state when it is switched on
 	std::vector<float> buf;				// interleaved float scratch (AetherSDR processes float)
 };
 
 namespace
 {
+	// AetherSDR's chain orders (AudioEngine TxChainStage / RxChainStage); de-essing is a transmit tool
+	const int kTxPre[] = { AS_GATE, AS_EQ, AS_DEESS, AS_COMP, AS_TUBE };
+	const int kRxPre[] = { AS_EQ, AS_GATE, AS_COMP, AS_TUBE };
+	const int kPost[] = { AS_REVERB, AS_LIMITER };
+
 	bool stageEnabled (AETHERSTRIP a, int stage)
 	{
 		switch (stage)
@@ -62,6 +74,7 @@ namespace
 		case AS_TUBE:		return a->tube.isEnabled ();
 		case AS_REVERB:		return a->reverb.isEnabled ();
 		case AS_LIMITER:	return a->limiter.isEnabled ();
+		case AS_EQ:			return a->eq.isEnabled ();
 		}
 		return false;
 	}
@@ -76,6 +89,7 @@ namespace
 		case AS_TUBE:		a->tube.reset (); break;
 		case AS_REVERB:		a->reverb.reset (); break;
 		case AS_LIMITER:	a->limiter.reset (); break;
+		case AS_EQ:			a->eq.reset (); break;
 		}
 	}
 
@@ -89,16 +103,18 @@ namespace
 		case AS_TUBE:		a->tube.process (x, frames, nch); break;
 		case AS_REVERB:		a->reverb.process (x, frames, nch); break;
 		case AS_LIMITER:	a->limiter.process (x, frames, nch); break;
+		case AS_EQ:			a->eq.process (x, frames, nch); break;
 		}
 	}
 
-	// runs the enabled stages in [first, last]; does nothing (bit-exact pass-through) if none are on
-	void run (AETHERSTRIP a, int first, int last, int stereo)
+	// runs the enabled stages in the given order; does nothing (bit-exact pass-through) if none are on
+	void run (AETHERSTRIP a, const int* order, int count, int stereo)
 	{
-		int nch = stereo ? 2 : 1, i, s;
+		int nch = stereo ? 2 : 1, i, k, s;
 		bool any = false;
-		for (s = first; s <= last; s++)
+		for (k = 0; k < count; k++)
 		{
+			s = order[k];
 			bool on = stageEnabled (a, s);
 			if (on && !a->wasEnabled[s]) stageReset (a, s);		// start from clean state
 			a->wasEnabled[s] = on;
@@ -116,8 +132,8 @@ namespace
 			x[nch * i] = (float)a->in[2 * i];
 			if (stereo) x[nch * i + 1] = (float)a->in[2 * i + 1];
 		}
-		for (s = first; s <= last; s++)
-			if (a->wasEnabled[s]) stageProcess (a, s, x, a->size, nch);
+		for (k = 0; k < count; k++)
+			if (a->wasEnabled[order[k]]) stageProcess (a, order[k], x, a->size, nch);
 		for (i = 0; i < a->size; i++)
 		{
 			a->out[2 * i] = x[nch * i];
@@ -133,12 +149,13 @@ namespace
 		a->tube.prepare (a->samplerate);
 		a->reverb.prepare (a->samplerate);
 		a->limiter.prepare (a->samplerate);
+		a->eq.prepare (a->samplerate);
 	}
 }
 
 extern "C" {
 
-AETHERSTRIP create_aetherstrip (int size, double* in, double* out, int samplerate)
+AETHERSTRIP create_aetherstrip (int size, double* in, double* out, int samplerate, int rx)
 {
 	AETHERSTRIP a = new _aetherstrip ();
 	a->size = size;
@@ -150,6 +167,15 @@ AETHERSTRIP create_aetherstrip (int size, double* in, double* out, int samplerat
 	// AetherSDR's final limiter defaults to on (it guards AetherSDR's own output); in Kainos
 	// every strip stage starts off until the user turns it on
 	a->limiter.setEnabled (false);
+	a->preOrder = rx ? kRxPre : kTxPre;
+	a->preCount = rx ? (int)(sizeof (kRxPre) / sizeof (int)) : (int)(sizeof (kTxPre) / sizeof (int));
+	// EQ: AetherSDR's default 10-band layout, every band off and flat until shaped
+	a->eq.setActiveBandCount (AS_EQ_BANDS);
+	for (int b = 0; b < AS_EQ_BANDS; b++)
+	{
+		a->bands[b] = ClientEq::defaultBand (b);
+		a->eq.setBand (b, a->bands[b]);
+	}
 	prepareAll (a);
 	return a;
 }
@@ -166,12 +192,12 @@ void flush_aetherstrip (AETHERSTRIP a)
 
 void xaetherstrip_pre (AETHERSTRIP a, int stereo)
 {
-	run (a, AS_GATE, AS_TUBE, stereo);
+	run (a, a->preOrder, a->preCount, stereo);
 }
 
 void xaetherstrip_post (AETHERSTRIP a, int stereo)
 {
-	run (a, AS_REVERB, AS_LIMITER, stereo);
+	run (a, kPost, 2, stereo);
 }
 
 void setBuffers_aetherstrip (AETHERSTRIP a, double* in, double* out)
@@ -279,7 +305,40 @@ void setParam_aetherstrip (AETHERSTRIP a, int stage, int param, double value)
 		case 3: a->limiter.setDcBlockEnabled (on); break;
 		}
 		break;
+	case AS_EQ:
+		if (param == 0) a->eq.setEnabled (on);
+		else if (param == 1) a->eq.setMasterGain ((float)std::pow (10.0, value / 20.0));
+		else if (param == 2) a->eq.setFilterFamily ((ClientEq::FilterFamily)(n < 0 ? 0 : n > 3 ? 3 : n));
+		else if (param >= AS_EQ_BAND0 && param < AS_EQ_BAND0 + 6 * AS_EQ_BANDS)
+		{
+			int b = (param - AS_EQ_BAND0) / 6;
+			ClientEq::BandParams& p = a->bands[b];
+			switch ((param - AS_EQ_BAND0) % 6)
+			{
+			case 0: p.freqHz = v; break;
+			case 1: p.gainDb = v; break;
+			case 2: p.q = v; break;
+			case 3: p.type = (ClientEq::FilterType)(n < 0 ? 0 : n > 4 ? 4 : n); break;
+			case 4: p.enabled = on; break;
+			case 5: p.slopeDbPerOct = n; break;
+			}
+			a->eq.setBand (b, p);
+		}
+		break;
 	}
+}
+
+double aetherstrip_eqBandMagnitudeDb (int type, double freq, double gain, double q, int on, int slope,
+	int family, double probeHz, double samplerate)
+{
+	ClientEq::BandParams p;
+	p.type = (ClientEq::FilterType)(type < 0 ? 0 : type > 4 ? 4 : type);
+	p.freqHz = (float)freq;
+	p.gainDb = (float)gain;
+	p.q = (float)q;
+	p.enabled = on != 0;
+	p.slopeDbPerOct = slope;
+	return ClientEq::bandMagnitudeDb (p, (float)probeHz, samplerate, (ClientEq::FilterFamily)(family < 0 ? 0 : family > 3 ? 3 : family));
 }
 
 double getMeter_aetherstrip (AETHERSTRIP a, int stage, int meter)

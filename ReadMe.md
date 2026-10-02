@@ -10,8 +10,8 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 ## What Kainos adds
 
 - **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from **Kainos Audio** in the menu bar. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
-  - **Receive**, on every receiver: gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
-  - **Transmit**: gate, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.
+  - **Receive**, on every receiver: parametric EQ, gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
+  - **Transmit**: gate, parametric EQ, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.
   - **AetherVoice** adds low-end body and high-end clarity to voice. It can also be switched on with the **AV** button on the console (right-click it for a small AetherVoice window) or set in Setup > DSP > AetherVoice.
   - Everything works in voice modes only and is bypassed automatically in CW and digital modes, so decoders are never affected. On transmit, test into a dummy load and check your signal on a second receiver before using it on the air.
 

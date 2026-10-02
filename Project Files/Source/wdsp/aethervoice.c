@@ -318,6 +318,14 @@ double GetRXAStripMeter (int channel, int stage, int meter)
 	return getMeter_aetherstrip (rxa[channel].aetherstrip.p, stage, meter);
 }
 
+// AetherSDR's EQ band response, for drawing the EQ curve (no channel needed)
+PORT
+double GetAetherEqBandMagnitudeDb (int type, double freq, double gain, double q, int on, int slope,
+	int family, double probeHz, double samplerate)
+{
+	return aetherstrip_eqBandMagnitudeDb (type, freq, gain, q, on, slope, family, probeHz, samplerate);
+}
+
 // stage / param / meter numbers are listed in aetherstrip.h; AetherSDR's setters are lock-free
 PORT
 void SetTXAStripParam (int channel, int stage, int param, double value)

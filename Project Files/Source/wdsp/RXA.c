@@ -529,13 +529,14 @@ void create_rxa (int channel)
 		2000.0);										// max freq for f_to_v converter									
 
 	// patchpanel
-	// AetherSDR channel strip (Kainos): AetherRX runs gate, compressor and tube just before AetherVoice,
+	// AetherSDR channel strip (Kainos): AetherRX runs EQ, gate, compressor and tube just before AetherVoice,
 	// as AetherSDR's receive chain does. Every stage is off by default
 	rxa[channel].aetherstrip.p = create_aetherstrip (
 		ch[channel].dsp_size,							// buffer size
 		rxa[channel].midbuff,							// pointer to input buffer
 		rxa[channel].midbuff,							// pointer to output buffer
-		ch[channel].dsp_rate);							// sample rate
+		ch[channel].dsp_rate,							// sample rate
+		1);												// receive chain order
 
 	// AetherVoice exciter (Kainos), last stage before the volume/pan panel
 	rxa[channel].aethervoice.p = create_aethervoice (

@@ -231,6 +231,7 @@
     <ClInclude Include="aethersdr\ClientTube.h" />
     <ClInclude Include="aethersdr\ClientReverb.h" />
     <ClInclude Include="aethersdr\ClientFinalLimiter.h" />
+    <ClInclude Include="aethersdr\ClientEq.h" />
     <ClInclude Include="channel.h" />
     <ClInclude Include="comm.h" />
     <ClInclude Include="fcurve.h" />
@@ -334,6 +335,11 @@
       <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Include="aethersdr\ClientReverb.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="aethersdr\ClientEq.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>aethersdr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
