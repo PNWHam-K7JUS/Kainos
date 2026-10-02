@@ -107,7 +107,8 @@ namespace Thetis
             st.ImageOwner = null;
         }
 
-        // called before the live trace is drawn; data are the trace's dBm per decimated pixel
+        // called before the live trace is drawn (it takes the traces and redraws the stack; pasteKainos3DStack shows
+        // it); data are the trace's dBm per decimated pixel
         private static void drawKainos3DStack(int rx, int W, int H, int nVerticalShift, float[] data, int nDecimatedWidth, int decimation,
                                               float fOffset, int grid_max, int grid_min, float dbmToPixel, bool local_mox)
         {
@@ -171,12 +172,17 @@ namespace Thetis
                 k3dRender(st, W, H, (grid_max - wfLow) * dbmToPixel, (grid_max - wfHigh) * dbmToPixel);
             }
 
-            // every frame: paste the stack behind the live trace
-            if (st.Image != null)
-            {
-                using (SharpDX.Direct2D1.Bitmap b = st.Image.Bitmap)
-                    _d2dRenderTarget.DrawBitmap(b, new RawRectangleF(0, nVerticalShift, W, nVerticalShift + H), 1f, BitmapInterpolationMode.NearestNeighbor);
-            }
+        }
+
+        // every frame, first thing in the panadapter (before Thetis's grid, filter shading and VFO / TX lines, so
+        // they stay on top of the stack, as over the live trace): paste the stack
+        private static void pasteKainos3DStack(int rx, int W, int H, int nVerticalShift)
+        {
+            if (!Kainos3D || _d2dRenderTarget == null) return;
+            K3DStack st = _k3d[rx == 1 ? 0 : 1];
+            if (st.Image == null || st.ImageOwner != _d2dRenderTarget) return;
+            using (SharpDX.Direct2D1.Bitmap b = st.Image.Bitmap)
+                _d2dRenderTarget.DrawBitmap(b, new RawRectangleF(0, nVerticalShift, W, nVerticalShift + H), 1f, BitmapInterpolationMode.NearestNeighbor);
         }
 
         private static GradientStop[] k3dStops()
