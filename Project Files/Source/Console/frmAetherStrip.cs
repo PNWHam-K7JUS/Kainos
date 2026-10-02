@@ -277,7 +277,8 @@ namespace Thetis
 
     #region window
 
-    // The AetherTX / AetherRX window: stage list on the left, the selected stage's page on the right.
+    // The Aether channel-strip window: RX and TX tabs and the stage list on the left, the selected stage's
+    // page on the right. The AetherRX and AetherTX menu items open it on the matching tab.
     public class frmAetherStrip : Form
     {
         private static readonly Color kWindowBg = Color.FromArgb(0x08, 0x12, 0x1d);
@@ -300,11 +301,13 @@ namespace Thetis
         private static readonly int[] PageOrderRX = { AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, PageExciter };
 
         private readonly Console _console;
-        private readonly bool _rx;
-        private readonly int[] _pageIds;
-        private readonly AetherStrip _strip;
+        private bool _rx;                                   // the tab shown: receive or transmit
+        private int[] _pageIds;
+        private AetherStrip _strip;
         private readonly Setup _setup;
-        private readonly AetherVoiceSetupControls _av;      // the AetherVoice controls for this side
+        private AetherVoiceSetupControls _av;               // the AetherVoice controls for this side
+        private readonly int[] _lastPage = { AetherStripDefs.Gate, AetherStripDefs.Gate };   // per tab: [0] TX, [1] RX
+        private readonly AetherToggleButton _tabRX, _tabTX;
         private readonly StageList _list;
         private readonly Panel _page;
         private readonly Label _pageTitle, _pageNote, _status;
@@ -324,13 +327,9 @@ namespace Thetis
         public frmAetherStrip(Console console, bool rx)
         {
             _console = console;
-            _rx = rx;
-            _pageIds = rx ? PageOrderRX : PageOrderTX;
-            _strip = rx ? console.AetherStripRX : console.AetherStripTX;
             _setup = console.SetupForm;
-            _av = rx ? _setup.AetherVoiceRX : _setup.AetherVoiceTX;
 
-            Text = rx ? "AetherRX" : "AetherTX";
+            Text = "Aether";
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             BackColor = kWindowBg;
@@ -342,7 +341,7 @@ namespace Thetis
 
             Label title = new Label
             {
-                Text = (rx ? "AetherRX" : "AetherTX") + " — Aetherial Audio Channel Strip",
+                Text = "Aether — Aetherial Audio Channel Strip",
                 ForeColor = kText, BackColor = kTitleBg,
                 Font = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Pixel),
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0),
@@ -361,14 +360,21 @@ namespace Thetis
             Controls.Add(title);
             Controls.Add(close);
 
-            // stage list
-            _list = new StageList(this) { Location = new Point(10, 34), Size = new Size(170, _pageIds.Length * 38 + 4) };
+            // RX / TX tabs, then the stage list for the tab shown
+            _tabRX = new AetherToggleButton { Text = "RX", Location = new Point(10, 34), Size = new Size(82, 28) };
+            _tabTX = new AetherToggleButton { Text = "TX", Location = new Point(98, 34), Size = new Size(82, 28) };
+            _tabRX.Click += (s, e) => SetSide(true);
+            _tabTX.Click += (s, e) => SetSide(false);
+            _tips.SetToolTip(_tabRX, "AetherRX: the receive chain, on every receiver.");
+            _tips.SetToolTip(_tabTX, "AetherTX: the transmit chain, saved in each TX profile.");
+            Controls.Add(_tabRX);
+            Controls.Add(_tabTX);
+            _list = new StageList(this) { Location = new Point(10, 70), Size = new Size(170, PageOrderTX.Length * 38 + 4) };
             Controls.Add(_list);
 
             // bottom-left: TX indicator and BYPASS
             _btnBypass = new AetherToggleButton { Text = "BYPASS", Bypass = true, Location = new Point(10, 520), Size = new Size(170, 28) };
             _btnBypass.Click += (s, e) => _strip.Bypass = !_strip.Bypass;
-            _tips.SetToolTip(_btnBypass, "Bypass the whole " + (rx ? "receive" : "transmit") + " chain (strip and AetherVoice) without changing any settings.");
             Controls.Add(_btnBypass);
             _status = new Label
             {
@@ -404,13 +410,34 @@ namespace Thetis
             _page.Controls.Add(_clarityLbl);
             _page.Controls.Add(_viz);
 
-            _strip.Changed += stripChanged;
-            hookSetupTX(true);
-
             _timer = new Timer { Interval = 33 };
             _timer.Tick += (s, e) => tick();
 
-            ShowPage(AetherStripDefs.Gate);
+            SetSide(rx);
+        }
+
+        // switch the window between the receive and transmit chains
+        public void SetSide(bool rx)
+        {
+            if (_strip != null)
+            {
+                if (_rx == rx) return;
+                _lastPage[_rx ? 1 : 0] = _pageId;
+                _strip.Changed -= stripChanged;
+                hookSetupTX(false);
+            }
+            _rx = rx;
+            _pageIds = rx ? PageOrderRX : PageOrderTX;
+            _strip = rx ? _console.AetherStripRX : _console.AetherStripTX;
+            _av = rx ? _setup.AetherVoiceRX : _setup.AetherVoiceTX;
+            _strip.Changed += stripChanged;
+            hookSetupTX(true);
+
+            _tabRX.Checked = rx;
+            _tabTX.Checked = !rx;
+            _tips.SetToolTip(_btnBypass, "Bypass the whole " + (rx ? "receive" : "transmit") + " chain (strip and AetherVoice) without changing any settings.");
+            _list.Invalidate();
+            ShowPage(_lastPage[rx ? 1 : 0]);
         }
 
         #region pages
@@ -701,7 +728,7 @@ namespace Thetis
             if (disposing)
             {
                 _timer.Dispose();
-                _strip.Changed -= stripChanged;
+                if (_strip != null) _strip.Changed -= stripChanged;
                 hookSetupTX(false);
             }
             base.Dispose(disposing);

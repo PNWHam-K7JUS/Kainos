@@ -123,7 +123,7 @@ AetherSDR's receive chain, on every receiver: gate, compressor and tube from the
 |---|---|
 | WDSP | A second `aetherstrip` instance per receiver in `RXA.c`: `xaetherstrip_pre` runs just before `xaethervoice` and the volume panel. Binaural (panel `copy == 0`) processes I and Q as left and right, as AetherVoice RX does. Exports `SetRXAStripParam`, `GetRXAStripMeter` |
 | C# | `RadioDSPRX.SetRXStripParam` caches and resyncs every value (`SyncAll`, and `Copy` between receivers) and enables stages only in voice modes. `AetherStrip` (the model, shared with AetherTX) pushes AetherRX settings to all four receivers |
-| Window | The same `frmAetherStrip`, opened for receive from the **AetherRX** menu item: Gate, Compressor, Tube and Exciter (AetherVoice RX) pages; meters follow RX1 while receiving; BYPASS also bypasses AetherVoice RX |
+| Window | One **Aether** window (`frmAetherStrip`) holds both chains, with **RX** and **TX** tabs above the stage list (`SetSide`); the AetherRX and AetherTX menu items open it on that tab, and each tab remembers its last page. RX shows Gate, Compressor, Tube and Exciter (AetherVoice RX); meters follow RX1 while receiving; BYPASS acts on the tab shown and also bypasses that side's AetherVoice |
 | Saving | AetherRX settings live in a hidden `TextBoxTS` (`txtAetherStripRX`) on the Setup AetherVoice tab, so Setup saves and restores them with the other options. The Setup tab is built before Setup has its console, so the model is connected on first use (`hookAetherStripRX`) |
 
 Verification: `RadioDSPRX` sends the stage enable as 1 in USB and AM and 0 in DIGU, DIGL and CW; a -12 dB compressor makeup gives -12.0 dB at a real WDSP receiver's output; gate, compressor and tube together run cleanly in mono and binaural.

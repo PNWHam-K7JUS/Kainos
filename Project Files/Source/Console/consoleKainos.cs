@@ -34,8 +34,7 @@ namespace Thetis
         private ToolStripMenuItem aetherRXToolStripMenuItem;
         private CheckBoxTS chkAetherVoice;
         private frmAetherVoice _frmAetherVoice;
-        private frmAetherStrip _frmAetherStrip;
-        private frmAetherStrip _frmAetherRX;
+        private frmAetherStrip _frmAether;
 
         // the AetherSDR channel strip on transmit; its settings are saved in each TX profile
         public AetherStrip AetherStripTX { get; private set; }
@@ -111,28 +110,21 @@ namespace Thetis
             _frmAetherVoice.Activate();
         }
 
-        public void ShowAetherStrip()
-        {
-            if (_frmAetherStrip == null || _frmAetherStrip.IsDisposed)
-            {
-                _frmAetherStrip = new frmAetherStrip(this, false) { Owner = this };
-                _frmAetherStrip.Location = new Point(Left + (Width - _frmAetherStrip.Width) / 2, Top + (Height - _frmAetherStrip.Height) / 2);
-            }
-            _frmAetherStrip.Show();
-            _frmAetherStrip.BringToFront();
-            _frmAetherStrip.Activate();
-        }
+        // one Aether window with RX and TX tabs; the AetherRX / AetherTX menu items open it on that tab
+        public void ShowAetherStrip() { showAether(false); }
+        public void ShowAetherRX() { showAether(true); }
 
-        public void ShowAetherRX()
+        private void showAether(bool rx)
         {
-            if (_frmAetherRX == null || _frmAetherRX.IsDisposed)
+            if (_frmAether == null || _frmAether.IsDisposed)
             {
-                _frmAetherRX = new frmAetherStrip(this, true) { Owner = this };
-                _frmAetherRX.Location = new Point(Left + (Width - _frmAetherRX.Width) / 2 + 30, Top + (Height - _frmAetherRX.Height) / 2 + 30);
+                _frmAether = new frmAetherStrip(this, rx) { Owner = this };
+                _frmAether.Location = new Point(Left + (Width - _frmAether.Width) / 2, Top + (Height - _frmAether.Height) / 2);
             }
-            _frmAetherRX.Show();
-            _frmAetherRX.BringToFront();
-            _frmAetherRX.Activate();
+            else _frmAether.SetSide(rx);
+            _frmAether.Show();
+            _frmAether.BringToFront();
+            _frmAether.Activate();
         }
 
         // Setup calls this whenever the AetherVoice settings are applied, so the AV button follows
