@@ -280,6 +280,8 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 ### Installer
 
+The installer's pictures are Kainos's: `binary/kainos_background.bmp` (the welcome and finish pages, 493 x 312: the splash's flame, KAINOΣ and tag line on a dark wave panel at the left, white on the right for the installer's text) and `binary/kainos_banner.bmp` (the other pages' banner, 493 x 58: a Kainos tile at the right). Both are made from `Console/Resources/kainos-splash.png` by `art-source/make_installer_art.py` (Python with Pillow). Thetis's `thetis_*.bmp` are left in place, unused, for easy merges.
+
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.
 
 ## Deliberately left as Thetis
