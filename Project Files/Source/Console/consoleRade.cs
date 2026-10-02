@@ -62,11 +62,11 @@ namespace Thetis
 
         #region Enable
 
-        // the callsign sent in each over's end-of-over frame (from Setup > DSP > FreeDV (RADE))
         // FreeDV Reporter options (Setup > DSP > FreeDV (RADE)), read by the reporter window
         public bool RadeIgnoreQsyRequest { get; set; }
         public bool RadeReporterTimesUtc { get; set; } = true;
 
+        // the callsign sent in each over's end-of-over frame (from Setup > DSP > FreeDV (RADE))
         private volatile string _radeCallsign = "";
         public string RadeCallsign
         {
@@ -74,60 +74,89 @@ namespace Thetis
             set { _radeCallsign = (value ?? "").Trim().ToUpperInvariant(); }
         }
 
-        private DSPMode _radeSavedMode = DSPMode.FIRST;     // RX1's mode before RADE switched it to DIGU/DIGL
-        private DSPMode _radeForcedMode = DSPMode.FIRST;
+        // per receiver (0 = RX1, 1 = RX2): the mode before RADE switched it to DIGU/DIGL, and the mode it chose
+        private readonly DSPMode[] _radeSavedMode = { DSPMode.FIRST, DSPMode.FIRST };
+        private readonly DSPMode[] _radeForcedMode = { DSPMode.FIRST, DSPMode.FIRST };
+        private bool _radeRx2Hooked;
 
         public event EventHandler RadeEnabledChanged;
 
+        // RADE on RX1
         public bool RadeEnabled
         {
-            get
-            {
-                try { return Rade.GetRadaeRxEnabled(0) != 0; }
-                catch { return false; }
-            }
-            set { SetRadeEnabled(value); }
+            get { return RadeEnabledOn(0); }
+            set { SetRadeEnabled(0, value); }
         }
 
-        // RADE is the operating mode for RX1 while it is on: RX1 goes to DIGL below 10 MHz and DIGU above
-        // (DIGU on 60 m), noise reduction, NB2 and the auto-notch are switched off because they damage the
-        // modem signal, and Kainos Audio is bypassed (it runs in voice modes only). Switching RADE off puts
-        // RX1 back in the mode it was in. Returns false if it can't change now (while transmitting).
-        public bool SetRadeEnabled(bool on)
+        // RADE on RX2
+        public bool RadeRx2Enabled
         {
-            if (on == RadeEnabled) return true;
+            get { return RadeEnabledOn(1); }
+            set { SetRadeEnabled(1, value); }
+        }
+
+        public bool RadeEnabledOn(int rx)
+        {
+            try { return Rade.GetRadaeRxEnabled(rx) != 0; }
+            catch { return false; }
+        }
+
+        public bool RadeAnyEnabled { get { return RadeEnabledOn(0) || RadeEnabledOn(1); } }
+
+        public bool SetRadeEnabled(bool on) { return SetRadeEnabled(0, on); }
+
+        // RADE is the operating mode for a receiver while it is on: it goes to DIGL below 10 MHz and DIGU above
+        // (DIGU on 60 m), noise reduction, NB2 and the auto-notch are switched off because they damage the modem
+        // signal, and Kainos Audio is bypassed (it runs in voice modes only). Switching RADE off puts the receiver
+        // back in the mode it was in. RX2 needs RX2 to be on. The encoder serves whichever receiver is transmitting:
+        // RX2's on a VFO B over with RX2 on, RX1's otherwise.
+        // Returns false if it can't change now (transmitting, or RX2 off).
+        public bool SetRadeEnabled(int rx, bool on)
+        {
+            if (rx < 0 || rx > 1) return false;
+            if (on == RadeEnabledOn(rx)) return true;
             if (_mox || _rade_ptt_state != RadePttState.Idle) return false;
+            if (on && rx == 1 && !RX2Enabled) return false;
+            hookRadeRx2();
 
             if (on)
             {
-                _radeSavedMode = _rx1_dsp_mode;
-                Rade.SetRadaeRxScale(0, 1.0);
-                Rade.SetRadaeRxEnabled(0, 1);
+                _radeSavedMode[rx] = rxMode(rx);
+                Rade.SetRadaeRxScale(rx, 1.0);
+                Rade.SetRadaeRxEnabled(rx, 1);
                 Rade.SetRadaeTxEnabled(1);
 
-                // MI0BOT's HL2 code locks RX1's AF at a fixed level in the digital modes; with RADE the AF
-                // slider sets the level of the decoded speech, so give it back
-                if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && isDigiMode(_rx1_dsp_mode)) hl2DigiAudio(false);
-                reapplyRX1AF();
+                // MI0BOT's HL2 code locks the receiver's AF at a fixed level in the digital modes; with RADE the
+                // AF slider sets the level of the decoded speech, so give it back
+                if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && isDigiMode(rxMode(rx))) hl2DigiAudio(rx, false);
+                reapplyAF(rx);
 
-                double f = VFOAFreq;
+                double f = rx == 0 ? VFOAFreq : VFOBFreq;
                 DSPMode want = (f >= 5.0 && f < 5.5) || f >= 10.0 ? DSPMode.DIGU : DSPMode.DIGL;
-                _radeForcedMode = want;
-                if (_rx1_dsp_mode != want) RX1DSPMode = want;
+                _radeForcedMode[rx] = want;
+                if (rxMode(rx) != want)
+                {
+                    if (rx == 0) RX1DSPMode = want;
+                    else RX2DSPMode = want;
+                }
 
-                forceRadeCleanAudio();
+                forceRadeCleanAudio(rx);
             }
             else
             {
-                Rade.SetRadaeRxEnabled(0, 0);
-                Rade.SetRadaeTxEnabled(0);
-                reapplyRX1AF();
+                Rade.SetRadaeRxEnabled(rx, 0);
+                Rade.SetRadaeTxEnabled(RadeAnyEnabled ? 1 : 0);
+                reapplyAF(rx);
 
-                if (_radeSavedMode != DSPMode.FIRST && _rx1_dsp_mode == _radeForcedMode && _radeSavedMode != _rx1_dsp_mode)
-                    RX1DSPMode = _radeSavedMode;
-                else if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && isDigiMode(_rx1_dsp_mode))
-                    hl2DigiAudio(true);
-                _radeSavedMode = _radeForcedMode = DSPMode.FIRST;
+                DSPMode saved = _radeSavedMode[rx];
+                if (saved != DSPMode.FIRST && rxMode(rx) == _radeForcedMode[rx] && saved != rxMode(rx))
+                {
+                    if (rx == 0) RX1DSPMode = saved;
+                    else RX2DSPMode = saved;
+                }
+                else if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && isDigiMode(rxMode(rx)))
+                    hl2DigiAudio(rx, true);
+                _radeSavedMode[rx] = _radeForcedMode[rx] = DSPMode.FIRST;
             }
 
             RadeEnabledChanged?.Invoke(this, EventArgs.Empty);
@@ -135,40 +164,59 @@ namespace Thetis
             return true;
         }
 
+        // RX2 RADE goes off when RX2 is switched off
+        private void hookRadeRx2()
+        {
+            if (_radeRx2Hooked) return;
+            _radeRx2Hooked = true;
+            RX2EnabledChangedHandlers += enabled =>
+            {
+                if (!enabled && RadeEnabledOn(1)) SetRadeEnabled(1, false);
+            };
+        }
+
+        private DSPMode rxMode(int rx) { return rx == 0 ? _rx1_dsp_mode : _rx2_dsp_mode; }
+
         private static bool isDigiMode(DSPMode m) { return m == DSPMode.DIGU || m == DSPMode.DIGL; }
 
-        // RX1's AF slider goes through RadioDSPRX.RXOutputGain, which sends it after the decoder while RADE
-        // is on and to WDSP otherwise; setting it again moves it to the right place
-        private void reapplyRX1AF()
+        // The AF slider goes through RadioDSPRX.RXOutputGain, which sends it after the decoder while RADE is on
+        // and to WDSP otherwise; setting it again moves it to the right place
+        private void reapplyAF(int rx)
         {
-            RadioDSPRX d = radio.GetDSPRX(0, 0);
+            RadioDSPRX d = radio.GetDSPRX(rx, 0);
             d.RXOutputGain = d.RXOutputGain;
         }
 
-        // the same steps as MI0BOT's HL2 digital-mode code in SetRX1Mode: lock AF at a fixed level, or unlock it
-        private void hl2DigiAudio(bool locked)
+        // the same steps as MI0BOT's HL2 digital-mode code in SetRX1Mode / SetRX2Mode: lock AF at a fixed
+        // level, or unlock it
+        private void hl2DigiAudio(int rx, bool locked)
         {
-            ptbRX1AF.Enabled = !locked;
-            ptbRX1AF.SmallChange = locked ? 0 : 1;
-            ptbRX1AF.LargeChange = locked ? 0 : 1;
-            ptbRX0Gain.Enabled = !locked;
-            ptbRX0Gain.SmallChange = locked ? 0 : 1;
-            ptbRX0Gain.LargeChange = locked ? 0 : 1;
-            if (locked) radio.GetDSPRX(0, 0).RXOutputGain = 0.1;
-            else chkMUT_CheckedChanged(this, EventArgs.Empty);
+            PrettyTrackBar af = rx == 0 ? ptbRX1AF : ptbRX2AF;
+            PrettyTrackBar gain = rx == 0 ? ptbRX0Gain : ptbRX2Gain;
+            af.Enabled = !locked;
+            af.SmallChange = locked ? 0 : 1;
+            af.LargeChange = locked ? 0 : 1;
+            gain.Enabled = !locked;
+            gain.SmallChange = locked ? 0 : 1;
+            gain.LargeChange = locked ? 0 : 1;
+            if (locked) radio.GetDSPRX(rx, 0).RXOutputGain = 0.1;
+            else if (rx == 0) chkMUT_CheckedChanged(this, EventArgs.Empty);
+            else chkRX2Mute_CheckedChanged(this, EventArgs.Empty);
         }
 
         // NR1-4, NB2 and the auto-notch distort the OFDM signal; NB1 and SNB are fine and left alone.
         // The buttons are set first (their handlers write WDSP), then WDSP's ANF flag directly.
-        private void forceRadeCleanAudio()
+        private void forceRadeCleanAudio(int rx)
         {
             try
             {
-                SelectNR(1, true, 1);   // step to plain NR, then off, so the button shows "NR"
-                SelectNR(1, true, 0);
-                if (chkNB.CheckState == CheckState.Indeterminate) chkNB.CheckState = CheckState.Checked;    // NB2 -> NB1
-                chkANF.Checked = false;
-                radio.GetDSPRX(0, 0).AutoNotchFilter = false;
+                SelectNR(rx + 1, true, 1);   // step to plain NR, then off, so the button shows "NR"
+                SelectNR(rx + 1, true, 0);
+                CheckBoxTS nb = rx == 0 ? chkNB : chkRX2NB;
+                CheckBoxTS anf = rx == 0 ? chkANF : chkRX2ANF;
+                if (nb.CheckState == CheckState.Indeterminate) nb.CheckState = CheckState.Checked;    // NB2 -> NB1
+                anf.Checked = false;
+                radio.GetDSPRX(rx, 0).AutoNotchFilter = false;
             }
             catch { }
         }
@@ -177,25 +225,25 @@ namespace Thetis
 
         #region Status (for the FreeDV window)
 
-        public bool RadeSync { get { return Rade.GetRadaeSync(0) != 0; } }
-        public int RadeSnrDb { get { return Rade.GetRadaeSnrDb(0); } }
-        public int RadeRxLevelDb { get { return Rade.GetRadaeRxLevelDb(0); } }
-        public bool RadeRxClip { get { return Rade.GetRadaeClip(0) != 0; } }
+        public bool RadeSyncOn(int rx) { return Rade.GetRadaeSync(rx) != 0; }
+        public int RadeSnrDbOn(int rx) { return Rade.GetRadaeSnrDb(rx); }
+        public int RadeRxLevelDbOn(int rx) { return Rade.GetRadaeRxLevelDb(rx); }
+        public bool RadeRxClipOn(int rx) { return Rade.GetRadaeClip(rx) != 0; }
+        public float RadeFreqOffsetHzOn(int rx) { return Rade.GetRadaeFreqOffset(rx); }
+        public int RadeCallsignSeqOn(int rx) { return Rade.GetRadaeRemoteCallsignSeq(rx); }
         public int RadeMicLevelDb { get { return Rade.GetRadaeTxMicLevelDb(); } }
         public bool RadeMicClip { get { return Rade.GetRadaeTxMicClip() != 0; } }
-        public float RadeFreqOffsetHz { get { return Rade.GetRadaeFreqOffset(0); } }
-        public int RadeCallsignSeq { get { return Rade.GetRadaeRemoteCallsignSeq(0); } }
         public bool RadeTransmitting { get { return _mox && Rade.OverWouldBeRade(this) || _rade_ptt_state != RadePttState.Idle; } }
         public bool RadeSendingEoo { get { return _rade_ptt_state == RadePttState.EmitEOO || _rade_ptt_state == RadePttState.Flushing; } }
 
-        public string RadeRemoteCallsign
+        // the receiver a VFO B over with RX2 on transmits from; RX1 otherwise
+        public int RadeTxReceiver { get { return RX2Enabled && VFOBTX ? 1 : 0; } }
+
+        public string RadeRemoteCallsignOn(int rx)
         {
-            get
-            {
-                StringBuilder sb = new StringBuilder(32);
-                int n = Rade.GetRadaeRemoteCallsign(0, sb, sb.Capacity);
-                return n > 0 ? sb.ToString().Trim() : "";
-            }
+            StringBuilder sb = new StringBuilder(32);
+            int n = Rade.GetRadaeRemoteCallsign(rx, sb, sb.Capacity);
+            return n > 0 ? sb.ToString().Trim() : "";
         }
 
         #endregion
@@ -258,7 +306,7 @@ namespace Thetis
                     if (_rade_ptt_request)
                     {
                         if (_rx_only || _tx_inhibit || _ganymede_pa_issue) { _rade_ptt_request = false; return; }
-                        _rade_over_was_rade = RadeEnabled;
+                        _rade_over_was_rade = Rade.OverWouldBeRade(this);
                         radeKeyRadio(true);
                         _rade_seq_sw.Restart();
                         setRadeState(RadePttState.Transmitting);

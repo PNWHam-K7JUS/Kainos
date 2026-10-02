@@ -31,8 +31,8 @@ namespace Thetis
     internal class RadeSetupControls
     {
         public TextBoxTS Callsign;
-        public ComboBoxTS Version;                                  // V1 / V2
-        public NumericUpDownTS MicLevel, RxLevel;                   // dB, encoder input / decoder input
+        public ComboBoxTS Version, VersionRX2;                      // V1 / V2, per receiver
+        public NumericUpDownTS MicLevel, RxLevel, RxLevelRX2;       // dB, encoder input / decoder inputs
         public CheckBoxTS MicRNNoise, MicAGC, MicEQ;
         public NumericUpDownTS MicAGCTarget;                        // LUFS
         public NumericUpDownTS BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol;
@@ -43,7 +43,7 @@ namespace Thetis
         {
             get
             {
-                return new Control[] { Callsign, Version, MicLevel, RxLevel, MicRNNoise, MicAGC, MicEQ, MicAGCTarget,
+                return new Control[] { Callsign, Version, VersionRX2, MicLevel, RxLevel, RxLevelRX2, MicRNNoise, MicAGC, MicEQ, MicAGCTarget,
                                        BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol,
                                        Grid, ReporterMessage, Reporting, IgnoreQsy, ReporterUtc };
             }
@@ -66,35 +66,38 @@ namespace Thetis
             };
             RadeSetupControls r = _rade = new RadeSetupControls();
 
-            GroupBoxTS grp = new GroupBoxTS { Name = "grpRade", Text = "RADE digital voice", Location = new Point(8, 8), Size = new Size(430, 132) };
+            GroupBoxTS grp = new GroupBoxTS { Name = "grpRade", Text = "RADE digital voice", Location = new Point(8, 8), Size = new Size(430, 158) };
             r.Callsign = new TextBoxTS { Name = "txtRadeCallsign", Location = new Point(120, 22), Size = new Size(110, 20), CharacterCasing = CharacterCasing.Upper, MaxLength = 8 };
             toolTip1.SetToolTip(r.Callsign, "Your callsign. It is sent in the end-of-over frame at the end of every RADE over,\r\n" +
                 "so the other station sees who was transmitting.");
-            r.Version = new ComboBoxTS { Name = "comboRadeVersion", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(340, 22), Size = new Size(64, 21) };
-            r.Version.Items.AddRange(new object[] { "V1", "V2" });
-            r.Version.SelectedIndex = 0;
-            toolTip1.SetToolTip(r.Version, "RADE protocol. V1 is what most stations use; both ends must use the same one.\r\n" +
-                "V2 does not send callsigns (its end-of-over frame carries no data).");
-            r.MicLevel = avUpDown("udRadeMicLevel", -40, 40, 0, 1, 0, 120, 52, "Gain of your mic audio into the RADE encoder (dB). Aim for peaks a little below clipping\r\n" +
+            r.MicLevel = avUpDown("udRadeMicLevel", -40, 40, 0, 1, 0, 340, 22, "Gain of your mic audio into the RADE encoder (dB). Aim for peaks a little below clipping\r\n" +
                 "on the Mic meter in the FreeDV window.");
-            r.RxLevel = avUpDown("udRadeRxLevel", -100, 40, 0, 1, 0, 340, 52, "Gain of the received signal into the RADE decoder (dB). Use it if the RX meter in the\r\n" +
+            r.Version = radeVersionCombo("comboRadeVersion", 120, 52);
+            r.RxLevel = avUpDown("udRadeRxLevel", -100, 40, 0, 1, 0, 340, 52, "Gain of RX1's received signal into the RADE decoder (dB). Use it if the RX meter in the\r\n" +
                 "FreeDV window shows clipping. The RX1 AF slider sets the volume of the decoded speech.");
+            r.VersionRX2 = radeVersionCombo("comboRadeVersionRX2", 120, 80);
+            r.RxLevelRX2 = avUpDown("udRadeRxLevelRX2", -100, 40, 0, 1, 0, 340, 80, "Gain of RX2's received signal into the RADE decoder (dB). The RX2 AF slider sets the\r\n" +
+                "volume of the decoded speech.");
             grp.Controls.Add(avLabel("Callsign", 14, 25));
             grp.Controls.Add(r.Callsign);
-            grp.Controls.Add(avLabel("Version", 250, 25));
-            grp.Controls.Add(r.Version);
-            grp.Controls.Add(avLabel("Mic level (dB)", 14, 54));
+            grp.Controls.Add(avLabel("Mic level (dB)", 250, 25));
             grp.Controls.Add(r.MicLevel);
-            grp.Controls.Add(avLabel("RX level (dB)", 250, 54));
+            grp.Controls.Add(avLabel("RX1 version", 14, 55));
+            grp.Controls.Add(r.Version);
+            grp.Controls.Add(avLabel("RX1 level (dB)", 250, 55));
             grp.Controls.Add(r.RxLevel);
-            LabelTS how = avLabel("Switch RADE on in the FreeDV window (FreeDV on the menu bar); RX1 changes to DIGU or DIGL " +
-                "while it is on. Use a DIGU/DIGL TX profile with the EQ, leveler, CFC and compressor off.", 14, 84);
+            grp.Controls.Add(avLabel("RX2 version", 14, 83));
+            grp.Controls.Add(r.VersionRX2);
+            grp.Controls.Add(avLabel("RX2 level (dB)", 250, 83));
+            grp.Controls.Add(r.RxLevelRX2);
+            LabelTS how = avLabel("Switch RADE on for RX1 or RX2 in the FreeDV window (FreeDV on the menu bar); the receiver changes " +
+                "to DIGU or DIGL while it is on. The TX compressor, CFC and EQ are bypassed during RADE overs.", 14, 110);
             how.AutoSize = false;
             how.Size = new Size(404, 42);
             grp.Controls.Add(how);
             tpDSPRade.Controls.Add(grp);
 
-            GroupBoxTS mic = new GroupBoxTS { Name = "grpRadeMic", Text = "Mic processing before the encoder (as in FreeDV-GUI)", Location = new Point(8, 148), Size = new Size(430, 200) };
+            GroupBoxTS mic = new GroupBoxTS { Name = "grpRadeMic", Text = "Mic processing before the encoder (as in FreeDV-GUI)", Location = new Point(8, 174), Size = new Size(430, 200) };
             r.MicRNNoise = new CheckBoxTS { Name = "chkRadeMicRNNoise", Text = "Noise reduction (RNNoise)", Location = new Point(14, 22), AutoSize = true };
             r.MicAGC = new CheckBoxTS { Name = "chkRadeMicAGC", Text = "AGC, target (LUFS)", Location = new Point(14, 48), AutoSize = true };
             r.MicAGCTarget = avUpDown("udRadeMicAGCTarget", -30, 0, -23, 1, 0, 160, 46, "Loudness the AGC holds your mic audio at (ITU-R BS.1770), with a peak limiter.");
@@ -178,6 +181,16 @@ namespace Thetis
             Activate();
         }
 
+        private ComboBoxTS radeVersionCombo(string name, int x, int y)
+        {
+            ComboBoxTS c = new ComboBoxTS { Name = name, DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(x, y), Size = new Size(64, 21) };
+            c.Items.AddRange(new object[] { "V1", "V2" });
+            c.SelectedIndex = 0;
+            toolTip1.SetToolTip(c, "RADE protocol for this receiver, also used when transmitting from it. V1 is what most stations use;\r\n" +
+                "both ends must use the same one. V2 does not send callsigns (its end-of-over frame carries no data).");
+            return c;
+        }
+
         private void rade_Changed(object sender, EventArgs e)
         {
             if (initializing) return;
@@ -185,6 +198,9 @@ namespace Thetis
         }
 
         private int _radeVersionReported = -1;
+
+        // CFC on/off as set here (Setup > Transmit), for restoring it after a RADE over
+        internal bool TXCFCOn { get { return chkCFCEnable.Checked; } }
 
         // called from ForceAllEvents at startup, and whenever a setting changes
         private void applyRade()
@@ -199,6 +215,8 @@ namespace Thetis
                 Rade.SetRadaeProtocolV2(0, r.Version.SelectedIndex == 1 ? 1 : 0);
                 Rade.SetRadaeMicScale(Math.Pow(10.0, (double)r.MicLevel.Value / 20.0));
                 Rade.SetRadaeRxDialScale(0, Math.Pow(10.0, (double)r.RxLevel.Value / 20.0));
+                Rade.SetRadaeProtocolV2(1, r.VersionRX2.SelectedIndex == 1 ? 1 : 0);
+                Rade.SetRadaeRxDialScale(1, Math.Pow(10.0, (double)r.RxLevelRX2.Value / 20.0));
                 Rade.SetRadaeMicRNNoiseEnabled(r.MicRNNoise.Checked ? 1 : 0);
                 Rade.SetRadaeMicAGCTargetLufs((double)r.MicAGCTarget.Value);
                 Rade.SetRadaeMicAGCEnabled(r.MicAGC.Checked ? 1 : 0);
@@ -207,9 +225,10 @@ namespace Thetis
                 Rade.SetRadaeMicEQTreble((double)r.TrebleFreq.Value, (double)r.TrebleGain.Value);
                 Rade.SetRadaeMicEQVol((double)r.EQVol.Value);
                 Rade.SetRadaeMicEQEnabled(r.MicEQ.Checked ? 1 : 0);
-                if (r.Version.SelectedIndex != _radeVersionReported)
+                int versions = r.Version.SelectedIndex * 2 + r.VersionRX2.SelectedIndex;
+                if (versions != _radeVersionReported)
                 {
-                    _radeVersionReported = r.Version.SelectedIndex;
+                    _radeVersionReported = versions;
                     FreeDVReporter.FreeDVReporterManager.NotifyProtocolChanged();
                 }
             }
