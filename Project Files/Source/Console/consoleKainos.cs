@@ -76,6 +76,8 @@ namespace Thetis
             chkAetherVoice.CheckedChanged += chkAetherVoice_CheckedChanged;
             chkAetherVoice.MouseDown += chkAetherVoice_MouseDown;
             panelModeSpecificPhone.Controls.Add(chkAetherVoice);
+
+            addRadeControls();
         }
 
         public void ShowAetherVoice()

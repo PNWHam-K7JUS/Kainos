@@ -675,12 +675,20 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="consoleRade.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="frmAetherStrip.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="frmAetherVoice.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="frmFreeDV.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="kainosRade.cs" />
     <Compile Include="console.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -822,6 +830,10 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="setupKainos.cs">
+      <DependentUpon>setup.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="setupRade.cs">
       <DependentUpon>setup.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>

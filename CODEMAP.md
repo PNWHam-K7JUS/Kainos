@@ -103,7 +103,8 @@ Wiring a new module into RXA touches: the `rxa` struct in `RXA.h`, then `create_
 | `netInterface.c`, `network.c` | Exported control functions (frequencies, attenuator, PTT…) and protocol plumbing (`sendOutbound`) |
 | `cmbuffs.c` (`Inbound`) | Buffers incoming samples and calls `xcmaster(stream)` once a block is ready |
 | `cmaster.c` (`xcmaster`) | **The per-block routing.** Receiver: noise blankers → panadapter (`Spectrum0`) → `fexchange0` (= WDSP RXA) → audio mixer. Transmitter: ASIO/TCI input → VOX/expander → `fexchange0` (= WDSP TXA) → sidetone → monitor mix → TX gain → interleave → `OutBound` |
-| `pipe.c` (`xpipe`) | Hooks at position 0 (before WDSP) and 1 (after WDSP) on every stream. A possible tap point for FreeDV (Phase 6) |
+| `pipe.c` (`xpipe`) | Hooks at position 0 (before WDSP) and 1 (after WDSP) on every stream. FreeDV RADE uses them: `xradae_tx` on the mic before WDSP, `xradae_rx` on each receiver's audio after WDSP |
+| `radae.c`, `radae_micdsp.c` | FreeDV RADE modem wrapper and mic processing (from Thetis-RADE); see KAINOS.md |
 | `aamix.c` | Audio mixer combining receivers to the outputs |
 | `ivac.c` | VAC (virtual audio cable) in/out |
 | `sidetone.c`, `vox.c`, `txgain.c` | CW sidetone, VOX/anti-VOX, TX gain and amp protection |

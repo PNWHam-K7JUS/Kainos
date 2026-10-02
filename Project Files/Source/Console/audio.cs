@@ -352,7 +352,9 @@ namespace Thetis
             get { return mox; }
             set
             {
+                bool was_mox = mox;
                 mox = value;
+                Rade.OnMox(was_mox, mox); // Kainos: kainosRade.cs (RADE per-over keying)
 
                 if (mox)
                 {

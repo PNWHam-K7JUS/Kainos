@@ -68,6 +68,7 @@ namespace Thetis
         private void addKainosControls()
         {
             addAetherVoiceTab();
+            addRadeTab();
         }
 
         #region AetherVoice

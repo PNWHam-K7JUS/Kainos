@@ -2211,6 +2211,7 @@ namespace Thetis
             EventArgs e = EventArgs.Empty;
 
             applyAetherVoice(); // Kainos: setupKainos.cs
+            applyRade(); // Kainos: setupRade.cs
 
             // General Tab
             comboRadioModel_SelectedIndexChanged(this, e);

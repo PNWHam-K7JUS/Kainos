@@ -26069,6 +26069,7 @@ namespace Thetis
         {
             while (chkPower.Checked)
             {
+                if (radePollTick()) { await Task.Delay(1); continue; } // Kainos: consoleRade.cs (RADE end-of-over)
                 int dotdashptt = NetworkIO.nativeGetDotDashPTT();
                 DSPMode tx_mode = chkVFOBTX.Checked && chkRX2.Checked ? _rx2_dsp_mode : _rx1_dsp_mode;
 
@@ -30127,6 +30128,7 @@ namespace Thetis
         }
         private void chkMOX_CheckedChanged2(object sender, System.EventArgs e)
         {
+            if (radeInterceptMox()) return; // Kainos: consoleRade.cs (RADE end-of-over)
             if(chkMOX.Checked && _ganymede_pa_issue)
             {
                 // abort the change if there is a ganymede pa issue
@@ -34987,7 +34989,7 @@ namespace Thetis
                     }
                     break;
                 case DSPMode.DIGL:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeEnabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX1
                     {
                         ptbRX1AF.Enabled = true;
                         ptbRX1AF.SmallChange = 1;
@@ -35010,7 +35012,7 @@ namespace Thetis
                     if (new_mode != DSPMode.DIGU) bRecallDigiModeSettings = true; // see comment below
                     break;
                 case DSPMode.DIGU:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeEnabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX1
                     {
                         ptbRX1AF.Enabled = true;
                         ptbRX1AF.SmallChange = 1;
@@ -35261,7 +35263,7 @@ namespace Thetis
                     Display.RXDisplayHigh = (int)sample_rate_rx1 / 2;
                     break;
                 case DSPMode.DIGL:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeEnabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX1
                     {
                         ptbRX1AF.Enabled = false;
                         ptbRX1AF.SmallChange = 0;
@@ -35289,7 +35291,7 @@ namespace Thetis
                     }
                     break;
                 case DSPMode.DIGU:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeEnabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX1
                     {
                         ptbRX1AF.Enabled = false;
                         ptbRX1AF.SmallChange = 0;
