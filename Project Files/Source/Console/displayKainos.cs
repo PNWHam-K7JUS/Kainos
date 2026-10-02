@@ -73,8 +73,10 @@ namespace Thetis
         // Behind the live trace, the last few seconds of traces stacked back into the distance: each older one up and
         // to the right a step and dimmer, filled with the background so nearer traces hide the ones behind them.
         // Speed: a trace is turned into a Direct2D geometry once, when it's taken (Rate a second, not every frame),
-        // and kept; each frame only redraws the kept geometries, moved back by a transform. Points are taken every
-        // other pixel (the higher of the two). The history is cleared when the span, size, scale or TX/RX changes,
+        // and the whole stack is drawn then into an offscreen image; each frame only pastes that image (Direct2D
+        // re-tessellates filled geometries on the CPU every time they're drawn, so drawing them every frame cost
+        // about a third of the CPU). Points are taken every
+        // third pixel, lightly smoothed (peaks kept). The history is cleared when the span, size, scale or TX/RX changes,
         // since the old traces no longer line up.
 
         public static bool Kainos3D = false;
@@ -88,6 +90,9 @@ namespace Thetis
             public readonly List<K3DTrace> Traces = new List<K3DTrace>();     // newest first
             public string Key = "";
             public long LastTakenMs = -100000;
+            public BitmapRenderTarget Image;        // the stack drawn once per new trace, pasted every frame
+            public RenderTarget ImageOwner;         // the render target it was made for (Thetis remakes its own at times)
+            public SharpDX.Direct2D1.Factory GeometryFactory;
         }
         private static readonly K3DStack[] _k3d = { new K3DStack(), new K3DStack() };
         private static readonly Stopwatch _k3dClock = Stopwatch.StartNew();
@@ -96,6 +101,9 @@ namespace Thetis
         {
             foreach (K3DTrace t in st.Traces) t.Geometry?.Dispose();
             st.Traces.Clear();
+            st.Image?.Dispose();
+            st.Image = null;
+            st.ImageOwner = null;
         }
 
         // called before the live trace is drawn; data are the trace's dBm per decimated pixel
@@ -105,15 +113,20 @@ namespace Thetis
             K3DStack st = _k3d[rx == 1 ? 0 : 1];
             if (!Kainos3D || _d2dRenderTarget == null || _d2dFactory == null || W <= 0 || H <= 0 || data == null)
             {
-                if (st.Traces.Count > 0) k3dClear(st);
+                if (st.Traces.Count > 0 || st.Image != null) k3dClear(st);
                 return;
             }
 
             int low = rx == 1 ? rx_display_low : rx2_display_low, high = rx == 1 ? rx_display_high : rx2_display_high;
-            string key = W + "/" + H + "/" + nVerticalShift + "/" + low + "/" + high + "/" + grid_max + "/" + grid_min + "/" + local_mox + "/" + decimation;
-            if (key != st.Key) { k3dClear(st); st.Key = key; }
+            string key = W + "/" + H + "/" + low + "/" + high + "/" + grid_max + "/" + grid_min + "/" + local_mox + "/" + decimation;
+            if (key != st.Key || st.GeometryFactory != _d2dFactory || (st.ImageOwner != null && st.ImageOwner != _d2dRenderTarget))
+            {
+                k3dClear(st);
+                st.Key = key;
+                st.GeometryFactory = _d2dFactory;
+            }
 
-            // take a trace now and then
+            // take a trace now and then (in the panadapter's own coordinates, 0 at its top), and draw the stack again
             long now = _k3dClock.ElapsedMilliseconds;
             if (now - st.LastTakenMs >= 1000 / Math.Max(1, Kainos3DRate))
             {
@@ -121,52 +134,64 @@ namespace Thetis
                 PathGeometry g = new PathGeometry(_d2dFactory);
                 using (GeometrySink sink = g.Open())
                 {
-                    float bottom = nVerticalShift + H;
-                    sink.BeginFigure(new RawVector2(0, bottom), FigureBegin.Filled);
-                    int step = Math.Max(1, 2 / Math.Max(1, decimation));
+                    sink.BeginFigure(new RawVector2(0, H), FigureBegin.Filled);
+                    // a point every 3 pixels: half the average of the 5 around it (smooths the noise), half their
+                    // highest (keeps the signals' peaks)
+                    int step = Math.Max(1, 3 / Math.Max(1, decimation));
                     for (int i = 0; i < nDecimatedWidth; i += step)
                     {
-                        float v = data[i];
-                        if (step > 1 && i + 1 < nDecimatedWidth && data[i + 1] > v) v = data[i + 1];
-                        float y = (grid_max - (v + fOffset)) * dbmToPixel + nVerticalShift;
-                        if (y > bottom) y = bottom;
+                        float sum = 0, peak = float.MinValue;
+                        int cnt = 0;
+                        for (int j = Math.Max(0, i - 2); j <= Math.Min(nDecimatedWidth - 1, i + 2); j++) { sum += data[j]; if (data[j] > peak) peak = data[j]; cnt++; }
+                        float v = 0.5f * (sum / cnt) + 0.5f * peak;
+                        float y = (grid_max - (v + fOffset)) * dbmToPixel;
+                        if (y > H) y = H;
                         sink.AddLine(new RawVector2(i * decimation, y));
                     }
-                    sink.AddLine(new RawVector2(W, bottom));
+                    sink.AddLine(new RawVector2(W, H));
                     sink.EndFigure(FigureEnd.Closed);
                     sink.Close();
                 }
                 st.Traces.Insert(0, new K3DTrace { Geometry = g });
                 while (st.Traces.Count > Math.Max(2, Kainos3DDepth)) { st.Traces[st.Traces.Count - 1].Geometry?.Dispose(); st.Traces.RemoveAt(st.Traces.Count - 1); }
+                k3dRender(st, W, H);
             }
 
-            // draw them back to front; the newest kept trace sits one step behind the live one
-            int n = st.Traces.Count;
-            if (n == 0) return;
-            float dy = H * Kainos3DHeight / Math.Max(1, Kainos3DDepth), dx = Math.Max(1f, W * 0.0025f);
-            SharpDX.Color4 bgc = m_cDX2_display_background_clear_colour;
-            SharpDX.Direct2D1.Brush fill = getDXBrushForColour(Color.FromArgb(235, (int)(bgc.Red * 255), (int)(bgc.Green * 255), (int)(bgc.Blue * 255)));
-            if (fill == null) return;
-            RawMatrix3x2 saved = _d2dRenderTarget.Transform;
-            try
+            // every frame: paste the stack behind the live trace
+            if (st.Image != null)
             {
+                using (SharpDX.Direct2D1.Bitmap b = st.Image.Bitmap)
+                    _d2dRenderTarget.DrawBitmap(b, new RawRectangleF(0, nVerticalShift, W, nVerticalShift + H), 1f, BitmapInterpolationMode.NearestNeighbor);
+            }
+        }
+
+        // draw the stack, back to front, into the offscreen image; the newest kept trace sits one step behind the live one
+        private static void k3dRender(K3DStack st, int W, int H)
+        {
+            if (st.Image == null)
+            {
+                st.Image = new BitmapRenderTarget(_d2dRenderTarget, CompatibleRenderTargetOptions.None, new SharpDX.Size2F(W, H));
+                st.ImageOwner = _d2dRenderTarget;
+            }
+            BitmapRenderTarget rt = st.Image;
+            SharpDX.Color4 bgc = m_cDX2_display_background_clear_colour;
+            using (SolidColorBrush fill = new SolidColorBrush(rt, new RawColor4(bgc.Red, bgc.Green, bgc.Blue, 0.92f)))
+            using (SolidColorBrush line = new SolidColorBrush(rt, new RawColor4(0x7f / 255f, 0xb0 / 255f, 0xcc / 255f, 1f)))
+            {
+                rt.BeginDraw();
+                rt.Clear(new RawColor4(0, 0, 0, 0));
+                int n = st.Traces.Count;
+                float dy = H * Kainos3DHeight / Math.Max(1, Kainos3DDepth), dx = Math.Max(1f, W * 0.0025f);
                 for (int k = n - 1; k >= 0; k--)
                 {
                     float depth = (k + 1) / (float)Math.Max(1, Kainos3DDepth);            // 0 near .. 1 far
-                    RawMatrix3x2 t = saved;
-                    t.M31 += dx * (k + 1);
-                    t.M32 -= dy * (k + 1);
-                    _d2dRenderTarget.Transform = t;
-                    _d2dRenderTarget.FillGeometry(st.Traces[k].Geometry, fill);
-                    // Kainos ice, fading into the distance
-                    int a = (int)(220 * (1 - depth * 0.85f));
-                    SharpDX.Direct2D1.Brush line = getDXBrushForColour(Color.FromArgb(Math.Max(20, a & 0xF0), 0x7f, 0xb0, 0xcc));
-                    if (line != null) _d2dRenderTarget.DrawGeometry(st.Traces[k].Geometry, line, 1f);
+                    rt.Transform = new RawMatrix3x2(1, 0, 0, 1, dx * (k + 1), -dy * (k + 1));
+                    rt.FillGeometry(st.Traces[k].Geometry, fill);
+                    line.Color = new RawColor4(0x7f / 255f, 0xb0 / 255f, 0xcc / 255f, 0.67f * (1 - depth * 0.9f));    // Kainos ice, fading into the distance
+                    rt.DrawGeometry(st.Traces[k].Geometry, line, 1f);
                 }
-            }
-            finally
-            {
-                _d2dRenderTarget.Transform = saved;
+                rt.Transform = new RawMatrix3x2(1, 0, 0, 1, 0, 0);
+                rt.EndDraw();
             }
         }
     }
