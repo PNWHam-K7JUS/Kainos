@@ -38,7 +38,13 @@ namespace Thetis
         private Form kainosTermPlace(Control pane, Form window, string title, bool open, bool popped, Action close)
         {
             if (pane == null) return window;
-            if (!open) { pane.Visible = false; if (window != null) window.Hide(); return window; }
+            if (!open)
+            {
+                pane.Visible = false;
+                if (window != null) window.Hide();
+                if (_kainosLayout) positionKainosColumn();      // the panadapter takes its height back
+                return window;
+            }
             if (popped)
             {
                 if (window == null || window.IsDisposed)

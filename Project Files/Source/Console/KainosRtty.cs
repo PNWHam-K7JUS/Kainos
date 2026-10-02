@@ -85,9 +85,14 @@ namespace Thetis
     // The receiver: each tone is mixed to zero and averaged over one bit (a matched filter), the two magnitudes
     // compared ((mark - space) / (mark + space)), and characters framed from the start bit's edge, sampling each bit
     // at its middle. A quality figure (the average strength of that comparison) squelches noise.
+    // AFC: a spectrum of the audio around the tones (decimated to 8 kHz, a 2048-point FFT every 128 ms, averaged)
+    // finds where the mark / space pair really is, within AfcRange of the nominal centre, and the tones move there.
     internal class RttyDemod
     {
-        public double Center = 2210, Shift = 170, Baud = 45.45;
+        public double Nominal = 2210, Shift = 170, Baud = 45.45;
+        public double Center = 2210;        // where the tones are taken from: Nominal, or where AFC has found them
+        public bool Afc = true;
+        public double AfcRange = 150;
         public bool Reverse, UnshiftOnSpace = true;
         public double Squelch = 0.15;       // quality below this decodes nothing
         public double MinConfidence = 0.4;  // a character's bits must average at least this clear
@@ -111,17 +116,40 @@ namespace Thetis
         private double _conf;                               // the character's bits' strength, summed
         private string _config = "";
 
-        public RttyDemod(int rate) { _rate = rate; configure(); }
+        // AFC
+        private const int FftN = 2048, Hop = 1024, AfcRate = 8000;
+        private int _decim, _decimCount;
+        private double _decimSum;
+        private readonly float[] _afcBuf = new float[FftN];
+        private int _afcFill;
+        private double[] _spec;
+        private readonly double[] _re = new double[FftN], _im = new double[FftN], _win = new double[FftN];
 
-        private void configure()
+        public RttyDemod(int rate)
         {
-            string cfg = Center + "/" + Shift + "/" + Baud + "/" + Reverse;
-            if (cfg == _config) return;
-            _config = cfg;
+            _rate = rate;
+            _decim = Math.Max(1, rate / AfcRate);
+            for (int i = 0; i < FftN; i++) _win[i] = 0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (FftN - 1));
+            configure();
+        }
+
+        // the tones' mixers follow Center without disturbing the decoder
+        private void tones()
+        {
+            if (!Afc) Center = Nominal;
             double mark = Center - Shift / 2, space = Center + Shift / 2;
             if (Reverse) { double t = mark; mark = space; space = t; }
             _markInc = 2 * Math.PI * mark / _rate;
             _spaceInc = 2 * Math.PI * space / _rate;
+        }
+
+        private void configure()
+        {
+            string cfg = Shift + "/" + Baud + "/" + Reverse;
+            if (cfg == _config) return;
+            _config = cfg;
+            Center = Nominal;
+            _spec = null;
             _bitLen = _rate / Baud;
             _n = Math.Max(4, (int)Math.Round(_bitLen));
             _mi = new double[_n]; _mq = new double[_n]; _si = new double[_n]; _sq = new double[_n];
@@ -133,9 +161,11 @@ namespace Thetis
         public void Process(float[] x, int count)
         {
             configure();
+            tones();
             for (int k = 0; k < count; k++)
             {
                 double s = x[k];
+                if (Afc) afcSample(s);
                 double a = s * Math.Cos(_markPh), b = s * Math.Sin(_markPh);
                 double c = s * Math.Cos(_spacePh), d = s * Math.Sin(_spacePh);
                 _markPh += _markInc; if (_markPh > Math.PI * 2) _markPh -= Math.PI * 2;
@@ -154,6 +184,87 @@ namespace Thetis
                 Quality = _avgAbs;
                 step(v);
                 _prev = v;
+            }
+        }
+
+        private void afcSample(double s)
+        {
+            _decimSum += s;
+            if (++_decimCount < _decim) return;
+            _afcBuf[_afcFill++] = (float)(_decimSum / _decim);
+            _decimSum = 0; _decimCount = 0;
+            if (_afcFill < FftN) return;
+            afcSearch();
+            Array.Copy(_afcBuf, Hop, _afcBuf, 0, FftN - Hop);
+            _afcFill = FftN - Hop;
+        }
+
+        private void afcSearch()
+        {
+            for (int i = 0; i < FftN; i++) { _re[i] = _afcBuf[i] * _win[i]; _im[i] = 0; }
+            Fft(_re, _im);
+            int bins = FftN / 2;
+            if (_spec == null) { _spec = new double[bins]; for (int i = 0; i < bins; i++) _spec[i] = _re[i] * _re[i] + _im[i] * _im[i]; }
+            else for (int i = 0; i < bins; i++) _spec[i] = _spec[i] * 0.7 + (_re[i] * _re[i] + _im[i] * _im[i]) * 0.3;
+
+            double hz = (double)AfcRate / FftN;
+            double lo = Nominal - AfcRange - Shift, hi = Nominal + AfcRange + Shift;
+            // the noise: the median of the bins around the search range
+            int b0 = Math.Max(1, (int)(lo / hz)), b1 = Math.Min(bins - 1, (int)(hi / hz));
+            if (b1 - b0 < 8) return;
+            double[] sorted = new double[b1 - b0];
+            Array.Copy(_spec, b0, sorted, 0, sorted.Length);
+            Array.Sort(sorted);
+            double noise = Math.Max(1e-20, sorted[sorted.Length / 2]);
+
+            // the centre whose two tones are strongest (each tone the peak of the bins within 8 Hz)
+            double best = double.NaN, bestScore = 0;
+            for (double c = Nominal - AfcRange; c <= Nominal + AfcRange; c += 2)
+            {
+                double pm = peak(c - Shift / 2, hz), ps = peak(c + Shift / 2, hz);
+                if (Math.Min(pm, ps) < noise * 8) continue;          // both tones clearly there (9 dB over the noise)
+                double score = pm + ps;
+                if (score > bestScore) { bestScore = score; best = c; }
+            }
+            if (double.IsNaN(best)) return;
+            double d = best - Center;
+            if (Math.Abs(d) > 2) Center += d * 0.35;
+        }
+
+        private double peak(double f, double hz)
+        {
+            int a = (int)Math.Floor((f - 8) / hz), b = (int)Math.Ceiling((f + 8) / hz);
+            double m = 0;
+            for (int i = Math.Max(0, a); i <= Math.Min(_spec.Length - 1, b); i++) if (_spec[i] > m) m = _spec[i];
+            return m;
+        }
+
+        // in-place radix-2 FFT
+        private static void Fft(double[] re, double[] im)
+        {
+            int n = re.Length;
+            for (int i = 1, j = 0; i < n; i++)
+            {
+                int bit = n >> 1;
+                for (; (j & bit) != 0; bit >>= 1) j ^= bit;
+                j ^= bit;
+                if (i < j) { double t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+            }
+            for (int len = 2; len <= n; len <<= 1)
+            {
+                double ang = -2 * Math.PI / len, wr = Math.Cos(ang), wi = Math.Sin(ang);
+                for (int i = 0; i < n; i += len)
+                {
+                    double cr = 1, ci = 0;
+                    for (int k = 0; k < len / 2; k++)
+                    {
+                        int u = i + k, v = i + k + len / 2;
+                        double tr = re[v] * cr - im[v] * ci, ti = re[v] * ci + im[v] * cr;
+                        re[v] = re[u] - tr; im[v] = im[u] - ti;
+                        re[u] += tr; im[u] += ti;
+                        double ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+                    }
+                }
             }
         }
 

@@ -101,7 +101,7 @@ namespace Thetis
         LAST,
     }
 
-    class Display
+    partial class Display      // Kainos: partial (displayKainos.cs)
     {
         #region Variable Declaration
 
@@ -5948,6 +5948,7 @@ namespace Thetis
                 }
 
                 drawRadeOverlayDX2D(rx, W, H, nVerticalShift);
+                drawKainosDigiMarkersDX2D(rx, W, H, nVerticalShift);       // Kainos: RTTY tone markers (displayKainos.cs)
 
                 _d2dRenderTarget.PopAxisAlignedClip();
             }

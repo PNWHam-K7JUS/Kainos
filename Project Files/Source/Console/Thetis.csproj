@@ -692,6 +692,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="KainosRtty.cs" />
+    <Compile Include="displayKainos.cs" />
     <Compile Include="KainosCw.cs" />
     <Compile Include="consoleKainosCw.cs">
       <DependentUpon>console.cs</DependentUpon>

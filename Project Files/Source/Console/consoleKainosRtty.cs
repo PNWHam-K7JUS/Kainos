@@ -56,7 +56,7 @@ namespace Thetis
 
         internal int RttyRx = 0;
         internal double RttyShift = 170, RttyBaud = 45.45;
-        internal bool RttyReverse, RttyUnshiftOnSpace = true;
+        internal bool RttyReverse, RttyUnshiftOnSpace = true, RttyAfc = true;
         internal readonly NumericUpDown RttySql = new NumericUpDown { Minimum = 0, Maximum = 60, Increment = 5, Value = 15 };
         internal readonly NumericUpDown RttyLevel = new NumericUpDown { Minimum = -40, Maximum = 0, Increment = 1, Value = -10 };
         private bool _rttyPopped;
@@ -85,6 +85,7 @@ namespace Thetis
                     case "baud": if (num && d > 0) RttyBaud = d; break;
                     case "rev": RttyReverse = p[1] == "1"; break;
                     case "usos": RttyUnshiftOnSpace = p[1] != "0"; break;
+                    case "afc": RttyAfc = p[1] != "0"; break;
                     case "sql": if (num) RttySql.Value = (decimal)Math.Max(0, Math.Min(60, d)); break;
                     case "lvl": if (num) RttyLevel.Value = (decimal)Math.Max(-40, Math.Min(0, d)); break;
                     case "pop": _rttyPopped = p[1] == "1"; break;
@@ -94,8 +95,8 @@ namespace Thetis
 
         private void rttySave()
         {
-            KainosRttySettings = string.Format(CultureInfo.InvariantCulture, "rx={0};shift={1};baud={2};rev={3};usos={4};sql={5};lvl={6};pop={7}",
-                RttyRx, RttyShift, RttyBaud, RttyReverse ? 1 : 0, RttyUnshiftOnSpace ? 1 : 0, RttySql.Value, RttyLevel.Value, _rttyPopped ? 1 : 0);
+            KainosRttySettings = string.Format(CultureInfo.InvariantCulture, "rx={0};shift={1};baud={2};rev={3};usos={4};sql={5};lvl={6};pop={7};afc={8}",
+                RttyRx, RttyShift, RttyBaud, RttyReverse ? 1 : 0, RttyUnshiftOnSpace ? 1 : 0, RttySql.Value, RttyLevel.Value, _rttyPopped ? 1 : 0, RttyAfc ? 1 : 0);
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -173,19 +174,31 @@ namespace Thetis
             bool rev = RttyReverse ^ rttyUpperSideband;
             if (_rttyDemod != null)
             {
-                _rttyDemod.Center = RttyCenter; _rttyDemod.Shift = RttyShift; _rttyDemod.Baud = RttyBaud;
+                _rttyDemod.Nominal = RttyCenter; _rttyDemod.Afc = RttyAfc; _rttyDemod.Shift = RttyShift; _rttyDemod.Baud = RttyBaud;
                 _rttyDemod.Reverse = rev; _rttyDemod.UnshiftOnSpace = RttyUnshiftOnSpace;
                 _rttyDemod.Squelch = (double)RttySql.Value / 100.0;
                 _rttyDemod.MinConfidence = 0.3 + (double)RttySql.Value / 200.0;
             }
             if (_rttyMod != null)
             {
-                _rttyMod.Center = RttyCenter; _rttyMod.Shift = RttyShift; _rttyMod.Baud = RttyBaud; _rttyMod.Reverse = rev;
+                _rttyMod.Center = _rttyDemod != null ? _rttyDemod.Center : RttyCenter; _rttyMod.Shift = RttyShift; _rttyMod.Baud = RttyBaud; _rttyMod.Reverse = rev;
                 _rttyMod.Amplitude = (float)Math.Pow(10, (double)RttyLevel.Value / 20.0);
             }
         }
 
         internal RttyDemod RttyDemodulator { get { return _rttyDemod; } }
+
+        // The RTTY tones as offsets from the receiver's VFO in Hz (mark first; negative below the VFO on LSB / DIGL),
+        // for the markers on that receiver's panadapter (displayKainos.cs); null when the terminal isn't open on it
+        internal double[] KainosDigiMarkers(int rx)
+        {
+            if (!_rttyOpen || RttyRx != rx - 1 || !RttyModeOk) return null;
+            RttyDemod d = _rttyDemod;
+            double c = d != null ? d.Center : RttyCenter, h = RttyShift / 2;
+            bool upper = rttyUpperSideband;
+            double mark = RttyReverse ^ upper ? c + h : c - h, space = RttyReverse ^ upper ? c - h : c + h;
+            return upper ? new[] { mark, space } : new[] { -mark, -space };
+        }
 
         private int _rttyTapRx = -1;
         private void rttyStartEngine()
@@ -369,13 +382,14 @@ namespace Thetis
             BackColor = KainosUI.Surface;
             Name = "kainosRttyPane";
 
-            _top = new KainosActionGrid(6);
+            _top = new KainosActionGrid(7);
             _top.Add("RX1", () => _console.RttyRx == 0, () => { _console.RttyRx = 0; _console.RttyChanged(); }, KainosUI.Tone.Gold);
             _top.Add("RX2", () => _console.RttyRx == 1, () => { _console.RttyRx = 1; _console.RttyChanged(); }, KainosUI.Tone.Violet);
             _top.Add("170 Hz", () => false, () => { _console.RttyShift = next(Shifts, _console.RttyShift); _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.Add("45.45", () => false, () => { _console.RttyBaud = next(Bauds, _console.RttyBaud); _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.Add("REV", () => _console.RttyReverse, () => { _console.RttyReverse = !_console.RttyReverse; _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.Add("USOS", () => _console.RttyUnshiftOnSpace, () => { _console.RttyUnshiftOnSpace = !_console.RttyUnshiftOnSpace; _console.RttyChanged(); }, KainosUI.Tone.Ice);
+            _top.Add("AFC", () => _console.RttyAfc, () => { _console.RttyAfc = !_console.RttyAfc; _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.LabelFor = (i, l) => i == 2 ? _console.RttyShift.ToString(CultureInfo.InvariantCulture) + " Hz" : i == 3 ? _console.RttyBaud.ToString(CultureInfo.InvariantCulture) + " Bd" : l;
 
             _tune = new KainosRttyTune(console);
@@ -542,7 +556,7 @@ namespace Thetis
             int pad = KainosUI.S(6), gap = KainosUI.S(6), row = KainosUI.S(26), y = pad, w = ClientSize.Width - pad * 2;
 
             // settings row
-            int topW = KainosUI.S(330), tuneW = KainosUI.S(170), udW = KainosUI.S(150), winW = KainosUI.S(210);
+            int topW = KainosUI.S(390), tuneW = KainosUI.S(200), udW = KainosUI.S(150), winW = KainosUI.S(210);
             int x = pad;
             _top.SetBounds(x, y, topW, row); x += topW + gap;
             _tune.SetBounds(x, y, tuneW, row); x += tuneW + gap;
@@ -596,7 +610,7 @@ namespace Thetis
             double m = d != null ? d.MarkLevel : 0, s = d != null ? d.SpaceLevel : 0, q = d != null ? d.Quality : 0;
             double peak = Math.Max(1e-9, Math.Max(m, s));
             _m = _m * 0.6 + (m / peak) * 0.4; _s = _s * 0.6 + (s / peak) * 0.4; _q = _q * 0.7 + q * 0.3;
-            float pad = KainosUI.S(3), lw = KainosUI.S(14), barH = (Height - pad * 3) / 2f, bw = Width - lw - pad * 2;
+            float pad = KainosUI.S(3), lw = KainosUI.S(14), barH = (Height - pad * 3) / 2f, bw = Width - lw - pad * 2 - KainosUI.S(48);
             using (Font f = new Font("Segoe UI", Math.Max(7f, KainosUI.S(9)), FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush faint = new SolidBrush(KainosUI.Faint))
             using (Brush line = new SolidBrush(KainosUI.Line))
@@ -610,6 +624,12 @@ namespace Thetis
                 g.FillRectangle(mark, lw, pad, (float)(bw * _m), barH);
                 g.FillRectangle(space, lw, pad * 2 + barH, (float)(bw * _s), barH);
             }
+            // AFC: how far the tones have been moved from the nominal centre
+            if (d != null && d.Afc)
+                using (Font f = new Font("Segoe UI", Math.Max(7f, KainosUI.S(9)), FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush b = new SolidBrush(KainosUI.Dim))
+                using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center })
+                    g.DrawString((d.Center - d.Nominal).ToString("+0;-0;0", CultureInfo.InvariantCulture) + " Hz", f, b, new RectangleF(0, 0, Width - 2, Height), sf);
             // quality: a thin line under, green-ish gold when good
             Color qc = _q > 0.5 ? KainosUI.GoldHi : _q > 0.25 ? KainosUI.Dim : KainosUI.Faint;
             using (Pen p = new Pen(qc, Math.Max(1f, KainosUI.S(2)))) g.DrawLine(p, lw, Height - 1, lw + (float)(bw * Math.Min(1, _q)), Height - 1);
