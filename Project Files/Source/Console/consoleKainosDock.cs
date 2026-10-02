@@ -106,15 +106,18 @@ namespace Thetis
             {
                 int left = panelPower.Left;
                 int width = KainosUI.S(80);
-                int top = panelPower.Visible ? panelPower.Top : panelOptions.Top;
+                // from the menu down (the VFO boxes' row is gone), clear of anything still in the way
+                int top = menuStrip1.Bottom + 4;
                 int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
                 int mid = (top + bottom) / 2;
                 foreach (Control c in Controls)
                 {
-                    if (c == _kainosDock || c == panelDisplay || c == statusStripMain || c is KainosColumn) continue;
+                    if (c == _kainosDock || c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn) continue;
+                    if (c == panelPower || c == panelOptions) continue;      // collapsed under the dock
                     if (!c.Visible || c.Width == 0 || c.Height == 0 || c.Top < -10000) continue;     // parked controls don't count
-                    if (c.Right <= left || c.Left >= left + width || c.Bottom < mid) continue;
-                    bottom = Math.Min(bottom, c.Top - 4);
+                    if (c.Right <= left || c.Left >= left + width) continue;
+                    if (c.Bottom < mid) top = Math.Max(top, c.Bottom + 4);
+                    else bottom = Math.Min(bottom, c.Top - 4);
                 }
                 _kainosDock.SetBounds(left, top, width, Math.Max(40, bottom - top));
                 _kainosDock.ShowPower = panelPower.Visible;

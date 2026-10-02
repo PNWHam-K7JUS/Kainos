@@ -167,6 +167,34 @@ namespace Thetis
             if (rx == 1) VFOAFreq = hz / 1e6; else VFOBFreq = hz / 1e6;
         }
 
+        // a frequency typed on the flag: MHz ("7.1761", "7,1761"), or kHz when there's no decimal point ("7176.1"
+        // has one; "7176" is kHz)
+        internal void KainosSetFreq(int rx, string text)
+        {
+            if (rx == 1 && _vfoA_lock) return;
+            if (rx == 2 && _vfoB_lock) return;
+            string t = (text ?? "").Trim().Replace(',', '.');
+            double v;
+            if (!double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v) || v <= 0) return;
+            if (!t.Contains(".") && v >= 1000) v /= 1000;       // kHz
+            if (rx == 1) VFOAFreq = v; else VFOBFreq = v;
+        }
+
+        // click the TX badge: this VFO transmits (Thetis's TX buttons on the VFO A / B boxes)
+        internal void KainosSetTxVfo(int rx)
+        {
+            CheckBox c = rx == 1 ? (CheckBox)chkVFOATX : chkVFOBTX;
+            if (!c.Checked && c.Enabled) kainosClick(c);
+        }
+
+        // the S meter: Thetis's signal strength in dBm (calibrated), and S units (S9 = -73 dBm, -93 above 30 MHz)
+        internal float KainosSignalDbm(int rx)
+        {
+            if (!PowerOn) return -200f;
+            return WDSP.CalculateRXMeter(rx == 1 ? 0u : 2u, 0u, WDSP.MeterType.SIGNAL_STRENGTH) + RXOffset(rx);
+        }
+        internal double KainosSUnits(int rx, float dbm) { return Common.GetSMeterUnits(dbm, KainosVfoMHz(rx) >= S9Frequency); }
+
         internal int KainosTuneStepHz { get { return CurrentTuneStepHz; } }
 
         // ---- the drawers ----
@@ -270,10 +298,10 @@ namespace Thetis
             _kainosVfoB = new KainosFlagView(this, 2, false);
             _kainosColumn.Viewport.Controls.Add(_kainosVfoA);
             _kainosColumn.Viewport.Controls.Add(_kainosVfoB);
-            _kainosColumn.AddSection("vfo", "VFO", w => KainosUI.S(66) + (RX2Enabled ? KainosUI.S(6) + KainosUI.S(66) : 0), r =>
+            _kainosColumn.AddSection("vfo", "VFO", w => KainosFlagView.FaceHeight + (RX2Enabled ? KainosUI.S(6) + KainosFlagView.FaceHeight : 0), r =>
             {
-                _kainosVfoA.SetBounds(r.Left, r.Top, r.Width, KainosUI.S(66));
-                if (RX2Enabled) _kainosVfoB.SetBounds(r.Left, r.Top + KainosUI.S(72), r.Width, KainosUI.S(66));
+                _kainosVfoA.SetBounds(r.Left, r.Top, r.Width, KainosFlagView.FaceHeight);
+                if (RX2Enabled) _kainosVfoB.SetBounds(r.Left, r.Top + KainosFlagView.FaceHeight + KainosUI.S(6), r.Width, KainosFlagView.FaceHeight);
                 else _kainosVfoB.Top = -30000;
             });
             RX2EnabledChangedHandlers += enabled => { if (_kainosLayout) positionKainosColumn(); };
@@ -371,6 +399,8 @@ namespace Thetis
         private readonly List<KeyValuePair<RectangleF, long>> _digits = new List<KeyValuePair<RectangleF, long>>();
         private readonly RectangleF[] _tabRects = new RectangleF[Tabs.Length];
         private int _hoverTab = -1;
+        private RectangleF _txRect, _freqRect;
+        private bool _hoverTx;
         public string OpenTab;
         public event Action<string> TabClicked;
 
@@ -383,7 +413,10 @@ namespace Thetis
             BackColor = Color.FromArgb(0x06, 0x0e, 0x17);
         }
 
-        public Size PreferredFlagSize() { return new Size(KainosUI.S(250), KainosUI.S(66) + (_showTabs ? KainosUI.S(22) : 0)); }
+        // the face: identity row, mode and frequency, S meter (the tab row comes under it)
+        public static int FaceHeight { get { return KainosUI.S(86); } }
+
+        public Size PreferredFlagSize() { return new Size(KainosUI.S(250), FaceHeight + (_showTabs ? KainosUI.S(22) : 0)); }
 
         private Color tone { get { return _rx == 1 ? KainosUI.Gold : KainosUI.Violet; } }
 
@@ -394,7 +427,7 @@ namespace Thetis
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             float s = KainosUI.Scale;
-            float faceH = KainosUI.S(66);
+            float faceH = FaceHeight;
             using (Pen p = new Pen(tone, 1.5f)) g.DrawRectangle(p, 0.75f, 0.75f, Width - 1.5f, Height - 1.5f);
 
             // identity row: letter, antenna, filter, DSP ... TX
@@ -414,18 +447,21 @@ namespace Thetis
             using (Font f = new Font("Segoe UI", 10 * s, FontStyle.Regular, GraphicsUnit.Pixel))
                 drawItem(g, f, _console.KainosDspText(_rx), KainosUI.Faint, x, y, badge);
 
-            // TX: outlined on the transmit VFO, filled red while transmitting
-            if (_console.KainosIsTxVfo(_rx))
+            // TX: outlined red on the transmit VFO (filled while transmitting); dim on the other, where a click makes
+            // it the transmit VFO (Thetis's TX buttons on its VFO boxes)
             {
+                bool isTx = _console.KainosIsTxVfo(_rx);
                 RectangleF tx = new RectangleF(Width - pad - 26 * s, y + 1 * s, 26 * s, badge - 2 * s);
-                bool keyed = _console.KainosMox;
+                _txRect = tx;
+                bool keyed = isTx && _console.KainosMox;
+                Color c = isTx ? KainosUI.Tx : (_hoverTx ? KainosUI.Dim : KainosUI.Line);
                 using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(tx, 3 * s))
                 {
                     if (keyed) using (Brush b = new SolidBrush(KainosUI.Tx)) g.FillPath(b, path);
-                    using (Pen p = new Pen(KainosUI.Tx)) g.DrawPath(p, path);
+                    using (Pen p = new Pen(c)) g.DrawPath(p, path);
                 }
                 using (Font f = new Font("Segoe UI", 10 * s, FontStyle.Bold, GraphicsUnit.Pixel))
-                using (Brush b = new SolidBrush(keyed ? Color.White : KainosUI.Tx))
+                using (Brush b = new SolidBrush(keyed ? Color.White : isTx ? KainosUI.Tx : (_hoverTx ? KainosUI.Dim : KainosUI.Faint)))
                 using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
                     g.DrawString("TX", f, b, tx, sf);
             }
@@ -434,7 +470,7 @@ namespace Thetis
             // for wheel tuning
             string whole = _console.KainosVfoMHz(_rx).ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture);
             string head = whole.Substring(0, whole.Length - 3), tail = whole.Substring(whole.Length - 3);
-            float fy = y + badge + 2 * s, fh = faceH - fy - 3 * s;
+            float fy = y + badge + 2 * s, fh = 37 * s;
             _digits.Clear();
             using (Font big = new Font("Consolas", 26 * s, FontStyle.Bold, GraphicsUnit.Pixel))
             using (Font small = new Font("Consolas", 20 * s, FontStyle.Bold, GraphicsUnit.Pixel))
@@ -451,11 +487,14 @@ namespace Thetis
                 g.DrawString(head, big, bh, headAt);
                 recordDigits(g, head, big, headAt, 1000);           // head's last digit is kHz
                 recordDigits(g, tail, small, tailAt, 1);            // tail: hundreds, tens, units of Hz
+                _freqRect = new RectangleF(headAt.X, baseY, right - headAt.X, headSize.Height);
             }
             using (Font f = new Font("Segoe UI", 12 * s, FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush b = new SolidBrush(KainosUI.Ice))
             using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
                 g.DrawString(_console.KainosModeText(_rx), f, b, new RectangleF(pad, fy, 70 * s, fh), sf);
+
+            drawSMeter(g, s, pad, fy + fh + 1 * s);
 
             // tab row
             if (_showTabs)
@@ -475,6 +514,88 @@ namespace Thetis
                         using (Brush b = new SolidBrush(c)) g.DrawString(Tabs[i], f, b, r, sf);
                     }
             }
+        }
+
+        // A bar S meter under the frequency: the reading at the left ("S7", "S9+12"), the bar (S1-S9 over the first
+        // 60%, S9 to +60 dB the rest, gold / violet to S9 and red over it) with its scale under it. Fast attack,
+        // slow decay. Empty while this receiver's VFO transmits or the radio is off.
+        private float _sm = -1;
+        private void drawSMeter(Graphics g, float s, float pad, float top)
+        {
+            float dbm = _console.KainosSignalDbm(_rx);
+            bool live = dbm > -190f && !(_console.KainosMox && _console.KainosIsTxVfo(_rx));
+            double su = live ? _console.KainosSUnits(_rx, dbm) : 0;
+            float target = live ? (float)(su <= 9 ? Math.Max(0, su) / 9 * 0.6 : 0.6 + Math.Min(60, (su - 9) * 6) / 60 * 0.4) : 0;
+            _sm = _sm < 0 || target > _sm ? target : _sm * 0.8f + target * 0.2f;
+
+            string reading = !live ? "S-" : su <= 9 ? "S" + Math.Max(0, (int)Math.Floor(su)) : "S9+" + (int)Math.Round((su - 9) * 6);
+            float lw = 40 * s;
+            using (Font f = new Font("Consolas", 11 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(live ? KainosUI.Text : KainosUI.Faint))
+                g.DrawString(reading, f, b, pad - 2 * s, top);
+
+            RectangleF bar = new RectangleF(pad + lw, top + 2 * s, Width - pad * 2 - lw, 5 * s);
+            using (Brush b = new SolidBrush(KainosUI.Line)) g.FillRectangle(b, bar);
+            float w9 = bar.Width * 0.6f, wv = bar.Width * _sm;
+            using (Brush b = new SolidBrush(tone)) g.FillRectangle(b, bar.X, bar.Y, Math.Min(wv, w9), bar.Height);
+            if (wv > w9) using (Brush b = new SolidBrush(KainosUI.Tx)) g.FillRectangle(b, bar.X + w9, bar.Y, wv - w9, bar.Height);
+
+            // scale: 1 3 5 7 9 +20 +40 +60
+            using (Font f = new Font("Segoe UI", 8 * s, FontStyle.Regular, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(KainosUI.Faint))
+            using (Pen tick = new Pen(KainosUI.Steel))
+            using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
+            {
+                string[] labels = { "1", "3", "5", "7", "9", "+20", "+40", "+60" };
+                float[] at = { 1 / 9f * 0.6f, 3 / 9f * 0.6f, 5 / 9f * 0.6f, 7 / 9f * 0.6f, 0.6f, 0.6f + 0.4f / 3, 0.6f + 0.8f / 3, 1f };
+                for (int i = 0; i < labels.Length; i++)
+                {
+                    float x = bar.X + bar.Width * at[i];
+                    g.DrawLine(tick, x, bar.Bottom, x, bar.Bottom + 2 * s);
+                    float lx = Math.Min(x, bar.Right - 8 * s);
+                    g.DrawString(labels[i], f, b, new RectangleF(lx - 15 * s, bar.Bottom + 1.5f * s, 30 * s, 11 * s), sf);
+                }
+            }
+        }
+
+        // click the frequency to type one (Enter sets it, Esc or clicking away cancels)
+        private TextBox _edit;
+        private void beginEdit()
+        {
+            if (_edit != null || _freqRect.IsEmpty) return;
+            _edit = new TextBox
+            {
+                BorderStyle = BorderStyle.None,
+                BackColor = KainosUI.Bg,
+                ForeColor = KainosUI.Text,
+                Font = new Font("Consolas", 20 * KainosUI.Scale, FontStyle.Bold, GraphicsUnit.Pixel),
+                TextAlign = HorizontalAlignment.Right,
+                Text = _console.KainosVfoMHz(_rx).ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture),
+            };
+            int w = (int)Math.Max(_freqRect.Width, 140 * KainosUI.Scale);
+            _edit.SetBounds((int)(_freqRect.Right - w), (int)(_freqRect.Top + (_freqRect.Height - _edit.PreferredHeight) / 2), w, _edit.PreferredHeight);
+            _edit.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter) { string t = _edit.Text; endEdit(); _console.KainosSetFreq(_rx, t); e.SuppressKeyPress = true; }
+                else if (e.KeyCode == Keys.Escape) { endEdit(); e.SuppressKeyPress = true; }
+            };
+            _edit.LostFocus += (s, e) => BeginInvoke(new Action(endEdit));
+            Controls.Add(_edit);
+            Form f = FindForm();
+            if (f is KainosFlagForm) f.Activate();        // the flag never takes the focus unless typing in it
+            _edit.Focus();
+            _edit.SelectAll();
+        }
+
+        private void endEdit()
+        {
+            if (_edit == null) return;
+            TextBox t = _edit;
+            _edit = null;
+            Controls.Remove(t);
+            t.Dispose();
+            if (FindForm() is KainosFlagForm) _console.Activate();
+            Invalidate();
         }
 
         // the place value of each digit (lowest at the right), skipping the decimal point
@@ -526,16 +647,20 @@ namespace Thetis
             int h = -1;
             if (_showTabs) for (int i = 0; i < Tabs.Length; i++) if (_tabRects[i].Contains(e.Location)) h = i;
             bool overDigit = _digits.Any(d => d.Key.Contains(e.Location));
-            Cursor = h >= 0 ? Cursors.Hand : overDigit ? Cursors.SizeNS : Cursors.Default;
-            if (h != _hoverTab) { _hoverTab = h; Invalidate(); }
+            bool overTx = _txRect.Contains(e.Location) && !_console.KainosIsTxVfo(_rx);
+            Cursor = h >= 0 || overTx ? Cursors.Hand : overDigit ? Cursors.IBeam : Cursors.Default;
+            if (h != _hoverTab || overTx != _hoverTx) { _hoverTab = h; _hoverTx = overTx; Invalidate(); }
         }
 
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hoverTab = -1; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hoverTab = -1; _hoverTx = false; Invalidate(); }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            if (!_showTabs || e.Button != MouseButtons.Left) return;
+            if (e.Button != MouseButtons.Left) return;
+            if (_txRect.Contains(e.Location)) { _console.KainosSetTxVfo(_rx); Invalidate(); return; }
+            if (_freqRect.Contains(e.Location)) { beginEdit(); return; }
+            if (!_showTabs) return;
             for (int i = 0; i < Tabs.Length; i++)
                 if (_tabRects[i].Contains(e.Location)) { TabClicked?.Invoke(Tabs[i]); return; }
         }

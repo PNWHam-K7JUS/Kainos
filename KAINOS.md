@@ -243,6 +243,13 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RX2's flag (B, violet) is on RX2's panadapter, shown when RX2 is on and the display is split (RX2 has the lower half): `HzToPixel((VFOBFreq - CentreRX2Frequency) * 1e6, 2)`.
   - The mouse wheel over a frequency digit tunes by that digit (SmartSDR's); elsewhere on the flag by Thetis's tune step. Locked VFOs don't move. The wheel is marked handled so it doesn't reach the console's own wheel tuning (the column's scrolling likewise).
   - VFO tab, first in the right column: the same face for VFO A (and B while RX2 is on), without the tabs, with wheel tuning.
+- **Stage 5 (S meter, VFO boxes gone, VFO SYNC tab, band / mode / filter drop-downs):**
+  - An S meter bar under the frequency on every VFO face (flags and the VFO tab): Thetis's signal strength plus its calibration and preamp offsets (`RXOffset`), S1-S9 over the first 60% (S9 = -73 dBm, -93 dBm above 30 MHz, `Common.GetSMeterUnits`), S9 to +60 dB the rest; fast attack, slow decay; empty while that VFO transmits or the radio is off.
+  - Thetis's VFO A and VFO B boxes are collapsed in Kainos layout. What they did is on the faces: click the frequency to type one (MHz, or kHz without a decimal point; Enter sets, Esc cancels; the flag window takes the keyboard only while typing), click the dim TX badge to make that VFO the transmit VFO (`chkVFOATX` / `chkVFOBTX`).
+  - VFO SYNC tab: Thetis's own box between the VFO boxes (`grpVFOBetween`: VFO sync, tune step, lock, band stack, RX antenna, quick save / restore), pinned over the column and scaled to fit like the mode panels.
+  - The panadapter and the dock start under the menu. The panadapter's bottom stays where Thetis puts it (`gr_display_basis.Y + gr_display_size_basis.Height + v_delta`); its pan and zoom sliders, which Thetis places from the panel's top, move down by what it has grown (and back in Classic).
+  - BAND tab: band, mode and filter are drop-downs in one row (`KainosDropDown`: caption, the button that is on; the list ticks it, choosing is a real click; right click is a right click on the one that is on, so the filter's opens Thetis's filter editor). The width / shift / low / high controls stay under them.
+  - The column ignores Kainos-collapsed panels when finding its top (Thetis sizes its multimeter box again for a moment on a resize).
 
 ### Installer
 
