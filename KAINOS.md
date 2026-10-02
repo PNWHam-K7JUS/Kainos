@@ -215,6 +215,14 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - METERS: a meter container of its own, created once the console is shown (after MeterManager has restored the saved containers, so it is never duplicated): `AddMeterContainer(1, false)`, an `ANANMM` multimeter, no title, automatic height; its ID is saved (`txtKainosMeterId`). MeterManager owns and saves it; Kainos sizes it to the column width, pins it in place and turns it off (`enableContainer`) in Classic or when the tab is off.
   - BAND: the band buttons of whichever band panel Thetis shows (HF, GEN or VHF, swapped by its VHF+ / HF buttons), mode, filter, then width, shift, low and high.
   - Checked: the column, METERS (a live multimeter at the column width) and BAND captured from the running program; a second start reused the same meter container.
+- **Stage 3b (RX, TX, single-column dock):**
+  - RX tab: Thetis's Master AF, RX1 AF, RX2 AF and AGC gain sliders (label above, slider full width), AGC mode, preamp or step attenuator (whichever Thetis shows), and squelch, moved into the column. TX tab: drive (and tune power when Thetis shows it), then the mode panel Thetis shows for the current mode (phone, CW, digital or FM: mic, COMP, VOX, DEXP, TX profile, RX/TX EQ, AV...), pinned. The column is `KainosUI.S(352)` wide so the 336-pixel mode panels fit.
+  - The column's content area is a viewport `Panel` under the tab bar, so controls scrolled out of it are clipped; the column never changes the `Visible` of a Thetis control (Thetis shows RX2 AF only with RX2 on, swaps preamp and step attenuator...). Pinned controls are parked off screen when their tab is off or they are scrolled out.
+  - Thetis's `ExpandDisplay` (also run at start-up) re-parents the AF, AGC and preamp controls to `panelSoundControls`: the column watches `ParentChanged` on every control it moved in, takes Thetis's new parent and place as the Classic home, and moves the control back.
+  - Thetis's collapsed display (its Collapse menu) has its own layout: while it is collapsed the dock and column step aside (everything moved in goes home) and come back when it is expanded.
+  - Tab state: "meters,band,-rx": tabs turned off are written with "-"; a tab not listed (new in a later version) starts on.
+  - The dock is a single column (`KainosUI.S(80)` wide) from the top of the left side to the status bar, and the panadapter starts beside it (`panelDisplay.Left`, put back in Classic).
+  - Checked: captured with all tabs on and with BAND off (TX shows drive and the phone panel).
 
 ### Installer
 

@@ -87,6 +87,7 @@ namespace Thetis
                 _kainosPanelsCollapsed = false;
             }
             if (_kainosDock != null) _kainosDock.Visible = false;
+            kainosRestoreDisplayLocation();
             kainosStatusOff();
         }
 
@@ -95,19 +96,26 @@ namespace Thetis
             return new KainosDock.Item { Target = target, Tone = tone, Label = label };
         }
 
-        // the dock covers the space of the two Thetis panels, from the POWER panel down to the sound controls
+        // The dock is a single column down the left-hand side (the RX controls that shared that side are in the right
+        // column), from the POWER panel's top to the status bar, above any Thetis panel that reaches into it
         private void positionKainosDock()
         {
             if (_kainosDock == null || !_kainosLayout) return;
-            bool show = panelPower.Visible || panelOptions.Visible;
+            bool show = (panelPower.Visible || panelOptions.Visible) && !collapsedDisplay;
             if (show)
             {
                 int left = panelPower.Left;
+                int width = KainosUI.S(80);
                 int top = panelPower.Visible ? panelPower.Top : panelOptions.Top;
-                int bottom = panelSoundControls.Visible && panelSoundControls.Top > top
-                    ? panelSoundControls.Top - 6
-                    : panelOptions.Top + _kainosOptionsSize.Height;
-                int width = Math.Max(_kainosPowerSize.Width, _kainosOptionsSize.Width);
+                int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
+                int mid = (top + bottom) / 2;
+                foreach (Control c in Controls)
+                {
+                    if (c == _kainosDock || c == panelDisplay || c == statusStripMain || c is KainosColumn) continue;
+                    if (!c.Visible || c.Width == 0 || c.Height == 0 || c.Top < -10000) continue;     // parked controls don't count
+                    if (c.Right <= left || c.Left >= left + width || c.Bottom < mid) continue;
+                    bottom = Math.Min(bottom, c.Top - 4);
+                }
                 _kainosDock.SetBounds(left, top, width, Math.Max(40, bottom - top));
                 _kainosDock.ShowPower = panelPower.Visible;
                 _kainosDock.ShowOptions = panelOptions.Visible;
@@ -115,6 +123,7 @@ namespace Thetis
             if (_kainosDock.Visible != show) _kainosDock.Visible = show;
             if (show) _kainosDock.BringToFront();
             _kainosDock.Invalidate();
+            positionKainosColumn();     // the panadapter starts beside the dock
         }
 
         #region Status bar: forward power, SWR, ALC
@@ -234,11 +243,12 @@ namespace Thetis
             return it.Target != null && it.Target.Visible;
         }
 
-        // two columns of buttons; the gap between the groups is a little larger than between rows
+        // one column of buttons (two if the dock is wide); the gap between groups is larger than between rows
         private void layout()
         {
-            float pad = KainosUI.S(4), gap = KainosUI.S(4), groupGap = KainosUI.S(10);
-            float colW = (Width - pad * 2 - gap) / 2f;
+            int cols = Width >= KainosUI.S(110) ? 2 : 1;
+            float pad = KainosUI.S(4), gap = KainosUI.S(4), groupGap = KainosUI.S(12);
+            float colW = (Width - pad * 2 - gap * (cols - 1)) / cols;
             List<List<Item>> shown = new List<List<Item>>();
             for (int gi = 0; gi < _groups.Length; gi++)
             {
@@ -252,21 +262,21 @@ namespace Thetis
                 shown.Add(l);
             }
             int rows = 0;
-            foreach (List<Item> l in shown) rows += (l.Count + 1) / 2;
+            foreach (List<Item> l in shown) rows += (l.Count + cols - 1) / cols;
             int groups = 0;
             foreach (List<Item> l in shown) if (l.Count > 0) groups++;
             float avail = Height - pad * 2 - Math.Max(0, groups - 1) * groupGap - Math.Max(0, rows - groups) * gap;
-            float rowH = rows > 0 ? Math.Min(KainosUI.S(30), avail / rows) : 0;
+            float rowH = rows > 0 ? Math.Min(KainosUI.S(32), avail / rows) : 0;
             float y = pad;
             foreach (List<Item> l in shown)
             {
                 if (l.Count == 0) continue;
                 for (int i = 0; i < l.Count; i++)
                 {
-                    float x = pad + (i % 2) * (colW + gap);
-                    l[i].Rect = new RectangleF(x, y + (i / 2) * (rowH + gap), colW, rowH);
+                    float x = pad + (i % cols) * (colW + gap);
+                    l[i].Rect = new RectangleF(x, y + (i / cols) * (rowH + gap), colW, rowH);
                 }
-                y += ((l.Count + 1) / 2) * (rowH + gap) - gap + groupGap;
+                y += ((l.Count + cols - 1) / cols) * (rowH + gap) - gap + groupGap;
             }
         }
 

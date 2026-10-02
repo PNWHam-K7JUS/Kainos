@@ -28,39 +28,66 @@ using System.Windows.Forms;
 namespace Thetis
 {
     // Kainos layout, stage 3: the right-hand column. A bar of toggle tabs at the top; each tab that is on shows
-    // its panel in the column below (AetherSDR's applets). Stage 3a: METERS and BAND.
+    // its panel in the column below (AetherSDR's applets): METERS, BAND, RX, TX.
     //
     // Three ways Thetis's controls come into the column, none of which changes Thetis's own code:
     //  - Kainos-drawn stand-ins (KainosButtonGrid) bound to Thetis buttons, like the dock: band, mode, filter.
-    //  - Thetis controls that Thetis never moves are moved into the column as they are (the filter width and
-    //    shift sliders, low / high boxes) and moved back in Classic.
-    //  - Thetis controls that Thetis does move stay where Thetis keeps them and are pinned over the column: the
-    //    meter container, which MeterManager places on every resize.
-    // Thetis's own band, mode, filter and meter panels are collapsed to zero size (not hidden) while the
-    // column shows them.
+    //  - Thetis controls moved into the column as they are (filter width / shift / low / high; the AF, AGC,
+    //    preamp, squelch, drive and tune controls) and moved back in Classic. Thetis decides whether each is
+    //    shown (RX2 AF only with RX2 on, preamp or step attenuator...); the column only places them.
+    //  - Thetis controls that Thetis places itself stay console controls and are pinned over the column: the
+    //    meter container and the mode panel (phone / CW / digital / FM, whichever Thetis shows).
+    // Thetis's own panels that the column replaces are collapsed to zero size (not hidden). While Thetis's
+    // display is collapsed (its Collapse menu), the dock and column step aside and Thetis lays out as usual.
     public partial class Console
     {
         private KainosColumn _kainosColumn;
         private KainosButtonGrid _kainosBandGrid, _kainosModeGrid, _kainosFilterGrid, _kainosShiftReset;
         private readonly Dictionary<Control, Size> _kainosCollapsed = new Dictionary<Control, Size>();
-        private readonly List<KeyValuePair<Control, Point>> _kainosMovedIn = new List<KeyValuePair<Control, Point>>();
+        private readonly Dictionary<Control, KeyValuePair<Control, Point>> _kainosMovedIn = new Dictionary<Control, KeyValuePair<Control, Point>>();
         private bool _kainosShown;
         private bool _kainosPlacing;
+        private bool _kainosPartsOn;            // the dock and column are in place (off while Thetis's display is collapsed)
 
         // Setup > Appearance > Kainos keeps these (hidden boxes) so they are saved with the other options
-        public string KainosColumnTabs = "meters,band";
+        public string KainosColumnTabs = "meters,band,rx,tx";
         public string KainosMeterId = "";
         public event EventHandler KainosSettingsChanged;
 
         private Control[] kainosCollapseTargets
         {
-            get { return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus }; }
+            get { return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls }; }
         }
 
         // the filter controls Thetis never moves (it only looks for the radio buttons inside panelFilter)
         private Control[] kainosFilterExtras
         {
             get { return new Control[] { lblFilterWidth, ptbFilterWidth, lblFilterShift, ptbFilterShift, lblFilterLow, udFilterLow, lblFilterHigh, udFilterHigh }; }
+        }
+
+        // RX: label / control rows (a control Thetis has hidden is left out)
+        private Control[][] kainosRxRows
+        {
+            get
+            {
+                return new[]
+                {
+                    new Control[] { lblAF, ptbAF }, new Control[] { lblRX1AF, ptbRX1AF }, new Control[] { lblRX2AF, ptbRX2AF },
+                    new Control[] { lblRF, ptbRF },
+                    new Control[] { lblAGC, comboAGC, lblPreamp, comboPreamp, udRX1StepAttData },
+                    new Control[] { chkSquelch, ptbSquelch, picSquelch },
+                };
+            }
+        }
+
+        private Control[][] kainosTxRows
+        {
+            get { return new[] { new Control[] { lblPWR, ptbPWR }, new Control[] { lblTune, ptbTune } }; }
+        }
+
+        private Control[] kainosModePanels
+        {
+            get { return new Control[] { panelModeSpecificPhone, panelModeSpecificCW, panelModeSpecificDigital, panelModeSpecificFM }; }
         }
 
         private void kainosColumnOn()
@@ -76,6 +103,8 @@ namespace Thetis
                 _kainosShiftReset = new KainosButtonGrid(1, KainosUI.Tone.Ice) { LabelFor = b => "Reset" };   // the skin's image button
                 _kainosColumn.AddSection("meters", "METERS", kainosMetersMeasure, kainosMetersArrange);
                 _kainosColumn.AddSection("band", "BAND", kainosBandMeasure, kainosBandArrange);
+                _kainosColumn.AddSection("rx", "RX", w => kainosRowsHeight(kainosRxRows), r => kainosRowsArrange(kainosRxRows, r));
+                _kainosColumn.AddSection("tx", "TX", kainosTxMeasure, kainosTxArrange);
                 _kainosColumn.TabsChanged += (s, e) =>
                 {
                     KainosColumnTabs = _kainosColumn.TabState;
@@ -86,6 +115,9 @@ namespace Thetis
                 // the HF / GEN / VHF band panels are swapped by Thetis (its VHF+ / HF buttons)
                 foreach (Control p in new Control[] { panelBandHF, panelBandGEN, panelBandVHF })
                     p.VisibleChanged += (s, e) => { if (_kainosLayout) { refreshKainosBandGrid(); positionKainosColumn(); } };
+                // Thetis shows the mode panel of the current mode, and shows / hides some RX and TX controls
+                foreach (Control c in kainosModePanels.Concat(kainosRxRows.SelectMany(r => r)).Concat(kainosTxRows.SelectMany(r => r)))
+                    c.VisibleChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
 
                 // anything Thetis moves or resizes can change the free space on the right
                 SizeChanged += (s, e) => positionKainosColumn();
@@ -97,25 +129,8 @@ namespace Thetis
                 Shown += (s, e) => { _kainosShown = true; if (_kainosLayout) BeginInvoke(new Action(kainosAttachMeter)); };
                 KainosUI.ScaleChanged += (s, e) => positionKainosColumn();
             }
-
             _kainosColumn.TabState = KainosColumnTabs;
-            refreshKainosBandGrid();
-            _kainosModeGrid.SetTargets(orderedButtons(panelMode));
-            _kainosFilterGrid.SetTargets(orderedButtons(panelFilter).Where(b => b is RadioButton));
-            _kainosShiftReset.SetTargets(new ButtonBase[] { btnFilterShiftReset });
-
-            // filter sliders and boxes into the column
-            if (_kainosMovedIn.Count == 0)
-                foreach (Control c in kainosFilterExtras)
-                {
-                    _kainosMovedIn.Add(new KeyValuePair<Control, Point>(c, c.Location));
-                    _kainosColumn.Controls.Add(c);       // leaves panelFilter
-                }
-            foreach (Control c in new Control[] { _kainosBandGrid, _kainosModeGrid, _kainosFilterGrid, _kainosShiftReset })
-                if (c.Parent != _kainosColumn) _kainosColumn.Controls.Add(c);
-
-            foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
-            _kainosColumn.Visible = true;
+            kainosPartsOn();
             if (_kainosShown) kainosAttachMeter();
             positionKainosColumn();
         }
@@ -123,18 +138,80 @@ namespace Thetis
         private void kainosColumnOff()
         {
             if (_kainosColumn == null) return;
+            kainosPartsOff();
+            kainosDetachMeter();
+            kainosRestoreDisplayLocation();
+            ResizeConsole(h_delta, v_delta);     // Thetis puts the panadapter and its panels back
+        }
+
+        // moves and collapses (the parts of Kainos layout that take Thetis controls over)
+        private void kainosPartsOn()
+        {
+            refreshKainosBandGrid();
+            _kainosModeGrid.SetTargets(orderedButtons(panelMode));
+            _kainosFilterGrid.SetTargets(orderedButtons(panelFilter).Where(b => b is RadioButton));
+            _kainosShiftReset.SetTargets(new ButtonBase[] { btnFilterShiftReset });
+            foreach (Control c in new Control[] { _kainosBandGrid, _kainosModeGrid, _kainosFilterGrid, _kainosShiftReset })
+                if (c.Parent != _kainosColumn.Viewport) _kainosColumn.Viewport.Controls.Add(c);
+            kainosMoveIn(kainosFilterExtras);
+            kainosMoveIn(kainosRxRows.SelectMany(r => r));
+            kainosMoveIn(kainosTxRows.SelectMany(r => r));
+            foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
+            _kainosColumn.Visible = true;
+            _kainosPartsOn = true;
+        }
+
+        private void kainosPartsOff()
+        {
+            _kainosPartsOn = false;
             _kainosColumn.Visible = false;
-            foreach (KeyValuePair<Control, Point> kv in _kainosMovedIn)
+            foreach (KeyValuePair<Control, KeyValuePair<Control, Point>> kv in _kainosMovedIn.ToList())
             {
-                panelFilter.Controls.Add(kv.Key);
-                kv.Key.Location = kv.Value;
+                kv.Key.ParentChanged -= kainosMovedParentChanged;
+                if (kv.Key.Parent == _kainosColumn.Viewport)      // still ours (Thetis's collapse code moves some itself)
+                {
+                    kv.Value.Key.Controls.Add(kv.Key);
+                    kv.Key.Location = kv.Value.Value;
+                }
             }
             _kainosMovedIn.Clear();
             foreach (KeyValuePair<Control, Size> kv in _kainosCollapsed.ToList())
                 kv.Key.Size = kv.Value;
             _kainosCollapsed.Clear();
-            kainosDetachMeter();
-            ResizeConsole(h_delta, v_delta);     // Thetis puts the panadapter and its panels back
+            foreach (Control p in kainosModePanels) kainosUnpin(p);
+            if (_kainosMeter != null) kainosUnpin(_kainosMeter);
+        }
+
+        // Thetis controls into the column's viewport, remembering their own parent and place for Classic
+        private void kainosMoveIn(IEnumerable<Control> controls)
+        {
+            foreach (Control c in controls)
+            {
+                if (c == null) continue;
+                if (c.Parent != _kainosColumn.Viewport)
+                {
+                    _kainosMovedIn[c] = new KeyValuePair<Control, Point>(c.Parent, c.Location);
+                    _kainosColumn.Viewport.Controls.Add(c);
+                }
+                c.ParentChanged -= kainosMovedParentChanged;
+                c.ParentChanged += kainosMovedParentChanged;
+            }
+        }
+
+        // Thetis puts some of these back itself (ExpandDisplay re-parents the AF, AGC and preamp controls, also at
+        // start-up): take its parent and place as their home for Classic, and bring them back into the column
+        private void kainosMovedParentChanged(object sender, EventArgs e)
+        {
+            Control c = (Control)sender;
+            if (!_kainosPartsOn || _kainosColumn == null || c.Parent == _kainosColumn.Viewport || c.Parent == null) return;
+            _kainosMovedIn[c] = new KeyValuePair<Control, Point>(c.Parent, c.Location);
+            BeginInvoke(new Action(() =>
+            {
+                if (!_kainosPartsOn || c.Parent == _kainosColumn.Viewport) return;
+                _kainosMovedIn[c] = new KeyValuePair<Control, Point>(c.Parent, c.Location);
+                _kainosColumn.Viewport.Controls.Add(c);
+                positionKainosColumn();
+            }));
         }
 
         // collapse to zero size; a resize or skin load that sizes it again is caught and the new size kept for Classic
@@ -143,6 +220,7 @@ namespace Thetis
             if (!_kainosCollapsed.ContainsKey(c))
             {
                 _kainosCollapsed[c] = c.Size;
+                c.SizeChanged -= kainosCollapsedSizeChanged;
                 c.SizeChanged += kainosCollapsedSizeChanged;
             }
             else if (c.Size != Size.Empty) _kainosCollapsed[c] = c.Size;
@@ -152,9 +230,9 @@ namespace Thetis
         private void kainosCollapsedSizeChanged(object sender, EventArgs e)
         {
             Control c = (Control)sender;
-            if (!_kainosLayout || !_kainosCollapsed.ContainsKey(c) || c.Size == Size.Empty) return;
+            if (!_kainosPartsOn || !_kainosCollapsed.ContainsKey(c) || c.Size == Size.Empty) return;
             _kainosCollapsed[c] = c.Size;
-            BeginInvoke(new Action(() => { if (_kainosLayout && _kainosCollapsed.ContainsKey(c)) c.Size = Size.Empty; }));
+            BeginInvoke(new Action(() => { if (_kainosPartsOn && _kainosCollapsed.ContainsKey(c)) c.Size = Size.Empty; }));
         }
 
         private static IEnumerable<ButtonBase> orderedButtons(Control panel)
@@ -176,7 +254,16 @@ namespace Thetis
             _kainosPlacing = true;
             try
             {
-                int width = KainosUI.S(300);
+                // Thetis's collapsed display has its own layout: step aside, and come back when it's expanded
+                if (collapsedDisplay)
+                {
+                    if (_kainosPartsOn) kainosPartsOff();
+                    if (_kainosDock != null) _kainosDock.Visible = false;
+                    return;
+                }
+                if (!_kainosPartsOn) { kainosPartsOn(); positionKainosDock(); }
+
+                int width = KainosUI.S(352);
                 int x = ClientSize.Width - width - 4;
                 int top = menuStrip1.Bottom + 4;
                 int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
@@ -184,15 +271,15 @@ namespace Thetis
                 foreach (Control c in Controls)
                 {
                     if (c == _kainosColumn || c is KainosDock || c == panelDisplay || c == menuStrip1 || c == statusStripMain) continue;
+                    if (c == _kainosMeter || kainosModePanels.Contains(c)) continue;
                     if (!c.Visible || c.Width == 0 || c.Height == 0) continue;
-                    if (_kainosMeter != null && c == _kainosMeter) continue;
                     if (c.Right <= x || c.Left >= x + width) continue;
                     if (c.Bottom < mid) top = Math.Max(top, c.Bottom + 4);
                     else bottom = Math.Min(bottom, c.Top - 4);
                 }
                 _kainosColumn.SetBounds(x, top, width, Math.Max(80, bottom - top));
                 _kainosColumn.SendToBack();
-                if (panelDisplay.Right > x - 6) panelDisplay.Width = Math.Max(200, x - 6 - panelDisplay.Left);
+                kainosFitDisplay(x - 6);
                 _kainosColumn.ArrangeSections();
             }
             finally
@@ -201,16 +288,53 @@ namespace Thetis
             }
         }
 
+        // the panadapter fills the space between the dock and the column
+        private Point _kainosDisplayLocation = new Point(-1, -1);
+        private void kainosFitDisplay(int right)
+        {
+            if (_kainosDock != null && _kainosDock.Visible)
+            {
+                if (_kainosDisplayLocation.X < 0) _kainosDisplayLocation = panelDisplay.Location;
+                int left = _kainosDock.Right + 6;
+                if (panelDisplay.Left != left) panelDisplay.Left = left;
+            }
+            int w = Math.Max(200, right - panelDisplay.Left);
+            if (panelDisplay.Width != w) panelDisplay.Width = w;
+        }
+
+        internal void kainosRestoreDisplayLocation()
+        {
+            if (_kainosDisplayLocation.X >= 0) panelDisplay.Location = _kainosDisplayLocation;
+            _kainosDisplayLocation = new Point(-1, -1);
+        }
+
+        // pinned controls: placed over the column in console coordinates; parked off screen when their tab is off
+        // or they are scrolled out of the column
+        private void kainosPin(Control c, Rectangle viewportRect, bool sizeToWidth)
+        {
+            Rectangle vp = _kainosColumn.Viewport.Bounds;
+            if (sizeToWidth && c.Width != viewportRect.Width) c.Width = viewportRect.Width;
+            bool inView = viewportRect.Top >= 0 && viewportRect.Top + c.Height <= vp.Height && _kainosColumn.Visible;
+            Point p = inView ? new Point(_kainosColumn.Left + vp.Left + viewportRect.Left, _kainosColumn.Top + vp.Top + viewportRect.Top)
+                             : new Point(-20000, -20000);
+            if (c.Location != p) c.Location = p;
+            if (inView) c.BringToFront();
+        }
+
+        private void kainosUnpin(Control c)
+        {
+            // Thetis places these itself; a resize puts them back
+            if (c.Left < -10000) c.Location = new Point(0, 0);
+        }
+
         #region BAND
 
         private int kainosBandMeasure(int w)
         {
             int gap = KainosUI.S(8);
             return _kainosBandGrid.PreferredHeight(w) + gap + _kainosModeGrid.PreferredHeight(w) + gap + _kainosFilterGrid.PreferredHeight(w)
-                   + gap + kainosFilterExtrasHeight();
+                   + gap + KainosUI.S(24) * 3 + KainosUI.S(4) * 2;
         }
-
-        private int kainosFilterExtrasHeight() { return KainosUI.S(24) * 3 + KainosUI.S(4) * 2; }
 
         private void kainosBandArrange(Rectangle r)
         {
@@ -222,12 +346,12 @@ namespace Thetis
                 y += h + gap;
             }
             // width and shift sliders, each with its label, then low / high
-            int row = KainosUI.S(24), lw = KainosUI.S(42);
+            int row = KainosUI.S(24), lw = KainosUI.S(46);
             placeLabel(lblFilterWidth, r.Left, y, lw, row);
             ptbFilterWidth.SetBounds(r.Left + lw, y, r.Width - lw, row);
             y += row + KainosUI.S(4);
             placeLabel(lblFilterShift, r.Left, y, lw, row);
-            int reset = KainosUI.S(44);
+            int reset = KainosUI.S(48);
             ptbFilterShift.SetBounds(r.Left + lw, y, r.Width - lw - reset - 4, row);
             _kainosShiftReset.SetBounds(r.Right - reset, y, reset, row);
             y += row + KainosUI.S(4);
@@ -241,9 +365,89 @@ namespace Thetis
         private static void placeLabel(Control l, int x, int y, int w, int h)
         {
             l.SetBounds(x, y, w, h);
-            l.ForeColor = KainosUI.Dim;
             Label lbl = l as Label;
             if (lbl != null) { lbl.AutoSize = false; lbl.TextAlign = ContentAlignment.MiddleLeft; }
+        }
+
+        #endregion
+
+        #region RX and TX rows
+
+        // A row of Thetis controls: a label and slider become label above, slider full width; the AGC / preamp row
+        // is two label + box pairs side by side; squelch is its check box above the slider
+        private static bool kainosShown(Control c) { return c != null && c.Visible; }
+
+        private int kainosRowHeight(Control[] row)
+        {
+            if (!row.Any(kainosShown)) return 0;
+            if (row.Length == 2) return KainosUI.S(18) + KainosUI.S(26);
+            if (row.Length == 3) return KainosUI.S(24) + KainosUI.S(26);      // squelch
+            return KainosUI.S(26);
+        }
+
+        private int kainosRowsHeight(Control[][] rows)
+        {
+            int h = 0, gap = KainosUI.S(6);
+            foreach (Control[] row in rows) { int rh = kainosRowHeight(row); if (rh > 0) h += rh + gap; }
+            return Math.Max(0, h - gap);
+        }
+
+        private void kainosRowsArrange(Control[][] rows, Rectangle r)
+        {
+            int y = r.Top, gap = KainosUI.S(6);
+            foreach (Control[] row in rows)
+            {
+                int rh = kainosRowHeight(row);
+                if (rh == 0)
+                {
+                    foreach (Control c in row) c.Top = -30000;       // all hidden by Thetis: keep them clear
+                    continue;
+                }
+                if (row.Length == 2)
+                {
+                    row[0].SetBounds(r.Left, y, r.Width, KainosUI.S(18));
+                    Label l = row[0] as Label;
+                    if (l != null) { l.AutoSize = false; l.TextAlign = ContentAlignment.MiddleLeft; }
+                    row[1].SetBounds(r.Left, y + KainosUI.S(18), r.Width, KainosUI.S(26));
+                }
+                else if (row.Length == 3)
+                {
+                    row[0].SetBounds(r.Left, y, r.Width, KainosUI.S(22));
+                    row[1].SetBounds(r.Left, y + KainosUI.S(24), r.Width, KainosUI.S(22));
+                    row[2].SetBounds(r.Left + 8, y + KainosUI.S(24) + KainosUI.S(22), r.Width - 16, 3);
+                }
+                else
+                {
+                    // AGC: label + mode; preamp: label + whichever of the preamp box / step attenuator Thetis shows
+                    int half = r.Width / 2, lw = KainosUI.S(52);
+                    placeLabel(row[0], r.Left, y, lw, rh);
+                    row[1].SetBounds(r.Left + lw, y + 2, half - lw - 6, rh - 4);
+                    placeLabel(row[2], r.Left + half, y, lw, rh);
+                    for (int i = 3; i < row.Length; i++) row[i].SetBounds(r.Left + half + lw, y + 2, half - lw, rh - 4);
+                }
+                y += rh + gap;
+            }
+        }
+
+        private Control kainosModePanel { get { return kainosModePanels.FirstOrDefault(p => p.Visible); } }
+
+        private int kainosTxMeasure(int w)
+        {
+            Control p = kainosModePanel;
+            int rows = kainosRowsHeight(kainosTxRows);
+            return rows + (p != null ? KainosUI.S(8) + p.Height : 0);
+        }
+
+        private void kainosTxArrange(Rectangle r)
+        {
+            kainosRowsArrange(kainosTxRows, r);
+            int y = r.Top + kainosRowsHeight(kainosTxRows) + KainosUI.S(8);
+            Control shown = kainosModePanel;
+            foreach (Control p in kainosModePanels)
+            {
+                if (p == shown) kainosPin(p, new Rectangle(r.Left, y, r.Width, p.Height), false);
+                else if (p.Left > -10000) p.Location = new Point(-20000, -20000);
+            }
         }
 
         #endregion
@@ -304,17 +508,14 @@ namespace Thetis
             bool on = _kainosColumn.IsOn("meters") && _kainosColumn.Visible;
             if (_kainosMeter.MeterEnabled != on) MeterManager.enableContainer(KainosMeterId, on);
             if (!on) return;
-            Point p = new Point(_kainosColumn.Left + r.Left, _kainosColumn.Top + r.Top);
-            if (_kainosMeter.Width != r.Width) _kainosMeter.Width = r.Width;
-            if (_kainosMeter.Location != p) _kainosMeter.Location = p;
-            _kainosMeter.BringToFront();
+            kainosPin(_kainosMeter, r, true);
         }
 
         #endregion
     }
 
-    // The column: a bar of toggle tabs, then the panels of the tabs that are on, scrolled with the mouse wheel
-    // if they don't all fit
+    // The column: a bar of toggle tabs, then a viewport with the panels of the tabs that are on, scrolled with
+    // the mouse wheel if they don't all fit
     internal class KainosColumn : Panel
     {
         private class Section
@@ -331,6 +532,7 @@ namespace Thetis
         private readonly List<Section> _sections = new List<Section>();
         private int _scroll, _contentHeight;
         private Section _hoverTab;
+        public readonly KainosViewport Viewport;
         public event EventHandler TabsChanged;
 
         public KainosColumn(Console console)
@@ -339,6 +541,8 @@ namespace Thetis
             Name = "kainosColumn";
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = KainosUI.Surface;
+            Viewport = new KainosViewport(this);
+            Controls.Add(Viewport);
         }
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange)
@@ -348,14 +552,15 @@ namespace Thetis
 
         public bool IsOn(string key) { Section s = _sections.Find(x => x.Key == key); return s != null && s.On; }
 
-        // "meters,band": the tabs that are on
+        // "meters,band,-rx": tabs that are on, and "-" before the ones turned off; a tab not listed (new in this
+        // version of Kainos) starts on
         public string TabState
         {
-            get { return string.Join(",", _sections.Where(s => s.On).Select(s => s.Key)); }
+            get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key)); }
             set
             {
-                HashSet<string> on = new HashSet<string>((value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
-                foreach (Section s in _sections) s.On = on.Contains(s.Key);
+                string[] items = (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (Section s in _sections) s.On = !items.Contains("-" + s.Key);
                 Invalidate();
             }
         }
@@ -387,36 +592,49 @@ namespace Thetis
         // lays out the panels of the tabs that are on (called by the console after it places the column)
         public void ArrangeSections()
         {
-            int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(8);
-            int top = tabBarHeight(), w = Width - pad * 2;
+            int top = tabBarHeight();
+            Viewport.SetBounds(1, top, Width - 1, Math.Max(0, Height - top));
+            int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(10);
+            int w = Viewport.Width - pad * 2;
             int total = 0;
             foreach (Section s in _sections) if (s.On) total += header + s.Measure(w) + gap;
             _contentHeight = total;
-            _scroll = Math.Max(0, Math.Min(_scroll, total - (Height - top)));
-            int y = top - _scroll;
+            _scroll = Math.Max(0, Math.Min(_scroll, total - Viewport.Height));
+            int y = -_scroll;
             foreach (Section s in _sections)
             {
-                if (!s.On) { s.HeaderRect = Rectangle.Empty; s.Arrange(new Rectangle(pad, -10000, w, 0)); continue; }
+                if (!s.On) { s.HeaderRect = Rectangle.Empty; s.Arrange(new Rectangle(pad, -30000, w, 0)); continue; }
                 int h = s.Measure(w);
                 s.HeaderRect = new Rectangle(pad, y, w, header);
                 s.Arrange(new Rectangle(pad, y + header, w, h));
                 y += header + h + gap;
             }
-            // section contents scrolled above the tab bar are hidden behind it
-            foreach (Control c in Controls) c.Visible = c.Bottom > top && sectionOnFor(c);
             Invalidate();
+            Viewport.Invalidate();
         }
 
-        // a control placed far off (its tab is off) stays hidden
-        private bool sectionOnFor(Control c) { return c.Top > -5000; }
-
-        protected override void OnMouseWheel(MouseEventArgs e)
+        internal void ScrollBy(int delta)
         {
-            base.OnMouseWheel(e);
             int before = _scroll;
-            _scroll = Math.Max(0, Math.Min(_scroll - Math.Sign(e.Delta) * KainosUI.S(40), Math.Max(0, _contentHeight - (Height - tabBarHeight()))));
+            _scroll = Math.Max(0, Math.Min(_scroll - Math.Sign(delta) * KainosUI.S(40), Math.Max(0, _contentHeight - Viewport.Height)));
             if (_scroll != before) ArrangeSections();
         }
+
+        internal void PaintHeaders(Graphics g)
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(KainosUI.Ice))
+            using (Pen line = new Pen(KainosUI.Line))
+                foreach (Section s in _sections)
+                {
+                    if (!s.On || s.HeaderRect.IsEmpty) continue;
+                    g.DrawString(s.Title, f, b, s.HeaderRect.Left, s.HeaderRect.Top + KainosUI.S(5));
+                    g.DrawLine(line, s.HeaderRect.Left, s.HeaderRect.Bottom - 3, s.HeaderRect.Right, s.HeaderRect.Bottom - 3);
+                }
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollBy(e.Delta); }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -458,18 +676,30 @@ namespace Thetis
                     using (Brush b = new SolidBrush(fore)) g.DrawString(s.Title, f, b, s.TabRect, sf);
                 }
             }
-            using (Pen p = new Pen(KainosUI.Line)) g.DrawLine(p, 0, top - KainosUI.S(4), Width, top - KainosUI.S(4));
-            g.SetClip(new Rectangle(0, top - KainosUI.S(2), Width, Height));
-            using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Bold, GraphicsUnit.Pixel))
-            using (Brush b = new SolidBrush(KainosUI.Ice))
-            using (Pen line = new Pen(KainosUI.Line))
-                foreach (Section s in _sections)
-                {
-                    if (!s.On || s.HeaderRect.IsEmpty) continue;
-                    g.DrawString(s.Title, f, b, s.HeaderRect.Left, s.HeaderRect.Top + KainosUI.S(5));
-                    g.DrawLine(line, s.HeaderRect.Left, s.HeaderRect.Bottom - 2, s.HeaderRect.Right, s.HeaderRect.Bottom - 2);
-                }
+            using (Pen p = new Pen(KainosUI.Line)) g.DrawLine(p, 0, top - 1, Width, top - 1);
         }
+    }
+
+    // the scrolling area under the tab bar; it clips the controls the column has moved in
+    internal class KainosViewport : Panel
+    {
+        private readonly KainosColumn _column;
+
+        public KainosViewport(KainosColumn column)
+        {
+            _column = column;
+            Name = "kainosViewport";
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            BackColor = KainosUI.Surface;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            _column.PaintHeaders(e.Graphics);
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); _column.ScrollBy(e.Delta); }
     }
 
     // A grid of Kainos-drawn buttons bound to Thetis buttons (radio buttons, check boxes or plain buttons): a click
@@ -590,7 +820,8 @@ namespace Thetis
         {
             // let the column scroll
             base.OnMouseWheel(e);
-            if (Parent != null) typeof(Control).GetMethod("OnMouseWheel", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(Parent, new object[] { e });
+            KainosViewport v = Parent as KainosViewport;
+            if (v != null) typeof(Control).GetMethod("OnMouseWheel", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(v, new object[] { e });
         }
     }
 }
