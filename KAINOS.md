@@ -282,7 +282,13 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 The installer's pictures are Kainos's: `binary/kainos_background.bmp` (the welcome and finish pages, 493 x 312: the splash's flame, KAINOΣ and tag line on a dark wave panel at the left, white on the right for the installer's text) and `binary/kainos_banner.bmp` (the other pages' banner, 493 x 58: a Kainos tile at the right). Both are made from `Console/Resources/kainos-splash.png` by `art-source/make_installer_art.py` (Python with Pillow). Thetis's `thetis_*.bmp` are left in place, unused, for easy merges.
 
-The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.
+The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer is built with WiX Toolset 3.14 (and .NET Framework 3.5, which WiX 3 needs) after a Release build of Kainos. Visual Studio 2026's MSBuild doesn't find WiX 3's targets by itself, so give it the path:
+
+```
+MSBuild.exe "Project Files\Source\Thetis-Installer\Thetis-Installer.wixproj" /p:Configuration=Release /p:Platform=x64 "/p:WixTargetsPath=C:\Program Files (x86)\MSBuild\Microsoft\WiX\v3.x\Wix.targets"
+```
+
+It writes `Project Files/bin/Installers/Kainos-v2.10.3.x64.msi` (Kainos HL2, installing to `Program Files\OpenHPSDR\Kainos-HL2`, with its own upgrade codes, so it never upgrades or removes Thetis). First built 2 October 2026: the welcome page shows the Kainos artwork; not yet installed on a PC.
 
 ## Deliberately left as Thetis
 
