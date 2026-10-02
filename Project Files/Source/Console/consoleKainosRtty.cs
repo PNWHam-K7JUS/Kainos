@@ -111,6 +111,7 @@ namespace Thetis
                 _rttyUiTimer = new System.Windows.Forms.Timer { Interval = 80 };
                 _rttyUiTimer.Tick += (s, e) => rttyUiTick();
             }
+            if (_cwOpen) CwClose();         // one terminal at a time (they share the receive tap)
             _rttyOpen = true;
             rttyToolStripMenuItem.Checked = true;
             rttyPlace();
@@ -126,9 +127,7 @@ namespace Thetis
             rttyToolStripMenuItem.Checked = false;
             rttyStopEngine();
             if (_rttyUiTimer != null) _rttyUiTimer.Stop();
-            if (_rttyWindow != null) _rttyWindow.Hide();
-            if (_rttyPane != null) _rttyPane.Visible = false;
-            if (_kainosLayout) positionKainosColumn();
+            rttyPlace();
         }
 
         internal bool RttyPopped { get { return _rttyPopped || !_kainosLayout; } }
@@ -140,54 +139,8 @@ namespace Thetis
             rttyPlace();
         }
 
-        // where the pane lives: docked under the panadapter (Kainos layout), or in its own window
-        private void rttyPlace()
-        {
-            if (_rttyPane == null) return;
-            if (!_rttyOpen) { _rttyPane.Visible = false; return; }
-            if (RttyPopped)
-            {
-                if (_rttyWindow == null || _rttyWindow.IsDisposed)
-                {
-                    _rttyWindow = new Form
-                    {
-                        Text = "Kainos RTTY",
-                        Owner = this,
-                        ShowInTaskbar = false,
-                        StartPosition = FormStartPosition.Manual,
-                        BackColor = KainosUI.Bg,
-                        Size = new Size(KainosUI.S(1120), KainosUI.S(320)),
-                        MinimumSize = new Size(KainosUI.S(1080), KainosUI.S(240)),      // the settings row fits
-                        Location = new Point(Left + 80, Top + Height / 2),
-                        Icon = Icon,
-                    };
-                    _rttyWindow.FormClosing += (s, e) => { if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; RttyClose(); } };
-                }
-                if (_rttyPane.Parent != _rttyWindow) { _rttyPane.Dock = DockStyle.Fill; _rttyWindow.Controls.Add(_rttyPane); }
-                _rttyPane.Visible = true;
-                if (!_rttyWindow.Visible) _rttyWindow.Show(this);
-            }
-            else
-            {
-                if (_rttyWindow != null) _rttyWindow.Hide();
-                if (_rttyPane.Parent != this) { _rttyPane.Dock = DockStyle.None; Controls.Add(_rttyPane); }
-                _rttyPane.Visible = true;
-                _rttyPane.BringToFront();
-            }
-            if (_kainosLayout) positionKainosColumn();
-            _rttyPane.Invalidate(true);
-        }
-
-        // Kainos layout: the docked pane's height, taken from the bottom of the panadapter
-        private int kainosRttyDockHeight { get { return _rttyOpen && _rttyPane != null && !RttyPopped ? KainosUI.S(236) : 0; } }
-
-        private void kainosPlaceRttyDock()
-        {
-            if (_rttyPane == null || !_rttyOpen || RttyPopped || _rttyPane.Parent != this) return;
-            int h = kainosRttyDockHeight;
-            _rttyPane.SetBounds(panelDisplay.Left, panelDisplay.Bottom + 4, panelDisplay.Width, h);
-            _rttyPane.BringToFront();
-        }
+        // where the pane lives (consoleKainosTerminal.cs)
+        private void rttyPlace() { _rttyWindow = kainosTermPlace(_rttyPane, _rttyWindow, "Kainos RTTY", _rttyOpen, RttyPopped, RttyClose); }
 
         // ---- the engine ----
 
@@ -397,7 +350,7 @@ namespace Thetis
     }
 
     // The terminal: settings row, received text, the type-ahead line with TX / RX / ABORT, and the macro row
-    internal class KainosRttyPane : Panel
+    internal class KainosRttyPane : Panel, IKainosTerminal
     {
         private readonly Console _console;
         private readonly RichTextBox _rx;

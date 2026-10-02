@@ -98,7 +98,7 @@ namespace Thetis
             kainosDockOn();             // stage 2: consoleKainosDock.cs
             kainosColumnOn();           // stage 3: consoleKainosColumn.cs
             kainosFlagOn();             // stage 4: consoleKainosFlag.cs
-            if (_rttyOpen) rttyPlace(); // the RTTY terminal docks under the panadapter
+            kainosTermsPlace();         // the RTTY / CW terminal docks under the panadapter
             menuStrip1.Invalidate();
             statusStripMain.Invalidate();
             Invalidate(true);
@@ -107,7 +107,7 @@ namespace Thetis
         private void restoreClassicTheme()
         {
             kainosFlagOff();
-            if (_rttyOpen) rttyPlace(); // the RTTY terminal becomes a window
+            kainosTermsPlace();         // the RTTY / CW terminal becomes a window
             kainosColumnOff();
             kainosDockOff();
             if (_kainosSkinBackground != null || CachedBackgroundImage == _kainosBackground)
@@ -167,6 +167,7 @@ namespace Thetis
             if (kainosAudioToolStripMenuItem != null) kainosAudioToolStripMenuItem.ForeColor = c;
             if (freeDVToolStripMenuItem != null) freeDVToolStripMenuItem.ForeColor = c;
             if (rttyToolStripMenuItem != null) rttyToolStripMenuItem.ForeColor = c;
+            if (cwToolStripMenuItem != null) cwToolStripMenuItem.ForeColor = c;
         }
     }
 }

@@ -34,7 +34,7 @@ namespace Thetis
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -95,6 +95,8 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosFtdxOffered);
             txtKainosRtty = new TextBoxTS { Name = "txtKainosRtty", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosRtty);
+            txtKainosCw = new TextBoxTS { Name = "txtKainosCw", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosCw);
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
@@ -112,6 +114,7 @@ namespace Thetis
                     txtKainosMeterType.Text = console.KainosMeterType;
                     txtKainosFtdxOffered.Text = console.KainosFtdxOffered ? "1" : "";
                     txtKainosRtty.Text = console.KainosRttySettings;
+                    txtKainosCw.Text = console.KainosCwSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -120,6 +123,8 @@ namespace Thetis
             console.KainosFtdxOffered = txtKainosFtdxOffered.Text == "1";
             console.KainosRttySettings = txtKainosRtty.Text;
             console.RttyLoadSettings();
+            console.KainosCwSettings = txtKainosCw.Text;
+            console.CwLoadSettings();
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;
