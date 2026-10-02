@@ -296,8 +296,8 @@ namespace Thetis
             _top.Add("RX2", () => _console.CwRx == 1, () => { _console.CwRx = 1; _console.CwChanged(); }, KainosUI.Tone.Violet);
 
             _tune = new KainosCwTune(console);
-            _sql = new KainosUpDown(console.CwSql, "SQL", "");
-            _wpm = new KainosUpDown(console.CwWpm, "TX", "WPM");
+            _sql = new KainosUpDown(console.CwSql, "SQL", "", false);
+            _wpm = new KainosUpDown(console.CwWpm, "TX", "WPM", false);
 
             _winButtons = new KainosActionGrid(3);
             _winButtons.Add("Clear", () => false, () => _rx.Clear(), KainosUI.Tone.Ice);

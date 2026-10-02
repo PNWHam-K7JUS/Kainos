@@ -379,8 +379,8 @@ namespace Thetis
             _top.LabelFor = (i, l) => i == 2 ? _console.RttyShift.ToString(CultureInfo.InvariantCulture) + " Hz" : i == 3 ? _console.RttyBaud.ToString(CultureInfo.InvariantCulture) + " Bd" : l;
 
             _tune = new KainosRttyTune(console);
-            _sql = new KainosUpDown(console.RttySql, "SQL", "");
-            _lvl = new KainosUpDown(console.RttyLevel, "TX", "dB");
+            _sql = new KainosUpDown(console.RttySql, "SQL", "", false);
+            _lvl = new KainosUpDown(console.RttyLevel, "TX", "dB", false);
 
             _winButtons = new KainosActionGrid(3);
             _winButtons.Add("Clear", () => false, () => _rx.Clear(), KainosUI.Tone.Ice);

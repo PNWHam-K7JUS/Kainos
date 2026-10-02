@@ -672,12 +672,14 @@ namespace Thetis
     {
         private readonly NumericUpDown _target;
         private readonly string _label, _unit;
+        private readonly bool _signed;     // +120 / -120 (offsets) or plain numbers
         private RectangleF _minus, _plus;
         private int _hover;     // -1 minus, +1 plus
 
-        public KainosUpDown(NumericUpDown target, string label, string unit)
+        public KainosUpDown(NumericUpDown target, string label, string unit, bool signed = true)
         {
             _target = target;
+            _signed = signed;
             _label = label;
             _unit = unit;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -704,7 +706,7 @@ namespace Thetis
             using (StringFormat sr = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Far })
             {
                 g.DrawString(_label, f, dim, new RectangleF(2, 0, KainosUI.S(40), Height), sf);
-                g.DrawString(_target.Value.ToString("+0;-0;0") + " " + _unit, v, txt, new RectangleF(0, 0, _minus.Left - KainosUI.S(8), Height), sr);
+                g.DrawString(_target.Value.ToString(_signed ? "+0;-0;0" : "0") + " " + _unit, v, txt, new RectangleF(0, 0, _minus.Left - KainosUI.S(8), Height), sr);
             }
         }
 
