@@ -18,10 +18,15 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-The author can be reached by email at  
+The author can be reached by email at
 
 warren@wpratt.com
 
+----------------------------------------------------------------------------------------------
+Modified by Christos Nikolaou (SV1EIA) 2026 -- thetis-rade fork.
+Adds RADE V1 digital-voice splice points in the TX/RX hot path.
+Christos Nikolaou can be reached by email at : sv1eia@gmail.com
+----------------------------------------------------------------------------------------------
 */
 
 #include "cmcomm.h"
@@ -113,6 +118,7 @@ void create_pipe()
 		ppip->rcvr[i].recordwave_run = 0;		// recordwave run
 	}
 	create_tci();
+	create_radae();
 	create_spc0();
 }
 
@@ -120,6 +126,7 @@ void destroy_pipe()
 {
 	int i;
 	destroy_spc0();
+	destroy_radae();
 	destroy_tci();
 	for (i = 0; i < pcm->cmRCVR; i++)
 	{
@@ -181,6 +188,27 @@ void xpipe (int stream, int pos, double** buffs)
 			xvacOUT(rx, 0, buff);																// data to VAC
 			break;
 		case 1: // Audio data
+			xradae_rx(rx, buffs[0]);															// [v2.10.3.16] FreeDV RADEV1 RX splice -- in-place on the rcvr audio buffer
+																								// so that BOTH the speaker path (xMixAudio in xcmaster) AND
+																								// the VAC/TCI/scope/recorder branches below see the decoded speech.
+			/* RX1 AF post-decode multiply.  When RADE RX is on, the C#
+			 * RXOutputGain setter forces WDSP xpanel.gain1 to 1.0 so the
+			 * decoder input is unscaled, and pushes the slider value into
+			 * g_radae_rx1_af_gain.  Apply that scalar to the decoded buffer
+			 * here so RX1 AF is a clean post-decode level knob.  The xvacOUT /
+			 * xtciOUT / xrecordwave branches below read ppip->rbuff[rx], which
+			 * is memcpy'd from the post-multiply buffs[0], so they all hear
+			 * RX1 AF as well. */
+			if (GetRadaeRxEnabled(rx) != 0)
+			{
+				const float g_rx_af = GetRadaeRxAFGain(rx);
+				if (g_rx_af != 1.0f)
+				{
+					const double gd = (double)g_rx_af;
+					const int n = 2 * pcm->rcvr[rx].ch_outsize;
+					for (j = 0; j < n; j++) buffs[0][j] *= gd;
+				}
+			}
 			memcpy (ppip->rbuff[rx], buffs[0], pcm->rcvr[rx].ch_outsize * sizeof (complex));
 			for (i = 1; i < pcm->cmSubRCVR; i++)
 				for (j = 0; j < 2 * pcm->rcvr[rx].ch_outsize; j++)
@@ -204,6 +232,17 @@ void xpipe (int stream, int pos, double** buffs)
 			xvacOUT(rx, 0, buff);																// data to VAC
 			break;
 		case 1: // Audio data
+			xradae_rx(rx, buffs[0]);															// [v2.10.3.16] FreeDV RADEV1 RX splice -- same as RX1 path above
+			if (GetRadaeRxEnabled(rx) != 0)
+			{
+				const float g_rx_af = GetRadaeRxAFGain(rx);
+				if (g_rx_af != 1.0f)
+				{
+					const double gd = (double)g_rx_af;
+					const int n = 2 * pcm->rcvr[rx].ch_outsize;
+					for (j = 0; j < n; j++) buffs[0][j] *= gd;
+				}
+			}
 			memcpy (ppip->rbuff[rx], buffs[0], pcm->rcvr[rx].ch_outsize * sizeof (complex));
 			for (i = 1; i < pcm->cmSubRCVR; i++)
 				for (j = 0; j < 2 * pcm->rcvr[rx].ch_outsize; j++)
@@ -226,6 +265,7 @@ void xpipe (int stream, int pos, double** buffs)
 				if (pip.xmtr[0].txvac == 0)  { xvacIN(0, buff, 0);  xvacIN(1, buff, 1); }
 				if (pip.xmtr[0].txvac == 1)  { xvacIN(1, buff, 0);  xvacIN(0, buff, 1); }
 			}
+			xradae_tx(buff);																	// [v2.10.3.16] FreeDV RADEV1 TX splice (no-op when disabled)
 			xrecordwave(0, 1, 0, buff);															// wav recorder 0 //[2.10.3.6]MW0LGE moved after vac
 			xrecordwave(1, 1, 0, buff);															// wav recorder 1
 			break;

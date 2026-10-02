@@ -18,10 +18,15 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-The author can be reached by email at  
+The author can be reached by email at
 
 warren@pratt.one
 
+----------------------------------------------------------------------------------------------
+Modified by Christos Nikolaou (SV1EIA) 2026 -- thetis-rade fork.
+Adds RADE V1 digital-voice integration.
+Christos Nikolaou can be reached by email at : sv1eia@gmail.com
+----------------------------------------------------------------------------------------------
 */
 
 #include <Windows.h>
@@ -42,6 +47,7 @@ warren@pratt.one
 #include "ilv.h"
 #include "ivac.h"
 #include "pipe.h"
+#include "radae.h"
 #include "tci.h"
 #include "ring.h"
 #include "router.h"
