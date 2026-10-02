@@ -95,6 +95,7 @@ namespace Thetis
                 if (!_kainosSavedItemColours.ContainsKey(item)) _kainosSavedItemColours[item] = item.ForeColor;
                 item.ForeColor = KainosUI.Text;
             }
+            kainosDockOn();             // stage 2: consoleKainosDock.cs
             menuStrip1.Invalidate();
             statusStripMain.Invalidate();
             Invalidate(true);
@@ -102,6 +103,7 @@ namespace Thetis
 
         private void restoreClassicTheme()
         {
+            kainosDockOff();
             if (_kainosSkinBackground != null || CachedBackgroundImage == _kainosBackground)
             {
                 CachedBackgroundImage = _kainosSkinBackground;

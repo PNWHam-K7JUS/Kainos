@@ -29,7 +29,7 @@ namespace Thetis
     public partial class Setup
     {
         private TabPage tpAppearanceKainos;
-        private ComboBoxTS comboKainosLayout;
+        private ComboBoxTS comboKainosLayout, comboKainosUIScale;
 
         private void addKainosUITab()
         {
@@ -55,12 +55,27 @@ namespace Thetis
             comboKainosLayout.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             grp.Controls.Add(avLabel("Layout", 14, 27));
             grp.Controls.Add(comboKainosLayout);
-            LabelTS note = avLabel("The Kainos layout is being built in stages (roadmap Phase 7). This stage gives the console, " +
-                "menu bar and status bar the Kainos colours from the splash screen; your skin's buttons and the " +
-                "panadapter are unchanged. Coming next: the left dock, the tabbed right column (with meters) and " +
+            comboKainosUIScale = new ComboBoxTS
+            {
+                Name = "comboKainosUIScale",
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(320, 24),
+                Size = new Size(90, 21)
+            };
+            comboKainosUIScale.Items.AddRange(new object[] { "75%", "90%", "100%", "110%", "125%", "150%", "175%", "200%" });
+            comboKainosUIScale.SelectedIndex = 2;
+            toolTip1.SetToolTip(comboKainosUIScale, "Size of the Kainos layout's own controls (the left dock, and the right column and slice flags\r\n" +
+                "as they arrive), on top of Windows's display scaling.");
+            comboKainosUIScale.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            grp.Controls.Add(avLabel("UI scale", 250, 27));
+            grp.Controls.Add(comboKainosUIScale);
+            LabelTS note = avLabel("The Kainos layout is being built in stages (roadmap Phase 7). So far: the Kainos colours " +
+                "for the console, menu bar and status bar, and the left dock with POWER, RX2, MOX, TUN, 2TON, MON, VOX, " +
+                "DUP, PS-A and REC/PLAY (right-click a dock button for the same settings shortcut as in Classic), with " +
+                "forward power, SWR and ALC in the status bar. Coming next: the tabbed right column (with meters) and " +
                 "the slice flags.", 14, 60);
             note.AutoSize = false;
-            note.Size = new Size(404, 80);
+            note.Size = new Size(404, 82);
             grp.Controls.Add(note);
             tpAppearanceKainos.Controls.Add(grp);
 
@@ -70,6 +85,8 @@ namespace Thetis
         // called from ForceAllEvents at startup, and when the setting changes
         private void applyKainosUI()
         {
+            int pct;
+            if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;
         }
     }
