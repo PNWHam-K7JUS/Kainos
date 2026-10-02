@@ -7,8 +7,15 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
 - Current version: 2.10.3.15 (based on Thetis 2.10.3.15)
 
+![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
+
 ## What Kainos adds
 
+- **A modern layout**: a dark, tidy console in the Kainos colours, switchable back to the Thetis (Classic) look in Setup > Appearance > Kainos, with its own UI scale (75-200%).
+  - **Slice flags** on the panadapter (SmartSDR style) for VFO A and, with RX2 on, VFO B: antenna, filter, active DSP, mode, frequency and an S meter. Turn the mouse wheel over a digit to tune by that digit, click the frequency to type one, and click TX to choose the transmit VFO. Tabs under the flag open its audio, DSP, mode, RIT/XIT, VAC and FreeDV controls.
+  - **A right-hand column of tabs** you turn on and off: VFO, VFO sync, meters (an analog meter; OE3IDE's FTDX-5000 skin is offered on first run), band / mode / filter, RX, TX, PA profile, EQ, Kainos Audio, FreeDV and memories.
+  - **A left-hand column** with power, transmit, VFO and VAC buttons, and **a bar under the panadapter** for pan, zoom, display mode and multi-RX. Everything else at the bottom of the window is gone, so the panadapter and waterfall use the full height.
+- **RTTY**: built-in RTTY (45.45 baud, 170 Hz shift and others) with no extra programs or virtual audio cables. Open **RTTY** in the menu bar: the terminal opens under the panadapter (or in its own window) with received text, type-ahead sending, macros and a tuning indicator. Use DIGL or LSB.
 - **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from **Kainos Audio** in the menu bar. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
   - **Receive**, on every receiver: parametric EQ, gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
   - **Transmit**: gate, parametric EQ, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.
