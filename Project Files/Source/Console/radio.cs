@@ -389,6 +389,7 @@ namespace Thetis
             this.SetRXAetherVoiceClarity(rx.rx_av_clarity_tune, rx.rx_av_clarity_harmonics, rx.rx_av_clarity_mix);
             this.RXAetherVoiceOn = rx.rx_aethervoice_on;
             this.rx_strip = new Dictionary<int, double>(rx.rx_strip);
+            this.rx_strip_order = rx.rx_strip_order == null ? null : (int[])rx.rx_strip_order.Clone();
             this.applyRXStripAll();
         }
 
@@ -982,10 +983,19 @@ namespace Thetis
 
         private void applyRXStripAll()
         {
-            // parameters first, enables last, so a stage never runs with stale settings
+            // parameters first, then the order, enables last, so a stage never runs with stale settings
             List<int> keys = new List<int>(rx_strip.Keys);
             foreach (int key in keys) if (key % 100 != 0) sendRXStripParam(key);
+            if (rx_strip_order != null) SetRXStripOrder(rx_strip_order);
             foreach (int key in keys) if (key % 100 == 0) sendRXStripParam(key);
+        }
+
+        // chain order, as wdsp/aetherstrip.h stage numbers (7 = AetherVoice)
+        private int[] rx_strip_order;
+        public void SetRXStripOrder(int[] order)
+        {
+            rx_strip_order = (int[])order.Clone();
+            if (update) WDSP.SetRXAStripOrder(WDSP.id(thread, subrx), rx_strip_order, rx_strip_order.Length);
         }
 
 		private double nb_threshold_dsp = 3.3;
@@ -3122,10 +3132,19 @@ namespace Thetis
 
         private void applyTXStripAll()
         {
-            // parameters first, enables last, so a stage never runs with stale settings
+            // parameters first, then the order, enables last, so a stage never runs with stale settings
             List<int> keys = new List<int>(tx_strip.Keys);
             foreach (int key in keys) if (key % 100 != 0) sendTXStripParam(key);
+            if (tx_strip_order != null) SetTXStripOrder(tx_strip_order);
             foreach (int key in keys) if (key % 100 == 0) sendTXStripParam(key);
+        }
+
+        // chain order, as wdsp/aetherstrip.h stage numbers (7 = AetherVoice)
+        private int[] tx_strip_order;
+        public void SetTXStripOrder(int[] order)
+        {
+            tx_strip_order = (int[])order.Clone();
+            if (update) WDSP.SetTXAStripOrder(WDSP.id(thread, 0), tx_strip_order, tx_strip_order.Length);
         }
 
 		private bool notch_160_dsp = false;

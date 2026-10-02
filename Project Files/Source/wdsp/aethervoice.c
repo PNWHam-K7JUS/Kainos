@@ -318,6 +318,27 @@ double GetRXAStripMeter (int channel, int stage, int meter)
 	return getMeter_aetherstrip (rxa[channel].aetherstrip.p, stage, meter);
 }
 
+// chain order (see aetherstrip.h); changed under the channel's DSP lock so a block never sees half an order
+PORT
+int SetTXAStripOrder (int channel, int* order, int n)
+{
+	int ok;
+	EnterCriticalSection (&ch[channel].csDSP);
+	ok = setOrder_aetherstrip (txa[channel].aetherstrip.p, order, n);
+	LeaveCriticalSection (&ch[channel].csDSP);
+	return ok;
+}
+
+PORT
+int SetRXAStripOrder (int channel, int* order, int n)
+{
+	int ok;
+	EnterCriticalSection (&ch[channel].csDSP);
+	ok = setOrder_aetherstrip (rxa[channel].aetherstrip.p, order, n);
+	LeaveCriticalSection (&ch[channel].csDSP);
+	return ok;
+}
+
 // AetherSDR's EQ band response, for drawing the EQ curve (no channel needed)
 PORT
 double GetAetherEqBandMagnitudeDb (int type, double freq, double gain, double q, int on, int slope,

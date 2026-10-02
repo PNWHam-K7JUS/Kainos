@@ -139,6 +139,23 @@ AetherSDR's parametric EQ (`ClientEq`, copied unchanged) as a strip stage on bot
 - **Saving:** `AetherStrip.Serialize` now writes only values that differ from the defaults, so a shaped EQ adds a few dozen characters to the TX profile or the RX options; older saved strips still load.
 - **Verification:** the wrapper's output is identical to AetherSDR's classes in both chain orders, and the drawing function is identical to `ClientEq::bandMagnitudeDb`.
 
+### Kainos Audio chain order
+
+The chain can be reordered, as AetherSDR's can: drag a stage up or down the stage list (right-click the list to reset to AetherSDR's order). Final Output (the final limiter) always runs last.
+
+- **DSP:** `xaetherstrip` runs the whole chain in its order and calls the AetherVoice exciter (`aethervoice.c`) at its slot (`AS_EXCITER`), converting the audio back to the WDSP buffer for it, then runs the final limiter. `SetTXAStripOrder` / `SetRXAStripOrder` change the order under the channel's DSP lock and refuse duplicates or moving the final limiter. With no strip stage on, only the exciter runs, straight on the WDSP buffer, so AetherVoice alone and everything-off stay bit-exact.
+- **C#:** `AetherStrip.Order` (saved as `o=...` only when it differs from the default, so older saved strips still load), pushed by `RadioDSPTX.SetTXStripOrder` / `RadioDSPRX.SetRXStripOrder` and re-sent in `SyncAll`. The stage list is built from the order (`pagesFromOrder`).
+- **Verification:** reference checks in the default and a custom order are exact; on a real WDSP TX channel, swapping tube and compressor changed the output by 16.8 dB and swapping back returned to within 0.25 dB.
+
+### Kainos Audio history views and REC / PLAY
+
+- **Curve / History:** each stage graph can switch to a 10-second scrolling history (input and output level, threshold or ceiling, gain reduction from the top), fed from the same 30 Hz meter polling as the bars (`StripViz.drawHistory`). Each page remembers its view.
+- **REC / PLAY** (above BYPASS), after AetherSDR's monitor. Built on Thetis's own recorder (`clsAudioRecordPlayback`, `console.ARP`) rather than a new audio path:
+  - REC records to `<Thetis audio folder>/kainosaudio/KainosAudioTX.wav` (or `...RX.wav`). On the TX tab it records the **transmitter output** (`AudioRecordTxSource.TransmitterOutputIQ`), so the recording includes Kainos Audio plus the Thetis leveler, TX filter and ALC; on SSB the left channel (I) is the processed voice. On the RX tab it records the receiver output. The user's recording source settings are switched only for the moment the recording starts, then restored.
+  - PLAY plays the last recording for that tab through the PC output device set in Thetis's recording settings (`ARP.OutputPCDeviceID`); nothing is transmitted.
+  - REC won't stop a recording Kainos Audio didn't start.
+  - Confirmed working on the radio (transmit into a dummy load, played back on the PC).
+
 ### Installer
 
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.

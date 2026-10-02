@@ -24,10 +24,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef _aetherstrip_h
 #define _aetherstrip_h
 
-// Stages. The strip runs in two parts around the AetherVoice exciter (aethervoice.c), in
-// AetherSDR's chain orders:
-//   transmit  xaetherstrip_pre: gate, EQ, de-esser, compressor, tube   xaetherstrip_post: reverb, final limiter
-//   receive   xaetherstrip_pre: EQ, gate, compressor, tube             (AetherRX has no post stages)
+// Stages. xaetherstrip runs the chain in its order, including the AetherVoice exciter (aethervoice.c)
+// at its slot, then the final limiter, which is always last. Default orders are AetherSDR's:
+//   transmit: gate, EQ, de-esser, compressor, tube, exciter, reverb   (then the final limiter)
+//   receive:  EQ, gate, compressor, tube, exciter
+// The order can be changed (setOrder_aetherstrip), as AetherSDR's chain can be reordered.
 #define AS_GATE			0
 #define AS_DEESS		1
 #define AS_COMP			2
@@ -36,6 +37,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define AS_LIMITER		5
 #define AS_EQ			6
 #define AS_NSTAGES		7
+#define AS_EXCITER		7			// chain slot for the AetherVoice exciter (not a strip stage)
+#define AS_MAXORDER		8
 
 #define AS_EQ_BANDS		10			// AetherSDR's default 10-band layout (ClientEq supports 16)
 #define AS_EQ_BAND0		10			// first band parameter
@@ -71,10 +74,13 @@ extern void destroy_aetherstrip (AETHERSTRIP a);
 
 extern void flush_aetherstrip (AETHERSTRIP a);
 
+// runs the whole chain: the stages in order, the AetherVoice exciter 'av' at its slot, then the final limiter.
 // stereo = 0: process I only (Q passes through); stereo = 1: I and Q as left and right
-extern void xaetherstrip_pre (AETHERSTRIP a, int stereo);
+struct _aethervoice;
+extern void xaetherstrip (AETHERSTRIP a, int stereo, struct _aethervoice* av);
 
-extern void xaetherstrip_post (AETHERSTRIP a, int stereo);
+// order: n entries, each a stage (not AS_LIMITER) or AS_EXCITER, each at most once; returns 0 if rejected
+extern int setOrder_aetherstrip (AETHERSTRIP a, const int* order, int n);
 
 extern void setBuffers_aetherstrip (AETHERSTRIP a, double* in, double* out);
 

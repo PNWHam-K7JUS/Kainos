@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
@@ -47,6 +48,7 @@ namespace Thetis
     internal static class AetherStripDefs
     {
         public const int Gate = 0, DeEss = 1, Comp = 2, Tube = 3, Reverb = 4, Limiter = 5, Eq = 6, Stages = 7, MaxParams = 70;
+        public const int Exciter = 7;                    // the AetherVoice slot in the chain order (wdsp/aetherstrip.h)
         public const int EqBands = 10, EqBand0 = 10;      // EQ band b's parameters start at EqBand0 + 6 * b (wdsp/aetherstrip.h)
         public static readonly string[] StageNames = { "Gate", "De-Esser", "Compressor", "Tube", "Reverb", "Final Output", "EQ" };
         // AetherSDR's default 10-band layout (ClientEq::defaultBand): HP, low shelf, 6 peaks, high shelf, LP
@@ -161,6 +163,52 @@ namespace Thetis
         {
             _console = console;
             _rx = rx;
+            _order = DefaultOrder(rx);
+        }
+
+        // Chain order, in wdsp/aetherstrip.h stage numbers (Exciter = AetherVoice). The final limiter always runs
+        // last and isn't part of it. AetherSDR's defaults:
+        private int[] _order;
+        public static int[] DefaultOrder(bool rx)
+        {
+            return rx ? new[] { AetherStripDefs.Eq, AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, AetherStripDefs.Exciter }
+                      : new[] { AetherStripDefs.Gate, AetherStripDefs.Eq, AetherStripDefs.DeEss, AetherStripDefs.Comp, AetherStripDefs.Tube,
+                                AetherStripDefs.Exciter, AetherStripDefs.Reverb };
+        }
+
+        public int[] Order { get { return (int[])_order.Clone(); } }
+
+        // the same stages as the default, in any order
+        private bool validOrder(int[] order)
+        {
+            if (order == null) return false;
+            List<int> a = new List<int>(order), b = new List<int>(DefaultOrder(_rx));
+            a.Sort(); b.Sort();
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++) if (a[i] != b[i]) return false;
+            return true;
+        }
+
+        public void SetOrder(int[] order)
+        {
+            if (!validOrder(order)) return;
+            bool same = true;
+            for (int i = 0; i < order.Length; i++) same &= order[i] == _order[i];
+            if (same) return;
+            _order = (int[])order.Clone();
+            pushOrder();
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void pushOrder()
+        {
+            if (_console == null || _console.radio == null) return;
+            if (_rx)
+            {
+                for (int t = 0; t < 2; t++)
+                    for (int s = 0; s < 2; s++) _console.radio.GetDSPRX(t, s).SetRXStripOrder(_order);
+            }
+            else _console.radio.GetDSPTX(0).SetTXStripOrder(_order);
         }
 
         public bool IsRX { get { return _rx; } }
@@ -210,6 +258,7 @@ namespace Thetis
         {
             for (int s = 0; s < AetherStripDefs.Stages; s++)
                 for (int p = 1; p < AetherStripDefs.MaxParams; p++) push(s, p);
+            pushOrder();
             for (int s = 0; s < AetherStripDefs.Stages; s++) push(s, 0);
         }
 
@@ -234,28 +283,17 @@ namespace Thetis
                 for (int p = 0; p < AetherStripDefs.MaxParams; p++)
                     if (_values[s, p] != AetherStripDefs.Defaults[s, p])
                         sb.Append(s).Append('.').Append(p).Append('=').Append(_values[s, p].ToString("R", CultureInfo.InvariantCulture)).Append(';');
+            int[] def = DefaultOrder(_rx);
+            bool same = def.Length == _order.Length;
+            for (int i = 0; same && i < def.Length; i++) same = def[i] == _order[i];
+            if (!same) sb.Append("o=").Append(string.Join(",", _order)).Append(';');     // chain order, when changed
             return sb.ToString();
         }
 
         // null or empty (a profile saved before the strip existed) loads the defaults: everything off
         public void Deserialize(string data)
         {
-            double[,] v = (double[,])AetherStripDefs.Defaults.Clone();
-            if (!string.IsNullOrEmpty(data))
-            {
-                foreach (string item in data.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    string[] kv = item.Split('=');
-                    string[] sp = kv[0].Split('.');
-                    int s, p; double val;
-                    if (kv.Length == 2 && sp.Length == 2 && int.TryParse(sp[0], out s) && int.TryParse(sp[1], out p) &&
-                        double.TryParse(kv[1], NumberStyles.Float, CultureInfo.InvariantCulture, out val) &&
-                        s >= 0 && s < AetherStripDefs.Stages && p >= 0 && p < AetherStripDefs.MaxParams)
-                        v[s, p] = val;
-                }
-            }
-            for (int s = 0; s < AetherStripDefs.Stages; s++)
-                for (int p = 0; p < AetherStripDefs.MaxParams; p++) _values[s, p] = v[s, p];
+            load(data);
             ApplyAll();
             Changed?.Invoke(this, EventArgs.Empty);
         }
@@ -267,20 +305,33 @@ namespace Thetis
 
         public bool Differs(string profileData)
         {
-            AetherStrip other = new AetherStrip(null, false);
+            AetherStrip other = new AetherStrip(null, _rx);
             other.load(profileData);
             for (int s = 0; s < AetherStripDefs.Stages; s++)
                 for (int p = 0; p < AetherStripDefs.MaxParams; p++)
                     if (other._values[s, p] != _values[s, p]) return true;
+            for (int i = 0; i < _order.Length; i++)
+                if (other._order[i] != _order[i]) return true;
             return false;
         }
 
+        // resets to the defaults, then applies the saved values (null or empty = all defaults: everything off)
         private void load(string data)
         {
+            for (int s = 0; s < AetherStripDefs.Stages; s++)
+                for (int p = 0; p < AetherStripDefs.MaxParams; p++) _values[s, p] = AetherStripDefs.Defaults[s, p];
+            _order = DefaultOrder(_rx);
             if (string.IsNullOrEmpty(data)) return;
             foreach (string item in data.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
             {
                 string[] kv = item.Split('=');
+                if (kv.Length == 2 && kv[0] == "o")
+                {
+                    List<int> o = new List<int>();
+                    foreach (string n in kv[1].Split(',')) { int x; if (int.TryParse(n, out x)) o.Add(x); }
+                    if (validOrder(o.ToArray())) _order = o.ToArray();
+                    continue;
+                }
                 string[] sp = kv[0].Split('.');
                 int s, p; double val;
                 if (kv.Length == 2 && sp.Length == 2 && int.TryParse(sp[0], out s) && int.TryParse(sp[1], out p) &&
@@ -313,10 +364,6 @@ namespace Thetis
 
         // pages in AetherSDR's chain order; Exciter is AetherVoice TX
         private const int PageExciter = 100;
-        private static readonly int[] PageOrderTX = { AetherStripDefs.Gate, AetherStripDefs.Eq, AetherStripDefs.DeEss, AetherStripDefs.Comp,
-            AetherStripDefs.Tube, PageExciter, AetherStripDefs.Reverb, AetherStripDefs.Limiter };
-        // AetherSDR's receive chain: gate, compressor, tube, exciter (de-essing and reverb are transmit tools)
-        private static readonly int[] PageOrderRX = { AetherStripDefs.Eq, AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, PageExciter };
 
         private readonly Console _console;
         private bool _rx;                                   // the tab shown: receive or transmit
@@ -333,6 +380,91 @@ namespace Thetis
         private readonly List<AetherToggleButton> _extraButtons = new List<AetherToggleButton>();
         private readonly List<KeyValuePair<AetherStripParam, AetherKnob>> _knobs = new List<KeyValuePair<AetherStripParam, AetherKnob>>();
         private readonly StripViz _viz;
+        private readonly AetherToggleButton _btnCurve, _btnHistory;
+        private readonly AetherToggleButton _btnRec, _btnPlay;
+        private bool _recordingHere;                       // this window started the current recording
+
+        // the monitor file for each side, in Thetis's audio folder
+        private string monitorFile(bool rx)
+        {
+            return Path.Combine(_console.ARP.AudioFolder, "kainosaudio", rx ? "KainosAudioRX.wav" : "KainosAudioTX.wav");
+        }
+
+        // REC: records the processed audio for the tab shown. Transmit records the transmitter output (after
+        // Kainos Audio and the Thetis leveler, TX filter and ALC), so key up into a dummy load while it runs;
+        // receive records the receiver output. Thetis's own recording source settings are restored at once.
+        private void toggleRecord()
+        {
+            clsAudioRecordPlayback arp = _console.ARP;
+            string error;
+            if (arp.IsRecording && !_recordingHere)
+            {
+                // another Thetis recording is running: leave it alone
+                MessageBox.Show("Thetis is already recording something else. Stop that recording first.", "Kainos Audio",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (arp.IsRecording)
+            {
+                if (!arp.StopRecord(out error) && error != null) MessageBox.Show(error, "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _recordingHere = false;
+                updateMonitorButtons();
+                return;
+            }
+            if (arp.IsPlaying) arp.StopPlayback(out error);
+            string file = monitorFile(_rx);
+            try { Directory.CreateDirectory(Path.GetDirectoryName(file)); } catch { }
+            AudioRecordTxSource txs = arp.TxSource;
+            AudioRecordRxSource rxs = arp.RxSource;
+            arp.TxSource = AudioRecordTxSource.TransmitterOutputIQ;
+            arp.RxSource = AudioRecordRxSource.ReceiverOutputAudio;
+            string started = arp.RecordToFileFromWDSP("kainosaudio", file, 0, out error, true);
+            arp.TxSource = txs;
+            arp.RxSource = rxs;
+            if (started == null)
+                MessageBox.Show("Recording could not start.\r\n\r\n" + error, "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            else _recordingHere = true;
+            updateMonitorButtons();
+        }
+
+        // PLAY: plays the last recording for this tab through the PC audio output set in Thetis's recording
+        // settings; nothing is transmitted
+        private void togglePlay()
+        {
+            clsAudioRecordPlayback arp = _console.ARP;
+            string error;
+            if (arp.IsPlaying) { arp.StopPlayback(out error); updateMonitorButtons(); return; }
+            string file = monitorFile(_rx);
+            if (!File.Exists(file))
+            {
+                MessageBox.Show("Nothing recorded yet on this tab. Press REC first" + (_rx ? "." : ", then transmit into a dummy load."),
+                    "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (arp.IsRecording) arp.StopRecord(out error);
+            if (!arp.PlayFileViaPCAudio("kainosaudio", file, arp.OutputPCDeviceID, out error))
+                MessageBox.Show("Playback could not start.\r\n\r\n" + error, "Kainos Audio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            updateMonitorButtons();
+        }
+
+        private void updateMonitorButtons()
+        {
+            if (_console.ARP == null) return;
+            bool rec = _console.ARP.IsRecording, play = _console.ARP.IsPlaying;
+            if (!rec) _recordingHere = false;
+            _btnRec.Checked = rec && _recordingHere;
+            _btnRec.Text = rec && _recordingHere ? "\u25cf REC" : "REC";
+            _btnPlay.Checked = play;
+            _btnPlay.Text = play ? "\u25a0 STOP" : "PLAY";
+        }
+
+        private void syncViewButtons()
+        {
+            bool show = _viz.Visible;
+            _btnCurve.Visible = _btnHistory.Visible = show;
+            _pageNote.Width = show ? 550 : 690;
+            if (show) { _btnCurve.Checked = !_viz.History; _btnHistory.Checked = _viz.History; _btnCurve.BringToFront(); _btnHistory.BringToFront(); }
+        }
         private readonly AetherVoiceLogo _logo;
         private readonly AetherBracketLabel _bodyLbl, _clarityLbl;
         private readonly ToolTip _tips = new ToolTip();
@@ -387,12 +519,31 @@ namespace Thetis
             _tips.SetToolTip(_tabTX, "Transmit: your voice's audio chain, saved in each TX profile.");
             Controls.Add(_tabRX);
             Controls.Add(_tabTX);
-            _list = new StageList(this) { Location = new Point(10, 70), Size = new Size(170, PageOrderTX.Length * 38 + 4) };
+            _list = new StageList(this) { Location = new Point(10, 70), Size = new Size(170, 8 * 38 + 4) };
             Controls.Add(_list);
+            Label orderHint = new Label
+            {
+                Text = "Drag a stage to change the order", ForeColor = kTextDim,
+                Font = new Font("Segoe UI", 10f, GraphicsUnit.Pixel), AutoSize = true, Location = new Point(12, _list.Bottom + 2)
+            };
+            Controls.Add(orderHint);
+            ContextMenuStrip listMenu = new ContextMenuStrip();
+            listMenu.Items.Add("Reset to AetherSDR's order", null, (s, e) => ResetOrder());
+            _list.ContextMenuStrip = listMenu;
+            _tips.SetToolTip(_list, "Click a stage to open it. Drag it up or down to change where it runs in the chain;\r\n" +
+                                    "right-click to reset the order. Final Output always runs last.");
 
             // bottom-left: TX indicator and BYPASS
             _btnBypass = new AetherToggleButton { Text = "BYPASS", Bypass = true, Location = new Point(10, 520), Size = new Size(170, 28) };
             _btnBypass.Click += (s, e) => _strip.Bypass = !_strip.Bypass;
+
+            // REC / PLAY monitor, as in AetherSDR: record this side's processed audio, then hear it on the PC
+            _btnRec = new AetherToggleButton { Text = "REC", Bypass = true, Location = new Point(10, 486), Size = new Size(82, 28) };
+            _btnPlay = new AetherToggleButton { Text = "PLAY", Bypass = true, Location = new Point(98, 486), Size = new Size(82, 28) };
+            _btnRec.Click += (s, e) => toggleRecord();
+            _btnPlay.Click += (s, e) => togglePlay();
+            Controls.Add(_btnRec);
+            Controls.Add(_btnPlay);
             Controls.Add(_btnBypass);
             _status = new Label
             {
@@ -417,6 +568,14 @@ namespace Thetis
             _btnOn = new AetherToggleButton { Text = "ON", Bypass = true, Location = new Point(632, 2), Size = new Size(60, 26) };
             _btnOn.Click += (s, e) => toggleStage();
             _viz = new StripViz(this) { Location = new Point(0, 56), Size = new Size(692, 230) };
+            _btnCurve = new AetherToggleButton { Text = "Curve", Location = new Point(560, 30), Size = new Size(60, 22) };
+            _btnHistory = new AetherToggleButton { Text = "History", Location = new Point(624, 30), Size = new Size(64, 22) };
+            _btnCurve.Click += (s, e) => { _viz.History = false; syncViewButtons(); };
+            _btnHistory.Click += (s, e) => { _viz.History = true; syncViewButtons(); };
+            _tips.SetToolTip(_btnCurve, "Show the stage's curve and meters.");
+            _tips.SetToolTip(_btnHistory, "Show the last 10 seconds of level and gain reduction.");
+            _page.Controls.Add(_btnCurve);
+            _page.Controls.Add(_btnHistory);
             _logo = new AetherVoiceLogo { Location = new Point(40, 100), Size = new Size(612, 110), Visible = false };
             _page.Controls.Add(_pageTitle);
             _page.Controls.Add(_pageNote);
@@ -447,8 +606,8 @@ namespace Thetis
                 hookSetupTX(false);
             }
             _rx = rx;
-            _pageIds = rx ? PageOrderRX : PageOrderTX;
             _strip = rx ? _console.AetherStripRX : _console.AetherStripTX;
+            _pageIds = pagesFromOrder();
             _av = rx ? _setup.AetherVoiceRX : _setup.AetherVoiceTX;
             _strip.Changed += stripChanged;
             hookSetupTX(true);
@@ -456,6 +615,9 @@ namespace Thetis
             _tabRX.Checked = rx;
             _tabTX.Checked = !rx;
             _tips.SetToolTip(_btnBypass, "Bypass the whole " + (rx ? "receive" : "transmit") + " chain (strip and AetherVoice) without changing any settings.");
+            _tips.SetToolTip(_btnRec, rx ? "Record the processed receive audio." :
+                "Record your processed transmit audio: press REC, transmit into a dummy load, then press REC again to stop.");
+            _tips.SetToolTip(_btnPlay, "Play the last " + (rx ? "receive" : "transmit") + " recording through the PC's speakers (nothing is transmitted).");
             _list.Invalidate();
             ShowPage(_lastPage[rx ? 1 : 0]);
         }
@@ -492,6 +654,7 @@ namespace Thetis
             _pageTitle.Text = PageName(id);
             _logo.Visible = _bodyLbl.Visible = _clarityLbl.Visible = id == PageExciter;
             _viz.Visible = id != PageExciter && id != AetherStripDefs.Eq;
+            syncViewButtons();
 
             const int knobY = 300, step = 92;
             if (id == AetherStripDefs.Eq)
@@ -647,7 +810,40 @@ namespace Thetis
             else _strip.Set(_pageId, 0, _strip.Enabled(_pageId) ? 0 : 1);
         }
 
-        private void stripChanged(object sender, EventArgs e) { syncControls(); }
+        private void stripChanged(object sender, EventArgs e)
+        {
+            _pageIds = pagesFromOrder();      // a loaded profile may bring a different order
+            syncControls();
+        }
+
+        // the stage list follows the chain order; the Exciter slot is the AetherVoice page, and Final Output
+        // (the final limiter) is always last on transmit
+        private int[] pagesFromOrder()
+        {
+            List<int> pages = new List<int>();
+            foreach (int s in _strip.Order) pages.Add(s == AetherStripDefs.Exciter ? PageExciter : s);
+            if (!_rx) pages.Add(AetherStripDefs.Limiter);
+            return pages.ToArray();
+        }
+
+        // drag-and-drop in the stage list: move the page at 'from' to position 'to'
+        internal void MovePage(int from, int to)
+        {
+            int movable = _rx ? _pageIds.Length : _pageIds.Length - 1;      // Final Output stays last
+            if (from < 0 || from >= movable || to < 0 || to >= movable || from == to) return;
+            List<int> order = new List<int>(_strip.Order);
+            int s = order[from];
+            order.RemoveAt(from);
+            order.Insert(to, s);
+            _strip.SetOrder(order.ToArray());
+        }
+
+        internal int MovableCount { get { return _rx ? _pageIds.Length : _pageIds.Length - 1; } }
+
+        internal void ResetOrder()
+        {
+            _strip.SetOrder(AetherStrip.DefaultOrder(_rx));
+        }
         private void setupTXChanged(object sender, EventArgs e) { syncControls(); }
 
         private void hookSetupTX(bool add)
@@ -692,6 +888,7 @@ namespace Thetis
 
         private void tick()
         {
+            updateMonitorButtons();
             DSPMode mode = _rx ? _console.RX1DSPMode : _console.radio.GetDSPTX(0).CurrentDSPMode;
             // meters are live while transmitting (AetherTX) or receiving on RX1 (AetherRX)
             bool live = _console.PowerOn && (_rx ? !_console.MOX : _console.MOX);
@@ -1091,6 +1288,8 @@ namespace Thetis
         {
             private readonly frmAetherStrip _f;
             private int _hover = -1;
+            private int _down = -1, _downY, _drop = -1;     // drag-to-reorder
+            private bool _dragging;
 
             public StageList(frmAetherStrip f)
             {
@@ -1100,14 +1299,41 @@ namespace Thetis
                 Cursor = Cursors.Hand;
             }
 
-            protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); int h = e.Y / 38; if (h != _hover) { _hover = h; Invalidate(); } }
+            protected override void OnMouseMove(MouseEventArgs e)
+            {
+                base.OnMouseMove(e);
+                int h = e.Y / 38;
+                if (h != _hover) { _hover = h; Invalidate(); }
+                if (_down >= 0 && _down < _f.MovableCount && (e.Button & MouseButtons.Left) != 0)
+                {
+                    if (!_dragging && Math.Abs(e.Y - _downY) > 6) { _dragging = true; Cursor = Cursors.SizeNS; }
+                    if (_dragging)
+                    {
+                        int d = Math.Max(0, Math.Min(_f.MovableCount - 1, (int)Math.Round((e.Y - 17) / 38.0)));
+                        if (d != _drop) { _drop = d; Invalidate(); }
+                    }
+                }
+            }
+
             protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = -1; Invalidate(); }
 
             protected override void OnMouseDown(MouseEventArgs e)
             {
                 base.OnMouseDown(e);
                 int i = e.Y / 38;
-                if (i >= 0 && i < _f.Pages.Length) _f.ShowPage(_f.Pages[i]);
+                if (e.Button != MouseButtons.Left || i < 0 || i >= _f.Pages.Length) return;
+                _f.ShowPage(_f.Pages[i]);
+                _down = i; _downY = e.Y; _drop = i; _dragging = false;
+            }
+
+            protected override void OnMouseUp(MouseEventArgs e)
+            {
+                base.OnMouseUp(e);
+                if (_dragging && _drop >= 0 && _drop != _down) _f.MovePage(_down, _drop);
+                _down = _drop = -1;
+                _dragging = false;
+                Cursor = Cursors.Hand;
+                Invalidate();
             }
 
             protected override void OnPaint(PaintEventArgs e)
@@ -1129,7 +1355,17 @@ namespace Thetis
                             g.FillEllipse(b, 14, r.Y + 12, 10, 10);
                         using (Brush b = new SolidBrush(sel ? kText : kTextMid))
                             g.DrawString(_f.PageName(id), f, b, 34, r.Y + 8);
+                        if (i >= _f.MovableCount)   // Final Output: fixed at the end
+                            using (Font small = new Font("Segoe UI", 10f, GraphicsUnit.Pixel))
+                            using (Brush b = new SolidBrush(kTextDim))
+                                g.DrawString("last", small, b, Width - 32, r.Y + 11);
                     }
+                // where a dragged stage will land
+                if (_dragging && _drop >= 0)
+                {
+                    int y = _drop > _down ? (_drop + 1) * 38 - 2 : _drop * 38 - 2;
+                    using (Pen p = new Pen(kAmber, 3f)) g.DrawLine(p, 2, Math.Max(1, y), Width - 3, Math.Max(1, y));
+                }
             }
         }
 
@@ -1144,6 +1380,17 @@ namespace Thetis
             private readonly frmAetherStrip _f;
             private double _inDb = -120, _outDb = -120, _grDb = 0, _gr2Db = 0, _extraDb = -120;
             private bool _live;
+
+            // History view: the last 10 s of input, output and gain reduction, one point per meter tick (30 Hz)
+            private const int HistLen = 300;
+            private readonly double[] _hIn = new double[HistLen], _hOut = new double[HistLen], _hGr = new double[HistLen];
+            private int _hPos, _hPage = -1;
+            private readonly HashSet<int> _historyPages = new HashSet<int>();     // pages showing History instead of Curve
+            public bool History
+            {
+                get { return _historyPages.Contains(_f.PageId); }
+                set { if (value) _historyPages.Add(_f.PageId); else _historyPages.Remove(_f.PageId); Invalidate(); }
+            }
 
             public StripViz(frmAetherStrip f)
             {
@@ -1166,6 +1413,15 @@ namespace Thetis
                                                 s == AetherStripDefs.Limiter ? _f.Meter(s, 2) : -120);
                 }
                 else { _inDb = _outDb = _extraDb = -120; _grDb = _gr2Db = 0; }
+                if (_hPage != s)                     // a different stage: start its history afresh
+                {
+                    _hPage = s;
+                    for (int i = 0; i < HistLen; i++) { _hIn[i] = _hOut[i] = -120; _hGr[i] = 0; }
+                }
+                _hIn[_hPos] = _inDb;
+                _hOut[_hPos] = _outDb;
+                _hGr[_hPos] = Math.Min(_grDb, _gr2Db);
+                _hPos = (_hPos + 1) % HistLen;
                 Invalidate();
             }
 
@@ -1182,6 +1438,7 @@ namespace Thetis
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
                 using (Pen p = new Pen(kBorder)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
                 AetherStrip st = _f.Strip;
+                if (History) { drawHistory(g, st); return; }
                 Rectangle plot = new Rectangle(14, 14, Height - 28, Height - 28);       // square curve plot
                 Rectangle meters = new Rectangle(plot.Right + 30, 14, Width - plot.Right - 44, Height - 28);
                 switch (_f.PageId)
@@ -1216,6 +1473,73 @@ namespace Thetis
                     using (Brush b = new SolidBrush(kTextDim))
                         g.DrawString(_f.IsRX ? "Meters show while receiving on RX1 with this stage on" : "Meters show while transmitting with this stage on",
                             f, b, meters.X, meters.Bottom - 12);
+            }
+
+            // 10 s scrolling history across the whole panel: input (blue) and output (amber) levels on -60..0 dB,
+            // the stage's threshold or ceiling (dashed), and gain reduction hanging from the top in red (0..-30 dB)
+            private void drawHistory(Graphics g, AetherStrip st)
+            {
+                Rectangle r = new Rectangle(40, 12, Width - 56, Height - 34);
+                using (Brush b = new SolidBrush(Color.FromArgb(0x06, 0x0e, 0x17))) g.FillRectangle(b, r);
+                Func<double, float> Y = db => (float)(r.Bottom - r.Height * (Math.Max(-60, Math.Min(0, db)) + 60) / 60);
+                using (Pen grid = new Pen(kGrid))
+                using (Font f = new Font("Segoe UI", 10f, GraphicsUnit.Pixel))
+                using (Brush txt = new SolidBrush(kTextDim))
+                {
+                    for (int db = -60; db <= 0; db += 12)
+                    {
+                        g.DrawLine(grid, r.X, Y(db), r.Right, Y(db));
+                        g.DrawString(db.ToString(), f, txt, 8, Y(db) - 7);
+                    }
+                    for (int s = 0; s <= 10; s += 2)
+                    {
+                        float x = r.Right - r.Width * s / 10f;
+                        g.DrawLine(grid, x, r.Y, x, r.Bottom);
+                        g.DrawString(s == 0 ? "now" : "-" + s + " s", f, txt, x - 12, r.Bottom + 3);
+                    }
+                }
+                Func<int, float> X = i => r.X + r.Width * i / (float)(HistLen - 1);
+                // gain reduction: red area from the top
+                List<PointF> gr = new List<PointF> { new PointF(r.X, r.Y) };
+                for (int i = 0; i < HistLen; i++)
+                    gr.Add(new PointF(X(i), r.Y + r.Height * (float)Math.Min(1, -_hGr[(_hPos + i) % HistLen] / 30.0)));
+                gr.Add(new PointF(r.Right, r.Y));
+                using (Brush b = new SolidBrush(Color.FromArgb(90, 0xe0, 0x60, 0x40))) g.FillPolygon(b, gr.ToArray());
+                // threshold / ceiling
+                double thr = double.NaN;
+                switch (_f.PageId)
+                {
+                    case AetherStripDefs.Gate: thr = st.Get(AetherStripDefs.Gate, 2); break;
+                    case AetherStripDefs.Comp: thr = st.Get(AetherStripDefs.Comp, 1); break;
+                    case AetherStripDefs.DeEss: thr = st.Get(AetherStripDefs.DeEss, 3); break;
+                    case AetherStripDefs.Limiter: thr = st.Get(AetherStripDefs.Limiter, 1); break;
+                }
+                if (!double.IsNaN(thr))
+                    using (Pen p = new Pen(kText, 1f) { DashStyle = DashStyle.Dash }) g.DrawLine(p, r.X, Y(thr), r.Right, Y(thr));
+                // levels
+                foreach (var series in new[] { new { d = _hIn, c = Color.FromArgb(0x40, 0xa8, 0xf0) }, new { d = _hOut, c = kAmber } })
+                {
+                    PointF[] pts = new PointF[HistLen];
+                    for (int i = 0; i < HistLen; i++) pts[i] = new PointF(X(i), Y(series.d[(_hPos + i) % HistLen]));
+                    using (Pen p = new Pen(series.c, 1.6f)) g.DrawLines(p, pts);
+                }
+                using (Font f = new Font("Segoe UI", 10f, FontStyle.Bold, GraphicsUnit.Pixel))
+                {
+                    float lx = r.X + 6;
+                    foreach (var key in new[] { new { t = "In", c = Color.FromArgb(0x40, 0xa8, 0xf0) }, new { t = "Out", c = kAmber },
+                                               new { t = "Gain reduction", c = Color.FromArgb(0xe0, 0x60, 0x40) },
+                                               new { t = double.IsNaN(thr) ? "" : (_f.PageId == AetherStripDefs.Limiter ? "Ceiling" : "Threshold"), c = kText } })
+                    {
+                        if (key.t == "") continue;
+                        using (Brush b = new SolidBrush(key.c)) g.DrawString(key.t, f, b, lx, r.Y + 4);
+                        lx += g.MeasureString(key.t, f).Width + 12;
+                    }
+                }
+                if (!_live)
+                    using (Font f = new Font("Segoe UI", 11f, GraphicsUnit.Pixel))
+                    using (Brush b = new SolidBrush(kTextDim))
+                        g.DrawString(_f.IsRX ? "Shows while receiving on RX1 with this stage on" : "Shows while transmitting with this stage on",
+                            f, b, r.Right - 300, r.Bottom - 18);
             }
 
             // AetherSDR ClientGate::staticCurveGainDb
