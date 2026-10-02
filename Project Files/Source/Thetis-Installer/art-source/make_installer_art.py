@@ -1,8 +1,11 @@
+# Makes the Kainos installer pictures (binary/kainos_background.bmp and binary/kainos_banner.bmp) from the Kainos
+# splash. Run from anywhere: python make_installer_art.py (needs Pillow).
+import os
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageEnhance
 
-SRC = r'C:\Users\Justin\projects\Kainos-dev\Kainos\Project Files\Source\Console\Resources\kainos-splash.png'
-OUT = r'C:\Users\Justin\projects\Kainos-dev\Kainos\Project Files\Source\Thetis-Installer\binary'
-PREV = r'C:\Users\Justin\AppData\Local\Temp\radeui'
+HERE = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.join(HERE, '..', '..', 'Console', 'Resources', 'kainos-splash.png')
+OUT = os.path.join(HERE, '..', 'binary')
 
 splash = Image.open(SRC).convert('RGB')          # 720 x 307
 NAVY = (5, 11, 19)
@@ -53,8 +56,7 @@ paste_light(panel, tg, (panel_w - tg.width) // 2, 142 + wd.height + 8)
 bg.paste(panel, (0, 0))
 # a thin gold edge between the panel and the page (Kainos gold)
 ImageDraw.Draw(bg).line((panel_w, 0, panel_w, 312), fill=(212, 173, 106), width=2)
-bg.save(OUT + r'\kainos_background.bmp')
-bg.save(PREV + r'\kainos_background.png')
+bg.save(os.path.join(OUT, 'kainos_background.bmp'))
 
 # ---- the banner (493 x 58): white for the page title, a Kainos tile at the right ----
 bn = Image.new('RGB', (493, 58), (255, 255, 255))
@@ -71,6 +73,5 @@ d = ImageDraw.Draw(fade)
 for x in range(18):
     d.line((x, 0, x, 58), fill=int(255 * x / 18))
 bn.paste(tile, (493 - tile_w, 0), fade)
-bn.save(OUT + r'\kainos_banner.bmp')
-bn.save(PREV + r'\kainos_banner.png')
+bn.save(os.path.join(OUT, 'kainos_banner.bmp'))
 print('ok')
