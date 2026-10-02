@@ -143,6 +143,7 @@ namespace Thetis
                     case "depth": Display.Kainos3DDepth = Math.Max(5, Math.Min(100, v)); break;
                     case "rate": Display.Kainos3DRate = Math.Max(1, Math.Min(30, v)); break;
                     case "height": Display.Kainos3DHeight = Math.Max(10, Math.Min(80, v)) / 100f; break;
+                    case "colours": Display.Kainos3DWaterfallColours = v == 1; break;
                 }
             }
             if (_kb3D != null) _kb3D.Invalidate();
@@ -151,7 +152,7 @@ namespace Thetis
         private void kainos3DSave()
         {
             Kainos3DSettings = "on=" + (Display.Kainos3D ? 1 : 0) + ";depth=" + Display.Kainos3DDepth + ";rate=" + Display.Kainos3DRate
-                               + ";height=" + (int)Math.Round(Display.Kainos3DHeight * 100);
+                               + ";height=" + (int)Math.Round(Display.Kainos3DHeight * 100) + ";colours=" + (Display.Kainos3DWaterfallColours ? 1 : 0);
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
             if (_kb3D != null) _kb3D.Invalidate();
         }
@@ -176,6 +177,14 @@ namespace Thetis
             group("Speed", new[] { 5, 10, 20 }, () => Display.Kainos3DRate, v => Display.Kainos3DRate = v, " a second");
             menu.Items.Add(new ToolStripSeparator());
             group("Height", new[] { 25, 35, 50 }, () => (int)Math.Round(Display.Kainos3DHeight * 100), v => Display.Kainos3DHeight = v / 100f, "% of the panadapter");
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(new ToolStripMenuItem("Colours") { Enabled = false });
+            ToolStripMenuItem wf = new ToolStripMenuItem("   Waterfall's (by strength)") { Checked = Display.Kainos3DWaterfallColours, ForeColor = KainosUI.Text };
+            wf.Click += (s, e) => { Display.Kainos3DWaterfallColours = true; kainos3DSave(); };
+            ToolStripMenuItem ice = new ToolStripMenuItem("   Kainos blue") { Checked = !Display.Kainos3DWaterfallColours, ForeColor = KainosUI.Text };
+            ice.Click += (s, e) => { Display.Kainos3DWaterfallColours = false; kainos3DSave(); };
+            menu.Items.Add(wf);
+            menu.Items.Add(ice);
             menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
             menu.Show(Cursor.Position);
         }

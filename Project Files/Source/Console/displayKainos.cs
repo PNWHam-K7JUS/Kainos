@@ -83,6 +83,7 @@ namespace Thetis
         public static int Kainos3DDepth = 40;           // traces in the stack
         public static int Kainos3DRate = 10;            // traces taken a second
         public static float Kainos3DHeight = 0.35f;     // how far up the stack reaches, as part of the panadapter's height
+        public static bool Kainos3DWaterfallColours = true;     // the lines in the waterfall's colours by strength (or Kainos ice)
 
         private class K3DTrace { public PathGeometry Geometry; }
         private class K3DStack
@@ -154,7 +155,20 @@ namespace Thetis
                 }
                 st.Traces.Insert(0, new K3DTrace { Geometry = g });
                 while (st.Traces.Count > Math.Max(2, Kainos3DDepth)) { st.Traces[st.Traces.Count - 1].Geometry?.Dispose(); st.Traces.RemoveAt(st.Traces.Count - 1); }
-                k3dRender(st, W, H);
+                // the waterfall's levels for this receiver (its AGC levels when waterfall AGC is on)
+                float wfLow, wfHigh;
+                if (rx == 1)
+                {
+                    wfHigh = waterfall_high_threshold;
+                    wfLow = rx1_waterfall_agc && !m_bRX1_spectrum_thresholds ? _RX1waterfallPreviousMinValue - m_fWaterfallAGCOffsetRX1 : waterfall_low_threshold;
+                }
+                else
+                {
+                    wfHigh = rx2_waterfall_high_threshold;
+                    wfLow = rx2_waterfall_agc && !m_bRX2_spectrum_thresholds ? _RX2waterfallPreviousMinValue - m_fWaterfallAGCOffsetRX2 : rx2_waterfall_low_threshold;
+                }
+                if (wfHigh - wfLow < 5) wfHigh = wfLow + 5;
+                k3dRender(st, W, H, (grid_max - wfLow) * dbmToPixel, (grid_max - wfHigh) * dbmToPixel);
             }
 
             // every frame: paste the stack behind the live trace
@@ -165,8 +179,21 @@ namespace Thetis
             }
         }
 
+        private static GradientStop[] k3dStops()
+        {
+            GradientStop[] g = new GradientStop[K3DStopPos.Length];
+            for (int i = 0; i < g.Length; i++)
+                g[i] = new GradientStop { Position = K3DStopPos[i], Color = new RawColor4(K3DStopRgb[i, 0] / 255f, K3DStopRgb[i, 1] / 255f, K3DStopRgb[i, 2] / 255f, 1f) };
+            return g;
+        }
+
         // draw the stack, back to front, into the offscreen image; the newest kept trace sits one step behind the live one
-        private static void k3dRender(K3DStack st, int W, int H)
+        // the waterfall's "enhanced" colours, from its low level (0) to its high level (1); a dim blue at the bottom
+        // instead of the waterfall's background, so the noise floor's lines still show
+        private static readonly float[] K3DStopPos = { 0f, 2f / 9, 3f / 9, 4f / 9, 5f / 9, 7f / 9, 8f / 9, 1f };
+        private static readonly int[,] K3DStopRgb = { { 0, 0, 120 }, { 0, 0, 255 }, { 0, 255, 255 }, { 0, 255, 0 }, { 255, 255, 0 }, { 255, 0, 0 }, { 255, 0, 255 }, { 192, 124, 255 } };
+
+        private static void k3dRender(K3DStack st, int W, int H, float yLow, float yHigh)
         {
             if (st.Image == null)
             {
@@ -177,6 +204,8 @@ namespace Thetis
             SharpDX.Color4 bgc = m_cDX2_display_background_clear_colour;
             using (SolidColorBrush fill = new SolidColorBrush(rt, new RawColor4(bgc.Red, bgc.Green, bgc.Blue, 0.92f)))
             using (SolidColorBrush line = new SolidColorBrush(rt, new RawColor4(0x7f / 255f, 0xb0 / 255f, 0xcc / 255f, 1f)))
+            using (GradientStopCollection stops = new GradientStopCollection(rt, k3dStops(), ExtendMode.Clamp))
+            using (LinearGradientBrush rainbow = new LinearGradientBrush(rt, new LinearGradientBrushProperties { StartPoint = new RawVector2(0, yLow), EndPoint = new RawVector2(0, yHigh) }, stops))
             {
                 rt.BeginDraw();
                 rt.Clear(new RawColor4(0, 0, 0, 0));
@@ -187,8 +216,19 @@ namespace Thetis
                     float depth = (k + 1) / (float)Math.Max(1, Kainos3DDepth);            // 0 near .. 1 far
                     rt.Transform = new RawMatrix3x2(1, 0, 0, 1, dx * (k + 1), -dy * (k + 1));
                     rt.FillGeometry(st.Traces[k].Geometry, fill);
-                    line.Color = new RawColor4(0x7f / 255f, 0xb0 / 255f, 0xcc / 255f, 0.67f * (1 - depth * 0.9f));    // Kainos ice, fading into the distance
-                    rt.DrawGeometry(st.Traces[k].Geometry, line, 1f);
+                    // fading into the distance; the gradient moves with the trace (the transform applies to brushes
+                    // too), so each line is coloured by its own levels
+                    float fade = 1 - depth * 0.85f;
+                    if (Kainos3DWaterfallColours)
+                    {
+                        rainbow.Opacity = 0.85f * fade;
+                        rt.DrawGeometry(st.Traces[k].Geometry, rainbow, 1f);
+                    }
+                    else
+                    {
+                        line.Color = new RawColor4(0x7f / 255f, 0xb0 / 255f, 0xcc / 255f, 0.67f * (1 - depth * 0.9f));    // Kainos ice
+                        rt.DrawGeometry(st.Traces[k].Geometry, line, 1f);
+                    }
                 }
                 rt.Transform = new RawMatrix3x2(1, 0, 0, 1, 0, 0);
                 rt.EndDraw();
