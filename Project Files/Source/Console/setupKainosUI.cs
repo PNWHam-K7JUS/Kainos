@@ -30,6 +30,9 @@ namespace Thetis
     {
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale;
+        // saved with the options: which right-column tabs are on, and the METERS tab's meter container
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered;
+        private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
         {
@@ -79,12 +82,36 @@ namespace Thetis
             grp.Controls.Add(note);
             tpAppearanceKainos.Controls.Add(grp);
 
+            txtKainosColumnTabs = new TextBoxTS { Name = "txtKainosColumnTabs", Visible = false, Text = "meters,band" };
+            txtKainosMeterId = new TextBoxTS { Name = "txtKainosMeterId", Visible = false, Text = "" };
+            txtKainosMeterType = new TextBoxTS { Name = "txtKainosMeterType", Visible = false, Text = "ANANMM" };
+            txtKainosFtdxOffered = new TextBoxTS { Name = "txtKainosFtdxOffered", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosColumnTabs);
+            tpAppearanceKainos.Controls.Add(txtKainosMeterId);
+            tpAppearanceKainos.Controls.Add(txtKainosMeterType);
+            tpAppearanceKainos.Controls.Add(txtKainosFtdxOffered);
+
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
 
         // called from ForceAllEvents at startup, and when the setting changes
         private void applyKainosUI()
         {
+            if (!_kainosSettingsHooked)
+            {
+                _kainosSettingsHooked = true;
+                console.KainosSettingsChanged += (s, e) =>
+                {
+                    txtKainosColumnTabs.Text = console.KainosColumnTabs;
+                    txtKainosMeterId.Text = console.KainosMeterId;
+                    txtKainosMeterType.Text = console.KainosMeterType;
+                    txtKainosFtdxOffered.Text = console.KainosFtdxOffered ? "1" : "";
+                };
+            }
+            console.KainosColumnTabs = txtKainosColumnTabs.Text;
+            console.KainosMeterId = txtKainosMeterId.Text;
+            console.KainosMeterType = string.IsNullOrEmpty(txtKainosMeterType.Text) ? "ANANMM" : txtKainosMeterType.Text;
+            console.KainosFtdxOffered = txtKainosFtdxOffered.Text == "1";
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;

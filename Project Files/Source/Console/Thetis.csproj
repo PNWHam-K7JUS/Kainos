@@ -675,6 +675,14 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="consoleKainosColumn.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="consoleKainosTabs.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosDock.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
