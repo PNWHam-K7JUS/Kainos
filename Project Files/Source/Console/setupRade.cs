@@ -36,13 +36,16 @@ namespace Thetis
         public CheckBoxTS MicRNNoise, MicAGC, MicEQ;
         public NumericUpDownTS MicAGCTarget;                        // LUFS
         public NumericUpDownTS BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol;
+        public TextBoxTS Grid, ReporterMessage;                     // FreeDV Reporter
+        public CheckBoxTS Reporting, IgnoreQsy, ReporterUtc;
 
         public Control[] All
         {
             get
             {
                 return new Control[] { Callsign, Version, MicLevel, RxLevel, MicRNNoise, MicAGC, MicEQ, MicAGCTarget,
-                                       BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol };
+                                       BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol,
+                                       Grid, ReporterMessage, Reporting, IgnoreQsy, ReporterUtc };
             }
         }
     }
@@ -124,13 +127,36 @@ namespace Thetis
 
             LabelTS note = avLabel("RADE (Radio Autoencoder) is FreeDV's machine-learning digital voice mode, by David Rowe " +
                 "and the FreeDV project. It is ported into Kainos from Thetis-RADE by Christos Nikolaou, SV1EIA.\r\n\r\n" +
-                "Tune with the mode set to DIGU or DIGL as you would for any digital mode, using the usual RADE frequencies " +
-                "(e.g. 14.236 MHz). The filter should pass at least 300 to 2700 Hz.\r\n\r\n" +
-                "Noise reduction, NB2 and the auto-notch are switched off when RADE starts, because they damage the signal.\r\n\r\n" +
-                "Test transmit into a dummy load first.", 450, 16);
+                "The RX filter should pass at least 300 to 2700 Hz. Noise reduction, NB2 and the auto-notch are switched " +
+                "off when RADE starts, because they damage the signal. Test transmit into a dummy load first.", 450, 12);
             note.AutoSize = false;
-            note.Size = new Size(264, 300);
+            note.Size = new Size(264, 140);
             tpDSPRade.Controls.Add(note);
+
+            // FreeDV Reporter (qso.freedv.org)
+            GroupBoxTS rep = new GroupBoxTS { Name = "grpRadeReporter", Text = "FreeDV Reporter (qso.freedv.org)", Location = new Point(450, 156), Size = new Size(264, 192) };
+            r.Grid = new TextBoxTS { Name = "txtRadeGrid", Location = new Point(100, 20), Size = new Size(70, 20), CharacterCasing = CharacterCasing.Upper, MaxLength = 6 };
+            r.ReporterMessage = new TextBoxTS { Name = "txtRadeReporterMessage", Location = new Point(10, 64), Size = new Size(244, 20), MaxLength = 64 };
+            r.Reporting = new CheckBoxTS { Name = "chkRadeReporting", Text = "Report my station while RADE is on", Location = new Point(10, 94), AutoSize = true };
+            r.IgnoreQsy = new CheckBoxTS { Name = "chkRadeIgnoreQsy", Text = "Ignore QSY requests", Location = new Point(10, 118), AutoSize = true };
+            r.ReporterUtc = new CheckBoxTS { Name = "chkRadeReporterUtc", Text = "Show times in UTC", Location = new Point(10, 142), AutoSize = true, Checked = true };
+            toolTip1.SetToolTip(r.Grid, "Your Maidenhead grid square (4 or 6 characters), e.g. CN87. Needed, with your callsign, to report.");
+            toolTip1.SetToolTip(r.ReporterMessage, "A short message shown next to your station on the reporter, e.g. your rig and antenna.");
+            toolTip1.SetToolTip(r.Reporting, "While RADE is on, publish your callsign, grid square, frequency, when you transmit and the\r\n" +
+                "stations you decode (with SNR) to qso.freedv.org, as FreeDV-GUI does. Off: the Reporter window\r\n" +
+                "only shows other stations and nothing about you is sent.");
+            toolTip1.SetToolTip(r.IgnoreQsy, "Don't pop up a message when another station asks you to QSY.");
+            rep.Controls.Add(avLabel("Grid square", 10, 23));
+            rep.Controls.Add(r.Grid);
+            rep.Controls.Add(avLabel("Message", 10, 46));
+            rep.Controls.Add(r.ReporterMessage);
+            rep.Controls.Add(r.Reporting);
+            rep.Controls.Add(r.IgnoreQsy);
+            rep.Controls.Add(r.ReporterUtc);
+            LabelTS repHint = avLabel("Open the reporter from the FreeDV window.", 10, 166);
+            repHint.ForeColor = SystemColors.GrayText;
+            rep.Controls.Add(repHint);
+            tpDSPRade.Controls.Add(rep);
 
             foreach (Control c in r.All)
             {
@@ -158,10 +184,15 @@ namespace Thetis
             applyRade();
         }
 
+        private int _radeVersionReported = -1;
+
         // called from ForceAllEvents at startup, and whenever a setting changes
         private void applyRade()
         {
             RadeSetupControls r = _rade;
+            console.RadeIgnoreQsyRequest = r.IgnoreQsy.Checked;
+            console.RadeReporterTimesUtc = r.ReporterUtc.Checked;
+            FreeDVReporter.FreeDVReporterManager.Configure(console, r.Callsign.Text, r.Grid.Text, r.ReporterMessage.Text, r.Reporting.Checked);
             try
             {
                 console.RadeCallsign = r.Callsign.Text;
@@ -176,6 +207,11 @@ namespace Thetis
                 Rade.SetRadaeMicEQTreble((double)r.TrebleFreq.Value, (double)r.TrebleGain.Value);
                 Rade.SetRadaeMicEQVol((double)r.EQVol.Value);
                 Rade.SetRadaeMicEQEnabled(r.MicEQ.Checked ? 1 : 0);
+                if (r.Version.SelectedIndex != _radeVersionReported)
+                {
+                    _radeVersionReported = r.Version.SelectedIndex;
+                    FreeDVReporter.FreeDVReporterManager.NotifyProtocolChanged();
+                }
             }
             catch (DllNotFoundException) { }
             catch (EntryPointNotFoundException) { }

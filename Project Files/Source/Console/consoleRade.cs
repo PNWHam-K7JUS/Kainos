@@ -63,6 +63,10 @@ namespace Thetis
         #region Enable
 
         // the callsign sent in each over's end-of-over frame (from Setup > DSP > FreeDV (RADE))
+        // FreeDV Reporter options (Setup > DSP > FreeDV (RADE)), read by the reporter window
+        public bool RadeIgnoreQsyRequest { get; set; }
+        public bool RadeReporterTimesUtc { get; set; } = true;
+
         private volatile string _radeCallsign = "";
         public string RadeCallsign
         {
@@ -127,6 +131,7 @@ namespace Thetis
             }
 
             RadeEnabledChanged?.Invoke(this, EventArgs.Empty);
+            FreeDVReporter.FreeDVReporterManager.Update(this);     // report while RADE is on, if asked to
             return true;
         }
 

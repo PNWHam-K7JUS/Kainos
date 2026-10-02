@@ -688,6 +688,12 @@
     <Compile Include="frmFreeDV.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="FreeDVReporter\FreeDVReporterClient.cs" />
+    <Compile Include="FreeDVReporter\FreeDVReporterForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FreeDVReporter\FreeDVReporterManager.cs" />
+    <Compile Include="FreeDVReporter\Maidenhead.cs" />
     <Compile Include="kainosRade.cs" />
     <Compile Include="console.cs">
       <SubType>Form</SubType>
