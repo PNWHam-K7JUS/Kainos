@@ -379,6 +379,15 @@ namespace Thetis
         private readonly List<AetherToggleButton> _extraButtons = new List<AetherToggleButton>();
         private readonly List<KeyValuePair<AetherStripParam, AetherKnob>> _knobs = new List<KeyValuePair<AetherStripParam, AetherKnob>>();
         private readonly StripViz _viz;
+        private readonly AetherToggleButton _btnCurve, _btnHistory;
+
+        private void syncViewButtons()
+        {
+            bool show = _viz.Visible;
+            _btnCurve.Visible = _btnHistory.Visible = show;
+            _pageNote.Width = show ? 550 : 690;
+            if (show) { _btnCurve.Checked = !_viz.History; _btnHistory.Checked = _viz.History; _btnCurve.BringToFront(); _btnHistory.BringToFront(); }
+        }
         private readonly AetherVoiceLogo _logo;
         private readonly AetherBracketLabel _bodyLbl, _clarityLbl;
         private readonly ToolTip _tips = new ToolTip();
@@ -474,6 +483,14 @@ namespace Thetis
             _btnOn = new AetherToggleButton { Text = "ON", Bypass = true, Location = new Point(632, 2), Size = new Size(60, 26) };
             _btnOn.Click += (s, e) => toggleStage();
             _viz = new StripViz(this) { Location = new Point(0, 56), Size = new Size(692, 230) };
+            _btnCurve = new AetherToggleButton { Text = "Curve", Location = new Point(560, 30), Size = new Size(60, 22) };
+            _btnHistory = new AetherToggleButton { Text = "History", Location = new Point(624, 30), Size = new Size(64, 22) };
+            _btnCurve.Click += (s, e) => { _viz.History = false; syncViewButtons(); };
+            _btnHistory.Click += (s, e) => { _viz.History = true; syncViewButtons(); };
+            _tips.SetToolTip(_btnCurve, "Show the stage's curve and meters.");
+            _tips.SetToolTip(_btnHistory, "Show the last 10 seconds of level and gain reduction.");
+            _page.Controls.Add(_btnCurve);
+            _page.Controls.Add(_btnHistory);
             _logo = new AetherVoiceLogo { Location = new Point(40, 100), Size = new Size(612, 110), Visible = false };
             _page.Controls.Add(_pageTitle);
             _page.Controls.Add(_pageNote);
@@ -549,6 +566,7 @@ namespace Thetis
             _pageTitle.Text = PageName(id);
             _logo.Visible = _bodyLbl.Visible = _clarityLbl.Visible = id == PageExciter;
             _viz.Visible = id != PageExciter && id != AetherStripDefs.Eq;
+            syncViewButtons();
 
             const int knobY = 300, step = 92;
             if (id == AetherStripDefs.Eq)
@@ -1274,6 +1292,17 @@ namespace Thetis
             private double _inDb = -120, _outDb = -120, _grDb = 0, _gr2Db = 0, _extraDb = -120;
             private bool _live;
 
+            // History view: the last 10 s of input, output and gain reduction, one point per meter tick (30 Hz)
+            private const int HistLen = 300;
+            private readonly double[] _hIn = new double[HistLen], _hOut = new double[HistLen], _hGr = new double[HistLen];
+            private int _hPos, _hPage = -1;
+            private readonly HashSet<int> _historyPages = new HashSet<int>();     // pages showing History instead of Curve
+            public bool History
+            {
+                get { return _historyPages.Contains(_f.PageId); }
+                set { if (value) _historyPages.Add(_f.PageId); else _historyPages.Remove(_f.PageId); Invalidate(); }
+            }
+
             public StripViz(frmAetherStrip f)
             {
                 _f = f;
@@ -1295,6 +1324,15 @@ namespace Thetis
                                                 s == AetherStripDefs.Limiter ? _f.Meter(s, 2) : -120);
                 }
                 else { _inDb = _outDb = _extraDb = -120; _grDb = _gr2Db = 0; }
+                if (_hPage != s)                     // a different stage: start its history afresh
+                {
+                    _hPage = s;
+                    for (int i = 0; i < HistLen; i++) { _hIn[i] = _hOut[i] = -120; _hGr[i] = 0; }
+                }
+                _hIn[_hPos] = _inDb;
+                _hOut[_hPos] = _outDb;
+                _hGr[_hPos] = Math.Min(_grDb, _gr2Db);
+                _hPos = (_hPos + 1) % HistLen;
                 Invalidate();
             }
 
@@ -1311,6 +1349,7 @@ namespace Thetis
                 g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
                 using (Pen p = new Pen(kBorder)) g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
                 AetherStrip st = _f.Strip;
+                if (History) { drawHistory(g, st); return; }
                 Rectangle plot = new Rectangle(14, 14, Height - 28, Height - 28);       // square curve plot
                 Rectangle meters = new Rectangle(plot.Right + 30, 14, Width - plot.Right - 44, Height - 28);
                 switch (_f.PageId)
@@ -1345,6 +1384,73 @@ namespace Thetis
                     using (Brush b = new SolidBrush(kTextDim))
                         g.DrawString(_f.IsRX ? "Meters show while receiving on RX1 with this stage on" : "Meters show while transmitting with this stage on",
                             f, b, meters.X, meters.Bottom - 12);
+            }
+
+            // 10 s scrolling history across the whole panel: input (blue) and output (amber) levels on -60..0 dB,
+            // the stage's threshold or ceiling (dashed), and gain reduction hanging from the top in red (0..-30 dB)
+            private void drawHistory(Graphics g, AetherStrip st)
+            {
+                Rectangle r = new Rectangle(40, 12, Width - 56, Height - 34);
+                using (Brush b = new SolidBrush(Color.FromArgb(0x06, 0x0e, 0x17))) g.FillRectangle(b, r);
+                Func<double, float> Y = db => (float)(r.Bottom - r.Height * (Math.Max(-60, Math.Min(0, db)) + 60) / 60);
+                using (Pen grid = new Pen(kGrid))
+                using (Font f = new Font("Segoe UI", 10f, GraphicsUnit.Pixel))
+                using (Brush txt = new SolidBrush(kTextDim))
+                {
+                    for (int db = -60; db <= 0; db += 12)
+                    {
+                        g.DrawLine(grid, r.X, Y(db), r.Right, Y(db));
+                        g.DrawString(db.ToString(), f, txt, 8, Y(db) - 7);
+                    }
+                    for (int s = 0; s <= 10; s += 2)
+                    {
+                        float x = r.Right - r.Width * s / 10f;
+                        g.DrawLine(grid, x, r.Y, x, r.Bottom);
+                        g.DrawString(s == 0 ? "now" : "-" + s + " s", f, txt, x - 12, r.Bottom + 3);
+                    }
+                }
+                Func<int, float> X = i => r.X + r.Width * i / (float)(HistLen - 1);
+                // gain reduction: red area from the top
+                List<PointF> gr = new List<PointF> { new PointF(r.X, r.Y) };
+                for (int i = 0; i < HistLen; i++)
+                    gr.Add(new PointF(X(i), r.Y + r.Height * (float)Math.Min(1, -_hGr[(_hPos + i) % HistLen] / 30.0)));
+                gr.Add(new PointF(r.Right, r.Y));
+                using (Brush b = new SolidBrush(Color.FromArgb(90, 0xe0, 0x60, 0x40))) g.FillPolygon(b, gr.ToArray());
+                // threshold / ceiling
+                double thr = double.NaN;
+                switch (_f.PageId)
+                {
+                    case AetherStripDefs.Gate: thr = st.Get(AetherStripDefs.Gate, 2); break;
+                    case AetherStripDefs.Comp: thr = st.Get(AetherStripDefs.Comp, 1); break;
+                    case AetherStripDefs.DeEss: thr = st.Get(AetherStripDefs.DeEss, 3); break;
+                    case AetherStripDefs.Limiter: thr = st.Get(AetherStripDefs.Limiter, 1); break;
+                }
+                if (!double.IsNaN(thr))
+                    using (Pen p = new Pen(kText, 1f) { DashStyle = DashStyle.Dash }) g.DrawLine(p, r.X, Y(thr), r.Right, Y(thr));
+                // levels
+                foreach (var series in new[] { new { d = _hIn, c = Color.FromArgb(0x40, 0xa8, 0xf0) }, new { d = _hOut, c = kAmber } })
+                {
+                    PointF[] pts = new PointF[HistLen];
+                    for (int i = 0; i < HistLen; i++) pts[i] = new PointF(X(i), Y(series.d[(_hPos + i) % HistLen]));
+                    using (Pen p = new Pen(series.c, 1.6f)) g.DrawLines(p, pts);
+                }
+                using (Font f = new Font("Segoe UI", 10f, FontStyle.Bold, GraphicsUnit.Pixel))
+                {
+                    float lx = r.X + 6;
+                    foreach (var key in new[] { new { t = "In", c = Color.FromArgb(0x40, 0xa8, 0xf0) }, new { t = "Out", c = kAmber },
+                                               new { t = "Gain reduction", c = Color.FromArgb(0xe0, 0x60, 0x40) },
+                                               new { t = double.IsNaN(thr) ? "" : (_f.PageId == AetherStripDefs.Limiter ? "Ceiling" : "Threshold"), c = kText } })
+                    {
+                        if (key.t == "") continue;
+                        using (Brush b = new SolidBrush(key.c)) g.DrawString(key.t, f, b, lx, r.Y + 4);
+                        lx += g.MeasureString(key.t, f).Width + 12;
+                    }
+                }
+                if (!_live)
+                    using (Font f = new Font("Segoe UI", 11f, GraphicsUnit.Pixel))
+                    using (Brush b = new SolidBrush(kTextDim))
+                        g.DrawString(_f.IsRX ? "Shows while receiving on RX1 with this stage on" : "Shows while transmitting with this stage on",
+                            f, b, r.Right - 300, r.Bottom - 18);
             }
 
             // AetherSDR ClientGate::staticCurveGainDb
