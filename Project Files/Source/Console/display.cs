@@ -5460,6 +5460,7 @@ namespace Thetis
             {
                 SharpDX.RectangleF clipRect = new SharpDX.RectangleF(0, nVerticalShift, W, H);
                 _d2dRenderTarget.PushAxisAlignedClip(clipRect, AntialiasMode.Aliased);
+                drawKainos3DStack(rx, W, H, nVerticalShift, data, nDecimatedWidth, m_nDecimation, fOffset, grid_max, grid_min, dbmToPixel, local_mox);     // Kainos: 3D stacked traces (displayKainos.cs)
 
                 // modify the data for visual notches
                 if (bDoVisualNotch && m_bShowVisualNotch && !local_mox)

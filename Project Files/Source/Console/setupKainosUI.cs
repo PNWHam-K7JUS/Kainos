@@ -34,7 +34,7 @@ namespace Thetis
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -101,6 +101,8 @@ namespace Thetis
             txtKainosCwMacros = new TextBoxTS { Name = "txtKainosCwMacros", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosRttyMacros);
             tpAppearanceKainos.Controls.Add(txtKainosCwMacros);
+            txtKainos3D = new TextBoxTS { Name = "txtKainos3D", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainos3D);
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
@@ -121,6 +123,7 @@ namespace Thetis
                     txtKainosCw.Text = console.KainosCwSettings;
                     txtKainosRttyMacros.Text = console.KainosRttyMacros;
                     txtKainosCwMacros.Text = console.KainosCwMacros;
+                    txtKainos3D.Text = console.Kainos3DSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -135,6 +138,8 @@ namespace Thetis
             console.KainosCwMacros = txtKainosCwMacros.Text;
             console.RttyMacrosLoaded();
             console.CwMacrosLoaded();
+            console.Kainos3DSettings = txtKainos3D.Text;
+            console.Kainos3DLoad();
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;

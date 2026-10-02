@@ -258,6 +258,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
   - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
+### 3D stacked-trace panadapter
+
+- The 3D button on the panadapter bar (right click: depth 20-80 traces, speed 5-20 a second, height 25-50% of the panadapter): behind the live trace, the last few seconds of traces stacked back into the distance (AetherSDR's stacked-trace panadapter), each older one a step up and to the right, dimmer (Kainos ice), and filled with the background so nearer traces hide the ones behind. Saved in a hidden Setup box (`txtKainos3D`).
+- Speed: a trace becomes a Direct2D path geometry once, when it's taken (the speed setting, not every frame), points every other pixel (the higher of the two); each frame redraws the kept geometries moved back by a transform. The history clears when the span, size, scale, decimation or TX/RX changes. One call in `DrawPanadapterDX2D` (after its clip is pushed, before the live trace); the drawing is in `displayKainos.cs`.
+
 ### RTTY (native)
 
 - The RTTY menu item (next to CWX) opens a terminal. In Kainos layout it splits the screen: it docks under the panadapter, which gives up its height (`kainosRttyDockHeight`), and Pop out moves it to its own window (always a window in Classic).

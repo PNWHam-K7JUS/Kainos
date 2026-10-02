@@ -37,6 +37,7 @@ namespace Thetis
         private Panel _kainosBar;
         private KainosSlider _kbPan, _kbPanMain, _kbPanSub, _kbZoom;
         private KainosButtonGrid _kbCenter, _kbRx, _kbDisp, _kbZoomButtons;
+        private KainosActionGrid _kb3D;
         private KainosDropDown _kbMode;
         private KainosButtonGrid _kbInfo1, _kbInfo2;
 
@@ -64,7 +65,10 @@ namespace Thetis
                 _kbDisp = new KainosButtonGrid(3, KainosUI.Tone.Ice);
                 _kbZoom = new KainosSlider(ptbDisplayZoom, "ZOOM", true);
                 _kbZoomButtons = new KainosButtonGrid(5, KainosUI.Tone.Gold);
-                _kainosBar.Controls.AddRange(new Control[] { _kbPan, _kbCenter, _kbPanMain, _kbPanSub, _kbRx, _kbMode, _kbDisp, _kbZoom, _kbZoomButtons });
+                // 3D: the stacked-trace panadapter (displayKainos.cs); a right click sets its depth and speed
+                _kb3D = new KainosActionGrid(1);
+                _kb3D.Add("3D", () => Display.Kainos3D, () => { Display.Kainos3D = !Display.Kainos3D; kainos3DSave(); }, KainosUI.Tone.Gold, kainos3DMenu);
+                _kainosBar.Controls.AddRange(new Control[] { _kbPan, _kbCenter, _kbPanMain, _kbPanSub, _kbRx, _kbMode, _kbDisp, _kb3D, _kbZoom, _kbZoomButtons });
             }
             _kbCenter.SetTargets(new ButtonBase[] { btnDisplayPanCenter });
             _kbRx.SetTargets(new ButtonBase[] { chkEnableMultiRX, chkPanSwap });
@@ -122,6 +126,60 @@ namespace Thetis
             if (proxy.Visible != on) proxy.Visible = on;
         }
 
+        // ---- the 3D stacked-trace panadapter: its settings, saved with the options (a hidden Setup box) ----
+        // "on=1;depth=40;rate=10;height=35"
+        public string Kainos3DSettings = "";
+
+        internal void Kainos3DLoad()
+        {
+            foreach (string kv in (Kainos3DSettings ?? "").Split(';'))
+            {
+                string[] p = kv.Split('=');
+                int v;
+                if (p.Length != 2 || !int.TryParse(p[1], out v)) continue;
+                switch (p[0])
+                {
+                    case "on": Display.Kainos3D = v == 1; break;
+                    case "depth": Display.Kainos3DDepth = Math.Max(5, Math.Min(100, v)); break;
+                    case "rate": Display.Kainos3DRate = Math.Max(1, Math.Min(30, v)); break;
+                    case "height": Display.Kainos3DHeight = Math.Max(10, Math.Min(80, v)) / 100f; break;
+                }
+            }
+            if (_kb3D != null) _kb3D.Invalidate();
+        }
+
+        private void kainos3DSave()
+        {
+            Kainos3DSettings = "on=" + (Display.Kainos3D ? 1 : 0) + ";depth=" + Display.Kainos3DDepth + ";rate=" + Display.Kainos3DRate
+                               + ";height=" + (int)Math.Round(Display.Kainos3DHeight * 100);
+            KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+            if (_kb3D != null) _kb3D.Invalidate();
+        }
+
+        private void kainos3DMenu()
+        {
+            ContextMenuStrip menu = new ContextMenuStrip { Renderer = new KainosToolStripRenderer(), BackColor = KainosUI.Raised, ForeColor = KainosUI.Text, ShowImageMargin = false, ShowCheckMargin = true };
+            Action<string, int[], Func<int>, Action<int>, string> group = (title, values, get, set, unit) =>
+            {
+                ToolStripMenuItem head = new ToolStripMenuItem(title) { Enabled = false };
+                menu.Items.Add(head);
+                foreach (int v in values)
+                {
+                    int value = v;
+                    ToolStripMenuItem it = new ToolStripMenuItem("   " + v + unit) { Checked = get() == v, ForeColor = KainosUI.Text };
+                    it.Click += (s, e) => { set(value); kainos3DSave(); };
+                    menu.Items.Add(it);
+                }
+            };
+            group("Depth", new[] { 20, 40, 60, 80 }, () => Display.Kainos3DDepth, v => Display.Kainos3DDepth = v, " traces");
+            menu.Items.Add(new ToolStripSeparator());
+            group("Speed", new[] { 5, 10, 20 }, () => Display.Kainos3DRate, v => Display.Kainos3DRate = v, " a second");
+            menu.Items.Add(new ToolStripSeparator());
+            group("Height", new[] { 25, 35, 50 }, () => (int)Math.Round(Display.Kainos3DHeight * 100), v => Display.Kainos3DHeight = v / 100f, "% of the panadapter");
+            menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(Cursor.Position);
+        }
+
         // the bar fills the bottom of panelDisplay under the info bar; the sliders share what the fixed parts leave
         private void positionKainosBar()
         {
@@ -133,8 +191,8 @@ namespace Thetis
             _kainosBar.BringToFront();
 
             int gap = KainosUI.S(6), sep = KainosUI.S(16), y = (_kainosBar.Height - h) / 2;
-            int center = KainosUI.S(58), rx = KainosUI.S(112), mode = KainosUI.S(118), disp = KainosUI.S(150), zoomButtons = KainosUI.S(210);
-            int fixedW = gap + center + sep + gap * 2 + rx + sep + mode + gap + disp + sep + gap + zoomButtons + gap;
+            int center = KainosUI.S(58), rx = KainosUI.S(112), mode = KainosUI.S(118), disp = KainosUI.S(150), zoomButtons = KainosUI.S(210), k3d = KainosUI.S(44);
+            int fixedW = gap + center + sep + gap * 2 + rx + sep + mode + gap + disp + gap + k3d + sep + gap + zoomButtons + gap;
             // pan 190, main / sub 120 each, zoom 170 when there's room; less (to a minimum) when there isn't
             float want = KainosUI.S(190) + KainosUI.S(120) * 2 + KainosUI.S(170);
             float f = Math.Max(0.35f, Math.Min(1f, (_kainosBar.Width - fixedW - gap * 4) / want));
@@ -147,7 +205,8 @@ namespace Thetis
             _kbPanSub.SetBounds(x, y, sub, h); x += sub + gap;
             _kbRx.SetBounds(x, y, rx, h); x += rx + sep;
             _kbMode.SetBounds(x, y, mode, h); x += mode + gap;
-            _kbDisp.SetBounds(x, y, disp, h);
+            _kbDisp.SetBounds(x, y, disp, h); x += disp + gap;
+            _kb3D.SetBounds(x, y, k3d, h);
             int r = _kainosBar.Width - gap;
             _kbZoomButtons.SetBounds(r - zoomButtons, y, zoomButtons, h); r -= zoomButtons + gap;
             _kbZoom.SetBounds(r - zoom, y, zoom, h);
