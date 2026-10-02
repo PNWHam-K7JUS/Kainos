@@ -329,7 +329,7 @@ namespace Thetis
             _console = console;
             _setup = console.SetupForm;
 
-            Text = "Aether";
+            Text = "Kainos Audio";
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             BackColor = kWindowBg;
@@ -341,7 +341,7 @@ namespace Thetis
 
             Label title = new Label
             {
-                Text = "Aether — Aetherial Audio Channel Strip",
+                Text = "Kainos Audio Processing",
                 ForeColor = kText, BackColor = kTitleBg,
                 Font = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Pixel),
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0),
@@ -365,8 +365,8 @@ namespace Thetis
             _tabTX = new AetherToggleButton { Text = "TX", Location = new Point(98, 34), Size = new Size(82, 28) };
             _tabRX.Click += (s, e) => SetSide(true);
             _tabTX.Click += (s, e) => SetSide(false);
-            _tips.SetToolTip(_tabRX, "AetherRX: the receive chain, on every receiver.");
-            _tips.SetToolTip(_tabTX, "AetherTX: the transmit chain, saved in each TX profile.");
+            _tips.SetToolTip(_tabRX, "Receive: the audio chain on every receiver, saved with your settings.");
+            _tips.SetToolTip(_tabTX, "Transmit: your voice's audio chain, saved in each TX profile.");
             Controls.Add(_tabRX);
             Controls.Add(_tabTX);
             _list = new StageList(this) { Location = new Point(10, 70), Size = new Size(170, PageOrderTX.Length * 38 + 4) };

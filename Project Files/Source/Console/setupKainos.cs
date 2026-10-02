@@ -91,7 +91,7 @@ namespace Thetis
                 "It is bypassed automatically in CW and digital modes. These settings are saved in each TX profile.");
 
             LabelTS note = avLabel("AetherVoice is ported from AetherSDR.\r\n\r\n" +
-                "For knobs, open the AetherVoice window from the menu bar, or right-click the AV button on the console.\r\n\r\n" +
+                "For knobs, open Kainos Audio from the menu bar (the Exciter page), or right-click the AV button on the console.\r\n\r\n" +
                 "High Drive, Harmonics or Mix settings raise the level. On receive, lower the Mix or the volume if the audio distorts. " +
                 "On transmit, the leveler and ALC follow it; test into a dummy load and check your signal on a second receiver first.", 450, 16);
             note.AutoSize = false;
@@ -380,7 +380,7 @@ namespace Thetis
                 if (profileValue(dr, i) != uds[i].Value)
                     report += "AetherVoice TX " + AV_TX_LABELS[i] + ": " + profileValue(dr, i) + " -> " + uds[i].Value + Environment.NewLine;
             if (console.AetherStripTX.Differs(profileStrip(dr)))
-                report += "AetherTX channel strip changed" + Environment.NewLine;
+                report += "Kainos Audio transmit settings changed" + Environment.NewLine;
             return report;
         }
 
