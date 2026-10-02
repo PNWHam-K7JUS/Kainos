@@ -175,6 +175,7 @@ namespace Thetis
             kainosMoveIn(kainosTxRows.SelectMany(r => r));
             foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
             kainosBarOn();          // the panadapter's bar: consoleKainosBar.cs
+            lblPAProfile.Visible = false;       // the PA PROFILE tab: consoleKainosTabs.cs
             _kainosColumn.Visible = true;
             _kainosPartsOn = true;
         }
@@ -184,6 +185,7 @@ namespace Thetis
             _kainosPartsOn = false;
             _kainosColumn.Visible = false;
             kainosBarOff();
+            setPAProfileLabelPos();
             foreach (KeyValuePair<Control, KeyValuePair<Control, Point>> kv in _kainosMovedIn.ToList())
             {
                 kv.Key.ParentChanged -= kainosMovedParentChanged;
@@ -641,7 +643,7 @@ namespace Thetis
                 uc.SizeChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
             }
             MeterManager.enableContainer(KainosMeterId, _kainosColumn.IsOn("meters"));
-            positionKainosColumn();
+            positionKainosDock();       // and the column
         }
 
         private void kainosDetachMeter()
@@ -867,7 +869,25 @@ namespace Thetis
         private readonly string _caption;
         private readonly KainosUI.Tone _tone;
         private List<ButtonBase> _targets = new List<ButtonBase>();
-        private readonly ComboBox _combo;       // or bound to a Thetis combo box (the panadapter's display mode)
+        private readonly Func<ComboBox> _comboSource;   // or bound to a Thetis combo box (display mode, PA profile)
+        private ComboBox _comboHooked;
+        private ComboBox _combo
+        {
+            get
+            {
+                if (_comboSource == null) return null;
+                ComboBox c = _comboSource();
+                if (c != null && c != _comboHooked)
+                {
+                    _comboHooked = c;
+                    c.SelectedIndexChanged += changed;
+                    c.EnabledChanged += changed;
+                    c.TextChanged += changed;
+                }
+                return c;
+            }
+        }
+        private bool _isCombo { get { return _comboSource != null; } }
         private bool _hover, _open;
         private static readonly System.Reflection.MethodInfo _onClick = typeof(Control).GetMethod("OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         private static readonly System.Reflection.MethodInfo _onMouseDown = typeof(Control).GetMethod("OnMouseDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
@@ -882,11 +902,12 @@ namespace Thetis
             Cursor = Cursors.Hand;
         }
 
-        public KainosDropDown(ComboBox combo) : this(null, KainosUI.Tone.Ice)
+        public KainosDropDown(ComboBox combo) : this(() => combo, null) { }
+
+        public KainosDropDown(Func<ComboBox> combo, string caption) : this(caption, KainosUI.Tone.Ice)
         {
-            _combo = combo;
-            combo.SelectedIndexChanged += changed;
-            combo.EnabledChanged += changed;
+            _comboSource = combo;
+            ComboBox c = _combo;        // hooks it now if it's there
         }
 
         public void SetTargets(IEnumerable<ButtonBase> targets)
@@ -910,7 +931,7 @@ namespace Thetis
         {
             get
             {
-                if (_combo != null) return _combo.SelectedIndex >= 0 ? _combo.Text : null;
+                if (_isCombo) { ComboBox cb = _combo; return cb != null && cb.Text.Length > 0 ? cb.Text : null; }
                 ButtonBase c = current;
                 return c != null ? label(c) : null;
             }
@@ -952,7 +973,7 @@ namespace Thetis
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            if (e.Button == MouseButtons.Right && _combo == null)
+            if (e.Button == MouseButtons.Right && !_isCombo)
             {
                 ButtonBase c = current;
                 if (c == null || !c.Enabled) return;
@@ -972,12 +993,14 @@ namespace Thetis
                 Font = new Font("Segoe UI", Math.Max(9f, KainosUI.S(13)), FontStyle.Regular, GraphicsUnit.Pixel),
                 MinimumSize = new Size(Width, 0),
             };
-            if (_combo != null && _combo.Enabled)
-                for (int i = 0; i < _combo.Items.Count; i++)
+            ComboBox combo = _combo;
+            if (combo != null && combo.Enabled)
+                for (int i = 0; i < combo.Items.Count; i++)
                 {
                     int index = i;
-                    ToolStripMenuItem item = new ToolStripMenuItem(_combo.GetItemText(_combo.Items[i])) { Checked = i == _combo.SelectedIndex, ForeColor = KainosUI.Text };
-                    item.Click += (s, a) => { if (_combo.SelectedIndex != index) _combo.SelectedIndex = index; };
+                    string text = combo.GetItemText(combo.Items[i]);
+                    ToolStripMenuItem item = new ToolStripMenuItem(text) { Checked = i == combo.SelectedIndex || (combo.SelectedIndex < 0 && text == combo.Text), ForeColor = KainosUI.Text };
+                    item.Click += (s, a) => { if (combo.SelectedIndex != index) combo.SelectedIndex = index; };
                     menu.Items.Add(item);
                 }
             foreach (ButtonBase t in shown)

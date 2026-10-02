@@ -43,9 +43,26 @@ namespace Thetis
         public string KainosMeterType = "ANANMM";
         public bool KainosFtdxOffered;
 
+        private KainosDropDown _kainosPaDrop;
+        private KainosActionGrid _kainosPaButtons;
+
         private void kainosAddMoreSections()
         {
             KainosUI.Tone gold = KainosUI.Tone.Gold, ice = KainosUI.Tone.Ice;
+
+            // PA PROFILE: the profile Thetis's label under the column showed, chosen from Setup's list, and Setup's PA
+            // page (the label's right click). The label stays hidden in Kainos layout (Thetis shows it on a resize).
+            _kainosPaDrop = new KainosDropDown(() => IsSetupFormNull ? null : SetupForm.KainosPAProfileCombo, "PA PROFILE");
+            _kainosPaButtons = new KainosActionGrid(1);
+            _kainosPaButtons.Add("PA settings...", () => false, () => SetupForm.ShowSetupTab(Setup.SetupTab.PA_Tab), ice);
+            _kainosColumn.AddSection("pa", "PA", w => KainosDropDown.PreferredHeight, r =>
+            {
+                int bw = KainosUI.S(110);
+                _kainosPaDrop.SetBounds(r.Left, r.Top, r.Width - bw - KainosUI.S(6), KainosDropDown.PreferredHeight);
+                _kainosPaButtons.SetBounds(r.Right - bw, r.Top + (KainosDropDown.PreferredHeight - _kainosPaButtons.PreferredHeight(bw)) / 2, bw, _kainosPaButtons.PreferredHeight(bw));
+            });
+            lblPAProfile.VisibleChanged += (s, e) => { if (_kainosPartsOn && lblPAProfile.Visible) BeginInvoke(new Action(() => { if (_kainosPartsOn) lblPAProfile.Visible = false; })); };
+            lblPAProfile.TextChanged += (s, e) => _kainosPaDrop.Invalidate();
 
             // EQ: Thetis's RX and TX EQ switches (the phone panel's buttons) and its Equalizer window
             _kainosEqGrid = new KainosActionGrid(3);
@@ -82,7 +99,7 @@ namespace Thetis
             if (MemoryList != null && MemoryList.List != null)
                 MemoryList.List.ListChanged += (s, e) => { if (_kainosLayout) positionKainosColumn(); };
 
-            foreach (Control c in new Control[] { _kainosEqGrid, _kainosAudioRxLabel, _kainosAudioTxLabel, _kainosAudioRx, _kainosAudioTx,
+            foreach (Control c in new Control[] { _kainosPaDrop, _kainosPaButtons, _kainosEqGrid, _kainosAudioRxLabel, _kainosAudioTxLabel, _kainosAudioRx, _kainosAudioTx,
                                                   _kainosFreeDvStatus, _kainosFreeDvGrid, _kainosMemoryList, _kainosMemoryButtons })
                 _kainosColumn.Viewport.Controls.Add(c);
 

@@ -118,6 +118,7 @@ namespace Thetis
                 {
                     if (c == _kainosDock || c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn) continue;
                     if (c == panelPower || c == panelOptions) continue;      // collapsed under the dock
+                    if (c is ucMeter || c == grpVFOBetween || Array.IndexOf(kainosModePanels, c) >= 0 || _kainosCollapsed.ContainsKey(c)) continue;   // meters (the column's is pinned there, and sits at the top left until it is), the column's, collapsed
                     if (!c.Visible || c.Width == 0 || c.Height == 0 || c.Top < -10000) continue;     // parked controls don't count
                     if (c.Right <= left || c.Left >= left + width) continue;
                     if (c.Bottom < mid) top = Math.Max(top, c.Bottom + 4);
