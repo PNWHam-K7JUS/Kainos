@@ -34,7 +34,7 @@ namespace Thetis
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -97,6 +97,10 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosRtty);
             txtKainosCw = new TextBoxTS { Name = "txtKainosCw", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosCw);
+            txtKainosRttyMacros = new TextBoxTS { Name = "txtKainosRttyMacros", Visible = false, Text = "" };
+            txtKainosCwMacros = new TextBoxTS { Name = "txtKainosCwMacros", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosRttyMacros);
+            tpAppearanceKainos.Controls.Add(txtKainosCwMacros);
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
@@ -115,6 +119,8 @@ namespace Thetis
                     txtKainosFtdxOffered.Text = console.KainosFtdxOffered ? "1" : "";
                     txtKainosRtty.Text = console.KainosRttySettings;
                     txtKainosCw.Text = console.KainosCwSettings;
+                    txtKainosRttyMacros.Text = console.KainosRttyMacros;
+                    txtKainosCwMacros.Text = console.KainosCwMacros;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -125,6 +131,10 @@ namespace Thetis
             console.RttyLoadSettings();
             console.KainosCwSettings = txtKainosCw.Text;
             console.CwLoadSettings();
+            console.KainosRttyMacros = txtKainosRttyMacros.Text;
+            console.KainosCwMacros = txtKainosCwMacros.Text;
+            console.RttyMacrosLoaded();
+            console.CwMacrosLoaded();
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;

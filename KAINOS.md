@@ -274,6 +274,10 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - Decoder (`KainosCw.cs`, no UI): the receiver's audio mixed down from Thetis's CW pitch (`CWPitch`) and averaged over 8 ms, an envelope every millisecond smoothed over a fifth of a dot; keyed with hysteresis between a tracked peak and noise floor (the floor learnt quickly in the first 0.3 s, nothing keyed until then), only when the peak is clearly above the floor (SQL). Marks over two dots are dashes; gaps of 2.5 dots end a character, 6 a word. The dot length (speed) follows dots, dashes and clean element gaps, only from a clear signal and only so far at a time. Tested offline: clean copy at 12-40 WPM, 15% timing jitter, 40 Hz off pitch, moderate noise; nothing from noise alone.
 - Sending goes through CWX's remote-message path (the one CAT's KY and TCI use): CWX keys the radio and times the elements; TX WPM is CWX's speed. Sent text is echoed in red as CWX starts each character (`CWXRemoteCharacterStartedHandlers`). Enter or TX sends the typed line, and while sending each key goes out as typed; Esc or STOP drops the rest of the queue; ABORT stops at once. Macros CQ / ANS / 599 / 73 / MY, as for RTTY. Needs CWL or CWU. Settings in a hidden Setup box (`txtKainosCw`).
 
+### Terminal macros
+
+- Six macro buttons in each terminal (RTTY and CW have their own sets): a click runs one, F1-F6 in the typing line run them, a right click opens the editor (`KainosMacros.cs`): label, text (`{MY}` your call from the RADE callsign setting, `{CALL}` the box beside the macros), and what a click does: send then back to receive, send and keep transmitting (RTTY), or put the text in the typing line. Reset to default puts back the built-in macro (CQ, ANS, 599, 73, QRZ, MY). Saved with the options as Base64 in hidden Setup boxes (`txtKainosRttyMacros`, `txtKainosCwMacros`).
+
 ### Installer
 
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.

@@ -266,6 +266,17 @@ namespace Thetis
             _cwPane.Tick();
         }
 
+        // the macros (KainosMacros.cs), saved with the options (a hidden Setup box)
+        public string KainosCwMacros = "";
+        private List<KainosMacro> _cwMacroList;
+        internal List<KainosMacro> CwMacroList { get { return _cwMacroList ?? (_cwMacroList = KainosMacros.Parse(KainosCwMacros, KainosMacros.CwDefaults())); } }
+        internal void CwMacrosLoaded() { _cwMacroList = null; if (_cwPane != null) _cwPane.Invalidate(true); }
+        internal void CwMacrosChanged()
+        {
+            KainosCwMacros = KainosMacros.Serialize(CwMacroList);
+            KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         internal string CwMacroText(string m, string theirCall)
         {
             string my = (RadeCallsign ?? "").Trim().ToUpperInvariant();
@@ -328,7 +339,11 @@ namespace Thetis
                 CharacterCasing = CharacterCasing.Upper,
             };
             _type.KeyPress += typeKeyPress;
-            _type.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) { _console.CwStopQueue(); e.SuppressKeyPress = true; } };
+            _type.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape) { _console.CwStopQueue(); e.SuppressKeyPress = true; }
+                else if (e.KeyCode >= Keys.F1 && e.KeyCode < Keys.F1 + KainosMacros.Count) { runMacro(e.KeyCode - Keys.F1); e.Handled = e.SuppressKeyPress = true; }
+            };
 
             _call = new TextBox
             {
@@ -345,12 +360,14 @@ namespace Thetis
             _txButtons.Add("STOP", () => false, () => _console.CwStopQueue(), KainosUI.Tone.Ice);
             _txButtons.Add("ABORT", () => false, () => _console.CwAbort(), KainosUI.Tone.Tx);
 
-            _macros = new KainosActionGrid(5);
-            macro("CQ", "CQ CQ CQ DE {MY} {MY} K ");
-            macro("ANS", "{CALL} DE {MY} {MY} K ");
-            macro("599", "{CALL} TU UR 5NN 5NN BK ");
-            macro("73", "{CALL} TU 73 DE {MY} SK ");
-            macro("MY", "{MY} ");
+            // the macros: a click runs one, a right click edits it, F1-F6 in the typing line run them
+            _macros = new KainosActionGrid(KainosMacros.Count);
+            for (int i = 0; i < KainosMacros.Count; i++)
+            {
+                int k = i;
+                _macros.Add("", () => false, () => runMacro(k), KainosUI.Tone.Gold, () => editMacro(k));
+            }
+            _macros.LabelFor = (i, l) => i < _console.CwMacroList.Count ? _console.CwMacroList[i].Label : l;
 
             _status = new Label { AutoSize = false, ForeColor = KainosUI.Faint, BackColor = KainosUI.Surface, TextAlign = ContentAlignment.MiddleLeft,
                                   Font = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Regular, GraphicsUnit.Pixel) };
@@ -361,16 +378,27 @@ namespace Thetis
 
         private string hint
         {
-            get { return "Zero-beat the signal (0 Beat) so it sits at your CW pitch, " + _console.CwPitchHz + " Hz. Double-click a call to copy it."; }
+            get { return "Zero-beat the signal (0 Beat) so it sits at your CW pitch, " + _console.CwPitchHz + " Hz. Double-click a call to copy it; right-click a macro to edit it (F1-F6 send them)."; }
         }
 
-        private void macro(string label, string text)
+        private void runMacro(int k)
         {
-            _macros.Add(label, () => false, () =>
+            if (k < 0 || k >= _console.CwMacroList.Count) return;
+            KainosMacro m = _console.CwMacroList[k];
+            if (m.Text.Length == 0) return;
+            if (m.Text.Contains("{CALL}") && _call.Text.Trim().Length == 0) { _status.Text = "Enter their call first (or double-click it in the text)"; return; }
+            string t = _console.CwMacroText(m.Text, _call.Text).Replace("\n", " ");
+            if (m.Action == KainosMacroAction.Insert && !_console.CwSending) { _type.AppendText(t); _type.Focus(); return; }
+            send(t);
+        }
+
+        private void editMacro(int k)
+        {
+            if (KainosMacros.Edit(FindForm(), _console.CwMacroList[k], KainosMacros.CwDefaults()[k], "CW", k))
             {
-                if (text.Contains("{CALL}") && _call.Text.Trim().Length == 0) { _status.Text = "Enter their call first (or double-click it in the text)"; return; }
-                send(_console.CwMacroText(text, _call.Text));
-            }, label == "MY" ? KainosUI.Tone.Ice : KainosUI.Tone.Gold);
+                _console.CwMacrosChanged();
+                _macros.Invalidate();
+            }
         }
 
         private void send(string text)
@@ -451,7 +479,7 @@ namespace Thetis
             _status.SetBounds(pad, bottom - statusH, w, statusH); bottom -= statusH + KainosUI.S(2);
             int callW = KainosUI.S(110);
             _call.SetBounds(pad, bottom - row + (row - _call.PreferredHeight) / 2, callW, _call.PreferredHeight);
-            _macros.SetBounds(pad + callW + gap, bottom - row, Math.Min(KainosUI.S(420), w - callW - gap), row);
+            _macros.SetBounds(pad + callW + gap, bottom - row, Math.Min(KainosUI.S(504), w - callW - gap), row);
             bottom -= row + gap;
             int txW = KainosUI.S(220);
             _type.SetBounds(pad, bottom - row + (row - _type.PreferredHeight) / 2, w - txW - gap, _type.PreferredHeight);

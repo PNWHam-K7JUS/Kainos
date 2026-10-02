@@ -354,6 +354,17 @@ namespace Thetis
             }
         }
 
+        // the macros (KainosMacros.cs), saved with the options (a hidden Setup box)
+        public string KainosRttyMacros = "";
+        private List<KainosMacro> _rttyMacroList;
+        internal List<KainosMacro> RttyMacroList { get { return _rttyMacroList ?? (_rttyMacroList = KainosMacros.Parse(KainosRttyMacros, KainosMacros.RttyDefaults())); } }
+        internal void RttyMacrosLoaded() { _rttyMacroList = null; if (_rttyPane != null) _rttyPane.Invalidate(true); }
+        internal void RttyMacrosChanged()
+        {
+            KainosRttyMacros = KainosMacros.Serialize(RttyMacroList);
+            KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         internal string RttyMacroText(string m, string theirCall)
         {
             string my = (RadeCallsign ?? "").Trim().ToUpperInvariant();
@@ -429,6 +440,7 @@ namespace Thetis
             _type.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape) { _console.RttyReceive(); e.SuppressKeyPress = true; }
+                else if (e.KeyCode >= Keys.F1 && e.KeyCode < Keys.F1 + KainosMacros.Count) { runMacro(e.KeyCode - Keys.F1); e.Handled = e.SuppressKeyPress = true; }
             };
 
             _call = new TextBox
@@ -446,12 +458,14 @@ namespace Thetis
             _txButtons.Add("RX", () => false, () => _console.RttyReceive(), KainosUI.Tone.Ice);
             _txButtons.Add("ABORT", () => false, () => _console.RttyAbort(), KainosUI.Tone.Tx);
 
-            _macros = new KainosActionGrid(5);
-            macro("CQ", "\nCQ CQ CQ DE {MY} {MY} {MY} PSE K\n", true);
-            macro("ANS", "\n{CALL} {CALL} DE {MY} {MY} K\n", true);
-            macro("599", "\n{CALL} DE {MY} TU UR 599 599 BK\n", true);
-            macro("73", "\n{CALL} TU 73 DE {MY} SK\n", true);
-            macro("MY", "{MY} ", false);
+            // the macros: a click runs one, a right click edits it, F1-F6 in the typing line run them
+            _macros = new KainosActionGrid(KainosMacros.Count);
+            for (int i = 0; i < KainosMacros.Count; i++)
+            {
+                int k = i;
+                _macros.Add("", () => false, () => runMacro(k), KainosUI.Tone.Gold, () => editMacro(k));
+            }
+            _macros.LabelFor = (i, l) => i < _console.RttyMacroList.Count ? _console.RttyMacroList[i].Label : l;
 
             _status = new Label { AutoSize = false, ForeColor = KainosUI.Faint, BackColor = KainosUI.Surface, TextAlign = ContentAlignment.MiddleLeft,
                                   Font = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Regular, GraphicsUnit.Pixel) };
@@ -460,15 +474,29 @@ namespace Thetis
             Controls.AddRange(new Control[] { _top, _tune, _sql, _lvl, _winButtons, _rx, _type, _txButtons, _call, _macros, _status });
         }
 
-        private void macro(string label, string text, bool thenReceive)
+        private void runMacro(int k)
         {
-            _macros.Add(label, () => false, () =>
+            if (k < 0 || k >= _console.RttyMacroList.Count) return;
+            KainosMacro m = _console.RttyMacroList[k];
+            if (m.Text.Length == 0) return;
+            if (m.Text.Contains("{CALL}") && _call.Text.Trim().Length == 0) { _status.Text = "Enter their call first (or double-click it in the text)"; return; }
+            string t = _console.RttyMacroText(m.Text, _call.Text);
+            if (m.Action == KainosMacroAction.Insert)
             {
-                string t = _console.RttyMacroText(text, _call.Text);
-                if (t.Contains("{") || (text.Contains("{CALL}") && _call.Text.Trim().Length == 0)) { _status.Text = "Enter their call first (or double-click it in the text)"; return; }
-                if (!thenReceive && !_console.RttyTransmitting) { _type.AppendText(t); _type.Focus(); return; }
-                send(t, thenReceive);
-            }, label == "MY" ? KainosUI.Tone.Ice : KainosUI.Tone.Gold);
+                if (_console.RttyTransmitting) send(t, false);          // already sending: straight out, like typing it
+                else { _type.AppendText(t.Replace("\n", " ")); _type.Focus(); }
+                return;
+            }
+            send(t, m.Action == KainosMacroAction.SendThenReceive);
+        }
+
+        private void editMacro(int k)
+        {
+            if (KainosMacros.Edit(FindForm(), _console.RttyMacroList[k], KainosMacros.RttyDefaults()[k], "RTTY", k))
+            {
+                _console.RttyMacrosChanged();
+                _macros.Invalidate();
+            }
         }
 
         private static double next(double[] list, double v)
@@ -516,7 +544,7 @@ namespace Thetis
             get
             {
                 double c = _console.RttyCenter, h = _console.RttyShift / 2;
-                return string.Format(CultureInfo.InvariantCulture, "Tune so M and S light evenly: the tones {0:0} / {1:0} Hz from the VFO. Double-click a call to copy it.", c - h, c + h);
+                return string.Format(CultureInfo.InvariantCulture, "Tune so M and S light evenly: the tones {0:0} / {1:0} Hz from the VFO. Double-click a call to copy it; right-click a macro to edit it (F1-F6 send them).", c - h, c + h);
             }
         }
 
@@ -571,7 +599,7 @@ namespace Thetis
             _status.SetBounds(pad, bottom - statusH, w, statusH); bottom -= statusH + KainosUI.S(2);
             int callW = KainosUI.S(110);
             _call.SetBounds(pad, bottom - row + (row - _call.PreferredHeight) / 2, callW, _call.PreferredHeight);
-            _macros.SetBounds(pad + callW + gap, bottom - row, Math.Min(KainosUI.S(420), w - callW - gap), row);
+            _macros.SetBounds(pad + callW + gap, bottom - row, Math.Min(KainosUI.S(504), w - callW - gap), row);
             bottom -= row + gap;
             int txW = KainosUI.S(220);
             _type.SetBounds(pad, bottom - row + (row - _type.PreferredHeight) / 2, w - txW - gap, _type.PreferredHeight);
