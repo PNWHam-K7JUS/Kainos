@@ -587,9 +587,7 @@ void xtxa (int channel)
 	xamsq (txa[channel].amsq.p);					// downward expander action
 	xeqp (txa[channel].eqp.p);						// pre-EQ
 	xmeter (txa[channel].eqmeter.p);				// EQ meter
-	xaetherstrip_pre (txa[channel].aetherstrip.p, 0);		// Kainos: gate, de-esser, compressor, tube
-	xaethervoice (txa[channel].aethervoice.p, 0);		// Kainos: AetherVoice exciter
-	xaetherstrip_post (txa[channel].aetherstrip.p, 0);	// Kainos: reverb, final limiter
+	xaetherstrip (txa[channel].aetherstrip.p, 0, txa[channel].aethervoice.p);	// Kainos Audio: the chain, with AetherVoice at its slot
 	xemphp (txa[channel].preemph.p, 0);				// FM pre-emphasis (first option)
 	xwcpagc (txa[channel].leveler.p);				// Leveler
 	xmeter (txa[channel].lvlrmeter.p);				// Leveler Meter

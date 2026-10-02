@@ -698,8 +698,7 @@ void xrxa (int channel)
 	xspeak (rxa[channel].speak.p);
 	xmpeak (rxa[channel].mpeak.p);
 	xssql (rxa[channel].ssql.p);
-	xaetherstrip_pre (rxa[channel].aetherstrip.p, rxa[channel].panel.p->copy == 0);	// Kainos: AetherRX gate, compressor, tube
-	xaethervoice (rxa[channel].aethervoice.p, rxa[channel].panel.p->copy == 0);	// Kainos: AetherVoice
+	xaetherstrip (rxa[channel].aetherstrip.p, rxa[channel].panel.p->copy == 0, rxa[channel].aethervoice.p);	// Kainos Audio: the chain, with AetherVoice at its slot
 	xpanel (rxa[channel].panel.p);
 	xamsq (rxa[channel].amsq.p);
 	xresample (rxa[channel].rsmpout.p);

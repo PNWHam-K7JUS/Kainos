@@ -35,6 +35,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstring>
 #include <vector>
 
+extern "C" {
+#include "aethervoice.h"
+}
+
 using namespace AetherSDR;
 
 struct _aetherstrip
@@ -51,18 +55,18 @@ struct _aetherstrip
 	ClientFinalLimiter limiter;
 	ClientEq eq;
 	ClientEq::BandParams bands[AS_EQ_BANDS];	// the EQ bands as last set (ClientEq takes a whole band at a time)
-	const int* preOrder;				// stage order before AetherVoice (per side)
-	int preCount;
+	int order[AS_MAXORDER];				// chain order: stages and AS_EXCITER (the final limiter always runs last)
+	int orderCount;
 	bool wasEnabled[AS_NSTAGES];		// to reset a stage's state when it is switched on
 	std::vector<float> buf;				// interleaved float scratch (AetherSDR processes float)
 };
 
 namespace
 {
-	// AetherSDR's chain orders (AudioEngine TxChainStage / RxChainStage); de-essing is a transmit tool
-	const int kTxPre[] = { AS_GATE, AS_EQ, AS_DEESS, AS_COMP, AS_TUBE };
-	const int kRxPre[] = { AS_EQ, AS_GATE, AS_COMP, AS_TUBE };
-	const int kPost[] = { AS_REVERB, AS_LIMITER };
+	// AetherSDR's default chain orders (AudioEngine TxChainStage / RxChainStage); de-essing and reverb
+	// are transmit tools
+	const int kTxOrder[] = { AS_GATE, AS_EQ, AS_DEESS, AS_COMP, AS_TUBE, AS_EXCITER, AS_REVERB };
+	const int kRxOrder[] = { AS_EQ, AS_GATE, AS_COMP, AS_TUBE, AS_EXCITER };
 
 	bool stageEnabled (AETHERSTRIP a, int stage)
 	{
@@ -107,38 +111,31 @@ namespace
 		}
 	}
 
-	// runs the enabled stages in the given order; does nothing (bit-exact pass-through) if none are on
-	void run (AETHERSTRIP a, const int* order, int count, int stereo)
+	void toFloat (AETHERSTRIP a, const double* src, float* x, int nch)
 	{
-		int nch = stereo ? 2 : 1, i, k, s;
-		bool any = false;
-		for (k = 0; k < count; k++)
+		for (int i = 0; i < a->size; i++)
 		{
-			s = order[k];
-			bool on = stageEnabled (a, s);
-			if (on && !a->wasEnabled[s]) stageReset (a, s);		// start from clean state
-			a->wasEnabled[s] = on;
-			any = any || on;
+			x[nch * i] = (float)src[2 * i];
+			if (nch == 2) x[nch * i + 1] = (float)src[2 * i + 1];
 		}
-		if (!any)
-		{
-			if (a->in != a->out) std::memcpy (a->out, a->in, a->size * 2 * sizeof (double));
-			return;
-		}
+	}
 
-		float* x = a->buf.data ();
-		for (i = 0; i < a->size; i++)
-		{
-			x[nch * i] = (float)a->in[2 * i];
-			if (stereo) x[nch * i + 1] = (float)a->in[2 * i + 1];
-		}
-		for (k = 0; k < count; k++)
-			if (a->wasEnabled[order[k]]) stageProcess (a, order[k], x, a->size, nch);
-		for (i = 0; i < a->size; i++)
+	// I (and Q when stereo) back to doubles; mono leaves Q as it came in
+	void toDouble (AETHERSTRIP a, const float* x, int nch)
+	{
+		for (int i = 0; i < a->size; i++)
 		{
 			a->out[2 * i] = x[nch * i];
-			a->out[2 * i + 1] = stereo ? x[nch * i + 1] : a->in[2 * i + 1];
+			if (nch == 2) a->out[2 * i + 1] = x[nch * i + 1];
 		}
+	}
+
+	void refreshEnables (AETHERSTRIP a, int s, bool& any)
+	{
+		bool on = stageEnabled (a, s);
+		if (on && !a->wasEnabled[s]) stageReset (a, s);		// start from clean state
+		a->wasEnabled[s] = on;
+		any = any || on;
 	}
 
 	void prepareAll (AETHERSTRIP a)
@@ -167,8 +164,8 @@ AETHERSTRIP create_aetherstrip (int size, double* in, double* out, int samplerat
 	// AetherSDR's final limiter defaults to on (it guards AetherSDR's own output); in Kainos
 	// every strip stage starts off until the user turns it on
 	a->limiter.setEnabled (false);
-	a->preOrder = rx ? kRxPre : kTxPre;
-	a->preCount = rx ? (int)(sizeof (kRxPre) / sizeof (int)) : (int)(sizeof (kTxPre) / sizeof (int));
+	a->orderCount = rx ? (int)(sizeof (kRxOrder) / sizeof (int)) : (int)(sizeof (kTxOrder) / sizeof (int));
+	std::memcpy (a->order, rx ? kRxOrder : kTxOrder, a->orderCount * sizeof (int));
 	// EQ: AetherSDR's default 10-band layout, every band off and flat until shaped
 	a->eq.setActiveBandCount (AS_EQ_BANDS);
 	for (int b = 0; b < AS_EQ_BANDS; b++)
@@ -190,14 +187,58 @@ void flush_aetherstrip (AETHERSTRIP a)
 	for (int s = 0; s < AS_NSTAGES; s++) stageReset (a, s);
 }
 
-void xaetherstrip_pre (AETHERSTRIP a, int stereo)
+void xaetherstrip (AETHERSTRIP a, int stereo, struct _aethervoice* av)
 {
-	run (a, a->preOrder, a->preCount, stereo);
+	int nch = stereo ? 2 : 1, k;
+	bool any = false;
+	for (k = 0; k < a->orderCount; k++)
+		if (a->order[k] != AS_EXCITER) refreshEnables (a, a->order[k], any);
+	refreshEnables (a, AS_LIMITER, any);
+
+	if (!any)
+	{
+		// no strip stage on: just the exciter (bit-exact pass-through when it is off too)
+		if (a->in != a->out) std::memcpy (a->out, a->in, a->size * 2 * sizeof (double));
+		if (av) xaethervoice (av, stereo);
+		return;
+	}
+
+	float* x = a->buf.data ();
+	toFloat (a, a->in, x, nch);
+	for (k = 0; k < a->orderCount; k++)
+	{
+		int s = a->order[k];
+		if (s == AS_EXCITER)
+		{
+			// AetherVoice works on the WDSP buffer in place (double), so hand the audio over at its slot
+			if (av && av->run)
+			{
+				toDouble (a, x, nch);
+				xaethervoice (av, stereo);
+				toFloat (a, a->out, x, nch);
+			}
+		}
+		else if (a->wasEnabled[s]) stageProcess (a, s, x, a->size, nch);
+	}
+	if (a->wasEnabled[AS_LIMITER]) stageProcess (a, AS_LIMITER, x, a->size, nch);
+	if (a->in != a->out && !stereo)
+		for (int i = 0; i < a->size; i++) a->out[2 * i + 1] = a->in[2 * i + 1];
+	toDouble (a, x, nch);
 }
 
-void xaetherstrip_post (AETHERSTRIP a, int stereo)
+int setOrder_aetherstrip (AETHERSTRIP a, const int* order, int n)
 {
-	run (a, kPost, 2, stereo);
+	bool seen[AS_MAXORDER] = { false };
+	if (n < 1 || n > AS_MAXORDER) return 0;
+	for (int k = 0; k < n; k++)
+	{
+		int s = order[k];
+		if (s < 0 || s >= AS_MAXORDER || s == AS_LIMITER || seen[s]) return 0;
+		seen[s] = true;
+	}
+	std::memcpy (a->order, order, n * sizeof (int));
+	a->orderCount = n;
+	return 1;
 }
 
 void setBuffers_aetherstrip (AETHERSTRIP a, double* in, double* out)
