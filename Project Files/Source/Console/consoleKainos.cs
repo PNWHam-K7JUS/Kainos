@@ -29,9 +29,7 @@ namespace Thetis
     // so that merging new Thetis releases doesn't conflict with them.
     public partial class Console
     {
-        private ToolStripMenuItem aetherVoiceToolStripMenuItem;
-        private ToolStripMenuItem aetherTXToolStripMenuItem;
-        private ToolStripMenuItem aetherRXToolStripMenuItem;
+        private ToolStripMenuItem kainosAudioToolStripMenuItem;
         private CheckBoxTS chkAetherVoice;
         private frmAetherVoice _frmAetherVoice;
         private frmAetherStrip _frmAether;
@@ -47,32 +45,15 @@ namespace Thetis
             AetherStripTX = new AetherStrip(this, false);
             AetherStripRX = new AetherStrip(this, true);
 
-            // AetherVoice menu item, after Equalizer
-            aetherVoiceToolStripMenuItem = new ToolStripMenuItem("AetherVoice")
+            // Kainos Audio: one menu item, after Equalizer, for the receive and transmit audio chains
+            kainosAudioToolStripMenuItem = new ToolStripMenuItem("Kainos Audio")
             {
-                Name = "aetherVoiceToolStripMenuItem",
-                ToolTipText = "Open the AetherVoice receive exciter"
+                Name = "kainosAudioToolStripMenuItem",
+                ToolTipText = "Open Kainos Audio Processing: gate, de-esser, compressor, tube, AetherVoice, reverb and limiter\r\n" +
+                              "on receive and transmit (processing ported from AetherSDR)"
             };
-            aetherVoiceToolStripMenuItem.Click += (s, e) => ShowAetherVoice();
-            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(equalizerToolStripMenuItem) + 1, aetherVoiceToolStripMenuItem);
-
-            // AetherTX channel strip window, after AetherVoice
-            aetherTXToolStripMenuItem = new ToolStripMenuItem("AetherTX")
-            {
-                Name = "aetherTXToolStripMenuItem",
-                ToolTipText = "Open the AetherTX channel strip: gate, de-esser, compressor, tube, AetherVoice, reverb and limiter"
-            };
-            aetherTXToolStripMenuItem.Click += (s, e) => ShowAetherStrip();
-            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(aetherVoiceToolStripMenuItem) + 1, aetherTXToolStripMenuItem);
-
-            // AetherRX channel strip window, after AetherTX
-            aetherRXToolStripMenuItem = new ToolStripMenuItem("AetherRX")
-            {
-                Name = "aetherRXToolStripMenuItem",
-                ToolTipText = "Open the AetherRX channel strip: gate, compressor, tube and AetherVoice on receive"
-            };
-            aetherRXToolStripMenuItem.Click += (s, e) => ShowAetherRX();
-            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(aetherTXToolStripMenuItem) + 1, aetherRXToolStripMenuItem);
+            kainosAudioToolStripMenuItem.Click += (s, e) => ShowKainosAudio();
+            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(equalizerToolStripMenuItem) + 1, kainosAudioToolStripMenuItem);
 
             // AV button on the phone-mode panel, below RX EQ and styled like it
             chkAetherVoice = new CheckBoxTS
@@ -110,18 +91,15 @@ namespace Thetis
             _frmAetherVoice.Activate();
         }
 
-        // one Aether window with RX and TX tabs; the AetherRX / AetherTX menu items open it on that tab
-        public void ShowAetherStrip() { showAether(false); }
-        public void ShowAetherRX() { showAether(true); }
-
-        private void showAether(bool rx)
+        // Kainos Audio Processing: one window with RX and TX tabs. From the menu it reopens on whichever
+        // tab was last used (receive the first time)
+        public void ShowKainosAudio()
         {
             if (_frmAether == null || _frmAether.IsDisposed)
             {
-                _frmAether = new frmAetherStrip(this, rx) { Owner = this };
+                _frmAether = new frmAetherStrip(this, true) { Owner = this };
                 _frmAether.Location = new Point(Left + (Width - _frmAether.Width) / 2, Top + (Height - _frmAether.Height) / 2);
             }
-            else _frmAether.SetSide(rx);
             _frmAether.Show();
             _frmAether.BringToFront();
             _frmAether.Activate();
