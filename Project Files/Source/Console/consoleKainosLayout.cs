@@ -96,6 +96,7 @@ namespace Thetis
                 item.ForeColor = KainosUI.Text;
             }
             kainosDockOn();             // stage 2: consoleKainosDock.cs
+            kainosColumnOn();           // stage 3: consoleKainosColumn.cs
             menuStrip1.Invalidate();
             statusStripMain.Invalidate();
             Invalidate(true);
@@ -103,6 +104,7 @@ namespace Thetis
 
         private void restoreClassicTheme()
         {
+            kainosColumnOff();
             kainosDockOff();
             if (_kainosSkinBackground != null || CachedBackgroundImage == _kainosBackground)
             {

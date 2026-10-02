@@ -30,6 +30,9 @@ namespace Thetis
     {
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale;
+        // saved with the options: which right-column tabs are on, and the METERS tab's meter container
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId;
+        private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
         {
@@ -79,12 +82,28 @@ namespace Thetis
             grp.Controls.Add(note);
             tpAppearanceKainos.Controls.Add(grp);
 
+            txtKainosColumnTabs = new TextBoxTS { Name = "txtKainosColumnTabs", Visible = false, Text = "meters,band" };
+            txtKainosMeterId = new TextBoxTS { Name = "txtKainosMeterId", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosColumnTabs);
+            tpAppearanceKainos.Controls.Add(txtKainosMeterId);
+
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
 
         // called from ForceAllEvents at startup, and when the setting changes
         private void applyKainosUI()
         {
+            if (!_kainosSettingsHooked)
+            {
+                _kainosSettingsHooked = true;
+                console.KainosSettingsChanged += (s, e) =>
+                {
+                    txtKainosColumnTabs.Text = console.KainosColumnTabs;
+                    txtKainosMeterId.Text = console.KainosMeterId;
+                };
+            }
+            console.KainosColumnTabs = txtKainosColumnTabs.Text;
+            console.KainosMeterId = txtKainosMeterId.Text;
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;
