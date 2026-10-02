@@ -336,8 +336,8 @@ namespace Thetis
             if (panelDisplay.Width != w) panelDisplay.Width = w;
             int top = menuStrip1.Bottom + 4;
             int bottom = kainosDisplayBottom();
-            int rtty = kainosRttyDockHeight;
-            if (rtty > 0 && bottom - rtty - 4 - top > 160) bottom -= rtty + 4;      // the RTTY terminal under it
+            int term = kainosTermDockHeight;
+            if (term > 0 && bottom - term - 4 - top > 160) bottom -= term + 4;      // the RTTY / CW terminal under it
             if (bottom - top > 100 && (panelDisplay.Top != top || panelDisplay.Height != bottom - top))
                 panelDisplay.SetBounds(panelDisplay.Left, top, panelDisplay.Width, bottom - top);
 
@@ -350,7 +350,7 @@ namespace Thetis
             kainosSetTop(lblDisplayZoom, lbl_display_zoom_basis.Y + v_delta + grown);
             kainosSetTop(ptbDisplayZoom, tb_display_zoom_basis.Y + v_delta + grown);
             positionKainosBar();
-            kainosPlaceRttyDock();
+            kainosPlaceTermDock();
         }
 
         // with Thetis's panels under the panadapter collapsed, it reaches down to the status bar, or to the top of
@@ -361,7 +361,7 @@ namespace Thetis
             int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
             foreach (Control c in Controls)
             {
-                if (c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn || c is KainosDock || c is KainosRttyPane) continue;
+                if (c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn || c is KainosDock || c is IKainosTerminal) continue;
                 if (_kainosCollapsed.ContainsKey(c) || c == _kainosMeter || c == grpVFOBetween || kainosModePanels.Contains(c)) continue;
                 if (!c.Visible || c.Width == 0 || c.Height == 0 || c.Top < -10000) continue;
                 if (c.Right <= panelDisplay.Left || c.Left >= panelDisplay.Right || c.Top < thetis - 2) continue;

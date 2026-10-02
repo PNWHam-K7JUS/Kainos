@@ -79,6 +79,7 @@ namespace Thetis
 
             addRadeControls();
             addRttyControls();          // consoleKainosRtty.cs
+            addCwControls();            // consoleKainosCw.cs
             matchKainosMenuItems();     // consoleKainosLayout.cs
         }
 
