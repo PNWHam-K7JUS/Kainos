@@ -69,6 +69,7 @@ namespace Thetis
         {
             addAetherVoiceTab();
             addRadeTab();
+            addKainosUITab();      // setupKainosUI.cs
         }
 
         #region AetherVoice

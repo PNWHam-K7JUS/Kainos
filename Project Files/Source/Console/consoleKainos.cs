@@ -78,6 +78,7 @@ namespace Thetis
             panelModeSpecificPhone.Controls.Add(chkAetherVoice);
 
             addRadeControls();
+            matchKainosMenuItems();     // consoleKainosLayout.cs
         }
 
         public void ShowAetherVoice()

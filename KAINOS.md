@@ -192,6 +192,18 @@ Built-in FreeDV RADE (V1 and V2) on RX1, RX2 and the transmitter, ported from [T
 - **Version 2** sends no callsign: its end-of-over frame carries no data bits.
 - **Verification:** a test program compiled `radae.c` and the same libraries with a stand-in `pcm`, encoded 16 s of synthesized speech with `xradae_tx` (end-of-over sent as the arbiter does) and decoded it with `xradae_rx`. V1, clean: sync in 0.9 s, SNR about 32 dB, callsign "K7JUS" decoded, speech envelope correlation 0.91. With noise, V1 held sync to 0 dB SNR and decoded the callsign to 4 dB. V2: sync in 0.4 s, correlation 0.96. Block sizes 128 to 1024 all worked. The end-of-over flushed in 300 to 460 ms. Kainos started, ran and saved the new settings with RADE built in; the window and Setup tab were checked in off-screen renders. On-air testing is next.
 
+### Kainos layout (roadmap Phase 7)
+
+The console redesign agreed on the design canvas ("Kainos Console Concepts", concept E): the splash-screen colours, a left dock in place of the top controls, one SmartSDR-style slice flag per receiver, an AetherSDR-style right column of toggle tabs (METERS first, with OE3IDE's FTDX-5000 multimeter offered as a download on first use), and RX2 as a second panadapter. It is built in stages, each tested on the radio; Thetis's designer files are not changed, and Setup > Appearance > Kainos > Layout switches between **Classic** (the Thetis console exactly as the skin draws it) and **Kainos**.
+
+- **Display scaling:** Thetis does not declare itself DPI-aware (the `dpiAware` entry in `app.manifest` is commented out), so Windows scales the whole program at 125 % / 150 %; at 1920×1080 and 150 % Kainos has 1280×720 to lay out in. The Kainos layout is designed to fit that. Making the program DPI-aware (sharper text) would affect every Thetis window and is left for a separate test.
+- **Stage 1 (foundation):**
+  - `KainosUI.cs`: the palette (navy background, panels, ice blue, gold for VFO A and selection, violet for VFO B, red only for TX) and `KainosToolStripRenderer` for the menu and status bars.
+  - `consoleKainosLayout.cs`: `Console.KainosLayout`. Kainos mode replaces the skin's console background with the navy, gives the panels and group boxes the skin draws with a background image the panel colour, and renders the menu and status bars in the palette; every original (images, colours, renderers) is kept and put back in Classic. `KainosApplyTheme()` runs again after a skin is loaded (one hook line in `setup.cs`), because a skin brings back its own images.
+  - Menu fix: the menu items Kainos adds in code ("Kainos Audio", "FreeDV") now take the Thetis items' text colour; they were drawn in the default black and looked disabled.
+  - `setupKainosUI.cs`: Setup > Appearance > Kainos, Layout = Classic / Kainos (saved; applied by `applyKainosUI()` from `ForceAllEvents`).
+  - The panadapter and waterfall colours are unchanged until the last stage.
+
 ### Installer
 
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer has not been built or tested yet.

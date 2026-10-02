@@ -2212,6 +2212,7 @@ namespace Thetis
 
             applyAetherVoice(); // Kainos: setupKainos.cs
             applyRade(); // Kainos: setupRade.cs
+            applyKainosUI(); // Kainos: setupKainosUI.cs
 
             // General Tab
             comboRadioModel_SelectedIndexChanged(this, e);
@@ -12859,6 +12860,7 @@ namespace Thetis
             {
                 Skin.Restore(comboAppSkin.Text, _skinPath, console);
                 console.UpdateAndromedaSkins();
+                console.KainosApplyTheme(); // Kainos: consoleKainosLayout.cs (a skin brings back its own background)
             }
 
             console.CurrentSkin = comboAppSkin.Text;
