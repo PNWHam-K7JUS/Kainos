@@ -31,17 +31,21 @@ namespace Thetis
     {
         private ToolStripMenuItem aetherVoiceToolStripMenuItem;
         private ToolStripMenuItem aetherTXToolStripMenuItem;
+        private ToolStripMenuItem aetherRXToolStripMenuItem;
         private CheckBoxTS chkAetherVoice;
         private frmAetherVoice _frmAetherVoice;
-        private frmAetherStrip _frmAetherStrip;
+        private frmAetherStrip _frmAether;
 
         // the AetherSDR channel strip on transmit; its settings are saved in each TX profile
-        public AetherStripTX AetherStripTX { get; private set; }
+        public AetherStrip AetherStripTX { get; private set; }
+        // the AetherSDR channel strip on receive (all receivers); saved with the Setup options
+        public AetherStrip AetherStripRX { get; private set; }
 
         // called from the constructor straight after InitializeComponent, before the skin is applied
         private void addKainosControls()
         {
-            AetherStripTX = new AetherStripTX(this);
+            AetherStripTX = new AetherStrip(this, false);
+            AetherStripRX = new AetherStrip(this, true);
 
             // AetherVoice menu item, after Equalizer
             aetherVoiceToolStripMenuItem = new ToolStripMenuItem("AetherVoice")
@@ -60,6 +64,15 @@ namespace Thetis
             };
             aetherTXToolStripMenuItem.Click += (s, e) => ShowAetherStrip();
             menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(aetherVoiceToolStripMenuItem) + 1, aetherTXToolStripMenuItem);
+
+            // AetherRX channel strip window, after AetherTX
+            aetherRXToolStripMenuItem = new ToolStripMenuItem("AetherRX")
+            {
+                Name = "aetherRXToolStripMenuItem",
+                ToolTipText = "Open the AetherRX channel strip: gate, compressor, tube and AetherVoice on receive"
+            };
+            aetherRXToolStripMenuItem.Click += (s, e) => ShowAetherRX();
+            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(aetherTXToolStripMenuItem) + 1, aetherRXToolStripMenuItem);
 
             // AV button on the phone-mode panel, below RX EQ and styled like it
             chkAetherVoice = new CheckBoxTS
@@ -97,16 +110,21 @@ namespace Thetis
             _frmAetherVoice.Activate();
         }
 
-        public void ShowAetherStrip()
+        // one Aether window with RX and TX tabs; the AetherRX / AetherTX menu items open it on that tab
+        public void ShowAetherStrip() { showAether(false); }
+        public void ShowAetherRX() { showAether(true); }
+
+        private void showAether(bool rx)
         {
-            if (_frmAetherStrip == null || _frmAetherStrip.IsDisposed)
+            if (_frmAether == null || _frmAether.IsDisposed)
             {
-                _frmAetherStrip = new frmAetherStrip(this) { Owner = this };
-                _frmAetherStrip.Location = new Point(Left + (Width - _frmAetherStrip.Width) / 2, Top + (Height - _frmAetherStrip.Height) / 2);
+                _frmAether = new frmAetherStrip(this, rx) { Owner = this };
+                _frmAether.Location = new Point(Left + (Width - _frmAether.Width) / 2, Top + (Height - _frmAether.Height) / 2);
             }
-            _frmAetherStrip.Show();
-            _frmAetherStrip.BringToFront();
-            _frmAetherStrip.Activate();
+            else _frmAether.SetSide(rx);
+            _frmAether.Show();
+            _frmAether.BringToFront();
+            _frmAether.Activate();
         }
 
         // Setup calls this whenever the AetherVoice settings are applied, so the AV button follows

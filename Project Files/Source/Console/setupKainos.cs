@@ -54,6 +54,10 @@ namespace Thetis
         private TabPage tpDSPAetherVoice;
         private AetherVoiceSetupControls _aetherVoiceRX;
         private AetherVoiceSetupControls _aetherVoiceTX;
+        // AetherRX strip settings (AetherStrip.Serialize text), kept in a hidden TextBoxTS so the
+        // Setup options save and restore them like every other setting
+        private TextBoxTS txtAetherStripRX;
+        private bool _syncingStripRX;
 
         // The AetherVoice window (frmAetherVoice) reads and writes these controls directly, so the
         // window, this tab and the console AV button always agree and save the same way.
@@ -93,6 +97,14 @@ namespace Thetis
             note.AutoSize = false;
             note.Size = new Size(264, 220);
             tpDSPAetherVoice.Controls.Add(note);
+
+            txtAetherStripRX = new TextBoxTS { Name = "txtAetherStripRX", Visible = false, Text = AetherStrip.DefaultsSerialized() };
+            txtAetherStripRX.TextChanged += (s, e) =>
+            {
+                hookAetherStripRX();
+                if (!_syncingStripRX) console.AetherStripRX.Deserialize(txtAetherStripRX.Text);
+            };
+            tpDSPAetherVoice.Controls.Add(txtAetherStripRX);
 
             foreach (Control c in _aetherVoiceRX.All) hookChanged(c, aetherVoiceRX_Changed);
             foreach (Control c in _aetherVoiceTX.All) hookChanged(c, aetherVoiceTX_Changed);
@@ -160,6 +172,20 @@ namespace Thetis
             return s;
         }
 
+        // the tab is built before Setup has its console, so the RX strip is connected on first use
+        private bool _aetherStripRXHooked;
+        internal void hookAetherStripRX()
+        {
+            if (_aetherStripRXHooked || console == null) return;
+            _aetherStripRXHooked = true;
+            console.AetherStripRX.Changed += (s, e) =>
+            {
+                _syncingStripRX = true;
+                txtAetherStripRX.Text = console.AetherStripRX.Serialize();
+                _syncingStripRX = false;
+            };
+        }
+
         private static void hookChanged(Control c, EventHandler h)
         {
             if (c is CheckBoxTS) ((CheckBoxTS)c).CheckedChanged += h;
@@ -213,9 +239,17 @@ namespace Thetis
         // called from ForceAllEvents at startup, and whenever a setting changes
         private void applyAetherVoice()
         {
+            hookAetherStripRX();
             applyAetherVoiceRX();
             applyAetherVoiceTX();
             console.AetherStripTX.ApplyAll();
+            console.AetherStripRX.ApplyAll();
+        }
+
+        // the AetherRX BYPASS button also bypasses AetherVoice RX
+        internal void ApplyAetherVoiceRXFromStrip()
+        {
+            applyAetherVoiceRX();
         }
 
         // the AetherTX BYPASS button also bypasses AetherVoice TX
@@ -237,7 +271,7 @@ namespace Thetis
                     rx.RXAetherVoiceMode = mode;
                     rx.SetRXAetherVoiceBody((double)s.BodyDrive.Value, (double)s.BodyTune.Value, (double)s.BodyMix.Value / 100.0);
                     rx.SetRXAetherVoiceClarity((double)s.ClarityTune.Value, (double)s.ClarityHarmonics.Value, (double)s.ClarityMix.Value / 100.0);
-                    rx.RXAetherVoiceOn = s.Enable.Checked;
+                    rx.RXAetherVoiceOn = s.Enable.Checked && !console.AetherStripRX.Bypass;
                 }
             }
             console.AetherVoiceRXChanged(s.Enable.Checked);
