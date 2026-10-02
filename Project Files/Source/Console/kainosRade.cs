@@ -165,13 +165,46 @@ namespace Thetis
         // the radio keyed, so the real un-key doesn't send a second one
         internal static volatile bool EooSentByArbiter;
 
-        // Whether an over keyed now would be RADE: RADE is on for RX1, it isn't a tune or two-tone test,
-        // and it isn't a VFO B over on RX2 (RX2 isn't on the RADE chain, so that over goes out as plain voice).
+        // The receiver an over keyed now transmits from: RX2 on a VFO B over with RX2 on, RX1 otherwise.
+        internal static int OverReceiver(Console c)
+        {
+            return c != null && c.RX2Enabled && c.VFOBTX ? 1 : 0;
+        }
+
+        // Whether an over keyed now would be RADE: RADE is on for the transmitting receiver, and it isn't a
+        // tune or two-tone test. An over from a receiver without RADE goes out as plain voice.
         internal static bool OverWouldBeRade(Console c)
         {
-            if (c == null || GetRadaeRxEnabled(0) == 0) return false;
-            if (c.TUN || c.TwoTone) return false;
-            return !(c.RX2Enabled && c.VFOBTX);
+            if (c == null || c.TUN || c.TwoTone) return false;
+            return GetRadaeRxEnabled(OverReceiver(c)) != 0;
+        }
+
+        // The modem signal must not go through the TX compressor, CFC, overshoot control or EQ: the TX profile
+        // follows RX1's mode, so an RX2 RADE over while RX1 is in a voice mode would otherwise get the voice
+        // profile's processing. They are switched off in WDSP for the over and restored from their settings
+        // afterwards (the leveler and phase rotator are left as they are).
+        private static bool _txProcessingHeld;
+
+        private static void holdTxProcessing(Console c, bool hold)
+        {
+            if (hold == _txProcessingHeld) return;
+            int id = WDSP.id(1, 0);
+            if (hold)
+            {
+                WDSP.SetTXAEQRun(id, false);
+                WDSP.SetTXACompressorRun(id, false);
+                WDSP.SetTXAosctrlRun(id, false);
+                WDSP.SetTXACFCOMPRun(id, 0);
+            }
+            else
+            {
+                RadioDSPTX tx = c.radio.GetDSPTX(0);
+                WDSP.SetTXAEQRun(id, tx.TXEQOn);
+                WDSP.SetTXACompressorRun(id, tx.TXCompandOn);
+                WDSP.SetTXAosctrlRun(id, tx.TXOsctrlOn);
+                WDSP.SetTXACFCOMPRun(id, !c.IsSetupFormNull && c.SetupForm.TXCFCOn ? 1 : 0);
+            }
+            _txProcessingHeld = hold;
         }
 
         // Order matters at un-key: the end-of-over request must be raised before the MOX state drops,
@@ -185,14 +218,16 @@ namespace Thetis
                     if (_overIsRade && !EooSentByArbiter) RadaeNotifyEndOfOver();
                     EooSentByArbiter = false;
                     _overIsRade = false;
+                    holdTxProcessing(Console.getConsole(), false);
                 }
                 else if (!wasMox && mox)
                 {
                     Console c = Console.getConsole();
                     _overIsRade = OverWouldBeRade(c);
-                    SetRadaeTxRx(0);
+                    SetRadaeTxRx(OverReceiver(c));        // the encoder uses this receiver's protocol (V1/V2)
                     if (_overIsRade)
                     {
+                        holdTxProcessing(c, true);
                         SetRadaeEooCallsign(c.RadeCallsign);
                         RadaeNotifyBeginOver();
                     }

@@ -38688,7 +38688,7 @@ namespace Thetis
                     }
                     break;
                 case DSPMode.DIGL:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeRx2Enabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX2
                     {
                         ptbRX2AF.Enabled = true;
                         ptbRX2AF.SmallChange = 1;
@@ -38710,7 +38710,7 @@ namespace Thetis
                     if (new_mode != DSPMode.DIGU) SetDigiMode(2, DigiMode.DigiModeSettingState.dmssRecall);
                     break;
                 case DSPMode.DIGU:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeRx2Enabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX2
                     {
                         ptbRX2AF.Enabled = true;
                         ptbRX2AF.SmallChange = 1;
@@ -38901,7 +38901,7 @@ namespace Thetis
                     chkRX2BIN.Enabled = false;
                     break;
                 case DSPMode.DIGL:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeRx2Enabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX2
                     {
                         ptbRX2AF.Enabled = false;
                         ptbRX2AF.SmallChange = 0;
@@ -38931,7 +38931,7 @@ namespace Thetis
 
                     break;
                 case DSPMode.DIGU:
-                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !RadeRx2Enabled)     // MI0BOT:  For HL2 Audio control is based on VFO and Mode; Kainos: not while RADE owns RX2
                     {
                         ptbRX2AF.Enabled = false;
                         ptbRX2AF.SmallChange = 0;

@@ -25,7 +25,8 @@ using System.Text;
 
 namespace Thetis.FreeDVReporter
 {
-    // Connects Kainos to the FreeDV Reporter at qso.freedv.org (from Thetis-RADE by SV1EIA, reduced to RX1).
+    // Connects Kainos to the FreeDV Reporter at qso.freedv.org (from Thetis-RADE by SV1EIA, with one connection).
+    // It reports the receiver RADE is on: RX1, or RX2 when only RX2 has RADE on (frequency, decodes and SNR).
     //
     // The connection is open while the Reporter window is open, and also while RADE is on with
     // "Report my station" ticked. Kainos publishes its own station (callsign, grid square, frequency,
@@ -37,6 +38,7 @@ namespace Thetis.FreeDVReporter
         private static FreeDVReporterForm _form;
         private static Console _console;
         private static bool _windowWanted;
+        private static int _rx;                          // the receiver being reported: 0 = RX1, 1 = RX2
 
         // settings, from Setup > DSP > FreeDV (RADE)
         private static string _callsign = "", _grid = "", _message = "";
@@ -83,14 +85,19 @@ namespace Thetis.FreeDVReporter
 
         private static string modeTag()
         {
-            try { return Rade.GetRadaeProtocolV2(0) == 1 ? "RADEV2" : "RADEV1"; }
+            try { return Rade.GetRadaeProtocolV2(_rx) == 1 ? "RADEV2" : "RADEV1"; }
             catch { return "RADEV1"; }
         }
 
         // publish our own station only while RADE is on and the user asked for it
         private static bool publishing(Console c)
         {
-            return _reporting && c != null && c.RadeEnabled && _callsign.Length > 0 && _grid.Length > 0;
+            return _reporting && c != null && c.RadeAnyEnabled && _callsign.Length > 0 && _grid.Length > 0;
+        }
+
+        private static int reportReceiver(Console c)
+        {
+            return !c.RadeEnabled && c.RadeRx2Enabled ? 1 : 0;
         }
 
         #region Called by Kainos
@@ -139,16 +146,25 @@ namespace Thetis.FreeDVReporter
         public static void Update(Console console)
         {
             if (console == null) return;
-            bool want = _windowWanted || (_reporting && console.RadeEnabled);
+            bool want = _windowWanted || (_reporting && console.RadeAnyEnabled);
             if (!want)
             {
                 if (_client != null) disconnect();
                 return;
             }
+            int rx = reportReceiver(console);
             if (_client == null)
             {
+                _rx = rx;
                 connect(console);
                 return;
+            }
+            if (rx != _rx)
+            {
+                _rx = rx;
+                _lastSync = 0;
+                try { _lastCallsignSeq = Rade.GetRadaeRemoteCallsignSeq(rx); } catch { }
+                primeState(console);    // the other receiver's frequency and mode
             }
 
             string role = publishing(console) ? "report" : "view";
@@ -225,12 +241,13 @@ namespace Thetis.FreeDVReporter
                             oldCentreF, newCentreF, oldCTUN, newCTUN, oldZoom, newZoom, offset, rx) =>
             {
                 CurrentFrequencyHz = (ulong)Math.Round(newFreq * 1e6);
-                try { _client?.EmitFreqChange(CurrentFrequencyHz); } catch { }
+                if (_rx == 0) try { _client?.EmitFreqChange(CurrentFrequencyHz); } catch { }
             };
             _vfobHandler = (oldBand, newBand, oldMode, newMode, oldFilter, newFilter, oldFreq, newFreq,
                             oldCentreF, newCentreF, oldCTUN, newCTUN, oldZoom, newZoom, offset, rx) =>
             {
                 CurrentFrequencyRx2Hz = (ulong)Math.Round(newFreq * 1e6);
+                if (_rx == 1) try { _client?.EmitFreqChange(CurrentFrequencyRx2Hz); } catch { }
             };
             console.MoxChangeHandlers += _moxHandler;
             console.TuneChangedHandlers += _tuneHandler;
@@ -251,7 +268,7 @@ namespace Thetis.FreeDVReporter
             {
                 CurrentFrequencyHz = (ulong)Math.Round(console.VFOAFreq * 1e6);
                 CurrentFrequencyRx2Hz = (ulong)Math.Round(console.VFOBFreq * 1e6);
-                _client.EmitFreqChange(CurrentFrequencyHz);
+                _client.EmitFreqChange(_rx == 0 ? CurrentFrequencyHz : CurrentFrequencyRx2Hz);
                 _lastReportedTransmitting = computeRealTx(console);
                 _client.EmitTxReport(modeTag(), _lastReportedTransmitting);
                 _client.EmitMessageUpdate(_message);
@@ -292,10 +309,10 @@ namespace Thetis.FreeDVReporter
             _form = null;
         }
 
-        // A real RADE over: MOX on, not tuning or two-tone, and the encoder is in use
+        // A real RADE over from the reported receiver: MOX on, not tuning or two-tone, and the encoder is in use
         private static bool computeRealTx(Console c)
         {
-            try { return c.MOX && Rade.OverWouldBeRade(c); }
+            try { return c.MOX && Rade.OverWouldBeRade(c) && Rade.OverReceiver(c) == _rx; }
             catch { return false; }
         }
 
@@ -319,15 +336,16 @@ namespace Thetis.FreeDVReporter
             if (_client == null || _console == null) return;
             try
             {
-                if (!_console.RadeEnabled) { _lastSync = 0; return; }
-                int sync = Rade.GetRadaeSync(0);
-                int snr = Rade.GetRadaeSnrDb(0);
-                int seq = Rade.GetRadaeRemoteCallsignSeq(0);
+                int rx = _rx;
+                if (!_console.RadeEnabledOn(rx)) { _lastSync = 0; return; }
+                int sync = Rade.GetRadaeSync(rx);
+                int snr = Rade.GetRadaeSnrDb(rx);
+                int seq = Rade.GetRadaeRemoteCallsignSeq(rx);
                 bool fresh = seq != _lastCallsignSeq;
                 if (fresh)
                 {
                     StringBuilder sb = new StringBuilder(16);
-                    Rade.GetRadaeRemoteCallsign(0, sb, sb.Capacity);
+                    Rade.GetRadaeRemoteCallsign(rx, sb, sb.Capacity);
                     _lastDecodedCall = sb.ToString().Trim().ToUpperInvariant();
                     _lastCallsignSeq = seq;
                 }

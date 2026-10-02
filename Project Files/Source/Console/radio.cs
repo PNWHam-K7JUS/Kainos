@@ -1240,20 +1240,21 @@ namespace Thetis
 				rx_output_gain = value;
 				if(update)
 				{
-                    // Kainos (from Thetis-RADE): while RADE is on for RX1, the AF slider sets the level of the
-                    // decoded speech (applied after the decoder in ChannelMaster), and WDSP's output stays at unity
-                    // so the decoder always sees the same level
+                    // Kainos (from Thetis-RADE): while RADE is on for RX1 or RX2, that receiver's AF slider sets the
+                    // level of the decoded speech (applied after the decoder in ChannelMaster), and WDSP's output stays
+                    // at unity so the decoder always sees the same level
                     int dsp_id = WDSP.id(thread, subrx);
-                    if (dsp_id == 0 && Rade.GetRadaeRxEnabled(0) != 0)
+                    int rade_rx = dsp_id == 0 ? 0 : dsp_id == 2 ? 1 : -1;
+                    if (rade_rx >= 0 && Rade.GetRadaeRxEnabled(rade_rx) != 0)
                     {
-                        Rade.SetRadaeRxAFGain(0, value);
+                        Rade.SetRadaeRxAFGain(rade_rx, value);
                         if (1.0 != rx_output_gain_dsp || force)
                         {
                             WDSP.SetRXAPanelGain1(dsp_id, 1.0);
                             rx_output_gain_dsp = 1.0;
                         }
-                        if (WaveThing.wave_file_writer[0] != null)
-                            WaveThing.wave_file_writer[0].RecordGain = 1.0f;
+                        if (WaveThing.wave_file_writer[rade_rx] != null)
+                            WaveThing.wave_file_writer[rade_rx].RecordGain = 1.0f;
                     }
                     else if (value != rx_output_gain_dsp || force)
                     {

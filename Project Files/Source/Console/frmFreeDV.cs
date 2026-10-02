@@ -50,7 +50,7 @@ namespace Thetis
         private readonly Console _console;
         private readonly Setup _setup;
         private readonly RadeSetupControls _r;
-        private readonly AetherToggleButton _btnOn, _btnV1, _btnV2, _btnNoise, _btnAGC, _btnEQ, _btnSettings, _btnReporter;
+        private readonly AetherToggleButton _btnOn, _btnV1, _btnV2, _btnNoise, _btnAGC, _btnEQ, _btnSettings, _btnReporter, _btnRX1, _btnRX2;
         private readonly Label _status, _footer;
         private readonly RadeStatusPanel _statusPanel;
         private readonly RadeHeardPanel _heard;
@@ -59,7 +59,15 @@ namespace Thetis
         private readonly ToolTip _tips;
         private readonly Timer _timer;
         private bool _syncing;
-        private int _callSeq = -1;
+        // the receiver shown (0 = RX1, 1 = RX2), and the last callsign heard on each
+        private int _rx;
+        private readonly int[] _callSeq = { -1, -1 };
+        private readonly string[] _heardCall = { "", "" };
+        private readonly DateTime[] _heardAt = new DateTime[2];
+        private int _holdStatus;        // ticks to keep a message in the status line
+
+        private ComboBoxTS versionCombo { get { return _rx == 0 ? _r.Version : _r.VersionRX2; } }
+        private NumericUpDownTS rxLevel { get { return _rx == 0 ? _r.RxLevel : _r.RxLevelRX2; } }
 
         public frmFreeDV(Console console)
         {
@@ -112,10 +120,18 @@ namespace Thetis
             _btnV1 = new AetherToggleButton { Text = "V1", Location = new Point(98, 32), Size = new Size(40, 28) };
             _btnV2 = new AetherToggleButton { Text = "V2", Location = new Point(142, 32), Size = new Size(40, 28) };
             _btnOn.Click += (s, e) => toggleRade();
-            _btnV1.Click += (s, e) => { if (!_syncing) _r.Version.SelectedIndex = 0; };
-            _btnV2.Click += (s, e) => { if (!_syncing) _r.Version.SelectedIndex = 1; };
-            _tips.SetToolTip(_btnOn, "Turn RADE on or off. On: RX1 changes to DIGU or DIGL, received RADE is decoded to speech,\r\n" +
-                                     "and your overs are sent as RADE. Off: RX1 goes back to the mode it was in.");
+            _btnV1.Click += (s, e) => { if (!_syncing) versionCombo.SelectedIndex = 0; };
+            _btnV2.Click += (s, e) => { if (!_syncing) versionCombo.SelectedIndex = 1; };
+            _btnRX1 = new AetherToggleButton { Text = "RX1", Location = new Point(196, 32), Size = new Size(44, 28) };
+            _btnRX2 = new AetherToggleButton { Text = "RX2", Location = new Point(244, 32), Size = new Size(44, 28) };
+            _btnRX1.Click += (s, e) => showReceiver(0);
+            _btnRX2.Click += (s, e) => showReceiver(1);
+            _tips.SetToolTip(_btnRX1, "Show and control RADE on RX1.");
+            _tips.SetToolTip(_btnRX2, "Show and control RADE on RX2 (RX2 must be on). A VFO B over with RX2 on is sent from RX2's RADE.");
+            Controls.Add(_btnRX1);
+            Controls.Add(_btnRX2);
+            _tips.SetToolTip(_btnOn, "Turn RADE on or off for the receiver shown. On: it changes to DIGU or DIGL, received RADE is decoded to speech,\r\n" +
+                                     "and your overs from it are sent as RADE. Off: it goes back to the mode it was in.");
             _tips.SetToolTip(_btnV1, "RADE V1: what most stations use. Both ends must use the same version.");
             _tips.SetToolTip(_btnV2, "RADE V2. Both ends must use the same version. V2 does not send or receive callsigns.");
             _status = new Label
@@ -123,8 +139,8 @@ namespace Thetis
                 ForeColor = kTextDim,
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold, GraphicsUnit.Pixel),
                 TextAlign = ContentAlignment.MiddleRight,
-                Location = new Point(190, 34),
-                Size = new Size(358, 24)
+                Location = new Point(296, 34),
+                Size = new Size(252, 24)
             };
             Controls.Add(_btnOn);
             Controls.Add(_btnV1);
@@ -149,7 +165,7 @@ namespace Thetis
             _micKnob = new AetherKnob("Mic", -40, 40, 0, v => (v > 0 ? "+" : "") + v.ToString("0") + " dB") { Location = new Point(12, 296), Size = new Size(76, 76) };
             _rxKnob = new AetherKnob("RX", -40, 40, 0, v => (v > 0 ? "+" : "") + v.ToString("0") + " dB") { Location = new Point(98, 296), Size = new Size(76, 76) };
             _micKnob.ValueChanged += (s, e) => setUpDown(_r.MicLevel, _micKnob.Value);
-            _rxKnob.ValueChanged += (s, e) => setUpDown(_r.RxLevel, _rxKnob.Value);
+            _rxKnob.ValueChanged += (s, e) => setUpDown(rxLevel, _rxKnob.Value);
             _tips.SetToolTip(_micKnob, "Mic level into the encoder. Drag or scroll; double-click for 0 dB.");
             _tips.SetToolTip(_rxKnob, "Received signal level into the decoder (the RX1 AF slider sets the speech volume).\r\nDrag or scroll; double-click for 0 dB.");
             Controls.Add(_micKnob);
@@ -200,15 +216,28 @@ namespace Thetis
 
             _timer = new Timer { Interval = 50 };
             _timer.Tick += (s, e) => tick();
+            showReceiver(!_console.RadeEnabled && _console.RadeRx2Enabled ? 1 : 0);
+        }
+
+        // switch the window between RX1 and RX2
+        private void showReceiver(int rx)
+        {
+            _rx = rx;
+            _btnRX1.Checked = rx == 0;
+            _btnRX2.Checked = rx == 1;
+            _heard.SetHeard(_heardCall[rx], _heardAt[rx]);
+            _statusPanel.SetState(false, false, 0, 0);
             syncFromSetup();
         }
 
         private void toggleRade()
         {
-            if (!_console.SetRadeEnabled(!_console.RadeEnabled))
+            bool on = !_console.RadeEnabledOn(_rx);
+            if (!_console.SetRadeEnabled(_rx, on))
             {
-                _status.Text = "Can't switch while transmitting";
+                _status.Text = on && _rx == 1 && !_console.RX2Enabled ? "Turn RX2 on first" : "Can't switch while transmitting";
                 _status.ForeColor = kOrange;
+                _holdStatus = 40;
             }
             syncFromSetup();
         }
@@ -223,14 +252,14 @@ namespace Thetis
             _syncing = true;
             try
             {
-                _btnOn.Checked = _console.RadeEnabled;
-                _btnV1.Checked = _r.Version.SelectedIndex != 1;
-                _btnV2.Checked = _r.Version.SelectedIndex == 1;
+                _btnOn.Checked = _console.RadeEnabledOn(_rx);
+                _btnV1.Checked = versionCombo.SelectedIndex != 1;
+                _btnV2.Checked = versionCombo.SelectedIndex == 1;
                 _btnNoise.Checked = _r.MicRNNoise.Checked;
                 _btnAGC.Checked = _r.MicAGC.Checked;
                 _btnEQ.Checked = _r.MicEQ.Checked;
                 _micKnob.SetValue((double)_r.MicLevel.Value);
-                _rxKnob.SetValue((double)_r.RxLevel.Value);
+                _rxKnob.SetValue((double)rxLevel.Value);
                 string call = _r.Callsign.Text.Trim();
                 if (call.Length == 0)
                 {
@@ -259,7 +288,8 @@ namespace Thetis
 
         private void tick()
         {
-            bool on = _console.RadeEnabled, power = _console.PowerOn;
+            int r = _rx;
+            bool on = _console.RadeEnabledOn(r), power = _console.PowerOn;
             bool sync = false;
             int snr = 0, rx = -120, mic = -120;
             bool rxClip = false, micClip = false;
@@ -268,32 +298,39 @@ namespace Thetis
             {
                 if (on && power)
                 {
-                    sync = _console.RadeSync;
-                    snr = _console.RadeSnrDb;
-                    rx = _console.RadeRxLevelDb;
-                    rxClip = _console.RadeRxClip;
-                    offset = _console.RadeFreqOffsetHz;
-                    if (_console.MOX)
+                    sync = _console.RadeSyncOn(r);
+                    snr = _console.RadeSnrDbOn(r);
+                    rx = _console.RadeRxLevelDbOn(r);
+                    rxClip = _console.RadeRxClipOn(r);
+                    offset = _console.RadeFreqOffsetHzOn(r);
+                    if (_console.MOX && _console.RadeTxReceiver == r)
                     {
                         mic = _console.RadeMicLevelDb;
                         micClip = _console.RadeMicClip;
                     }
                 }
-                int seq = _console.RadeCallsignSeq;
-                if (seq != _callSeq)
+                // callsigns are collected on both receivers, whichever is shown
+                for (int i = 0; i < 2; i++)
                 {
-                    if (_callSeq != -1)
+                    int seq = _console.RadeCallsignSeqOn(i);
+                    if (seq == _callSeq[i]) continue;
+                    if (_callSeq[i] != -1)
                     {
-                        string call = _console.RadeRemoteCallsign;
-                        if (call.Length > 0) _heard.SetHeard(call, DateTime.Now);
+                        string call = _console.RadeRemoteCallsignOn(i);
+                        if (call.Length > 0)
+                        {
+                            _heardCall[i] = call;
+                            _heardAt[i] = DateTime.Now;
+                            if (i == r) _heard.SetHeard(call, _heardAt[i]);
+                        }
                     }
-                    _callSeq = seq;
+                    _callSeq[i] = seq;
                 }
             }
             catch { }
 
             _statusPanel.SetState(on && power, sync, snr, offset);
-            _rxBar.SetLevel(on && power && !_console.MOX ? rx : -120, rxClip);
+            _rxBar.SetLevel(on && power && !(_console.MOX && _console.RadeTxReceiver == r) ? rx : -120, rxClip);
             _micBar.SetLevel(mic, micClip);
             _heard.Invalidate();
 
@@ -301,12 +338,17 @@ namespace Thetis
             Color color;
             if (!on) { text = "Off"; color = kTextDim; }
             else if (!power) { text = "Radio off"; color = kTextDim; }
+            else if (_console.MOX && _console.RadeTxReceiver != r) { text = "Transmitting from RX" + (_console.RadeTxReceiver + 1); color = kTextMid; }
             else if (_console.RadeSendingEoo) { text = "Sending end-of-over"; color = kOrange; }
-            else if (_console.MOX) { text = _console.RadeTransmitting ? "Transmitting RADE" : "Transmitting voice (VFO B)"; color = kRed; }
+            else if (_console.MOX) { text = _console.RadeTransmitting ? "Transmitting RADE" : "Transmitting voice"; color = kRed; }
             else if (sync) { text = "Receiving RADE"; color = kGreen; }
             else { text = "Listening"; color = kTextMid; }
-            if (_status.Text != text) _status.Text = text;
-            _status.ForeColor = color;
+            if (_holdStatus > 0) _holdStatus--;
+            else
+            {
+                if (_status.Text != text) _status.Text = text;
+                _status.ForeColor = color;
+            }
             if (_btnOn.Checked != on) _btnOn.Checked = on;
             bool connected = FreeDVReporter.FreeDVReporterManager.IsConnected;
             if (_btnReporter.Checked != connected) _btnReporter.Checked = connected;
