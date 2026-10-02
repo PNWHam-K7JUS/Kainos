@@ -154,7 +154,7 @@ The chain can be reordered, as AetherSDR's can: drag a stage up or down the stag
   - REC records to `<Thetis audio folder>/kainosaudio/KainosAudioTX.wav` (or `...RX.wav`). On the TX tab it records the **transmitter output** (`AudioRecordTxSource.TransmitterOutputIQ`), so the recording includes Kainos Audio plus the Thetis leveler, TX filter and ALC; on SSB the left channel (I) is the processed voice. On the RX tab it records the receiver output. The user's recording source settings are switched only for the moment the recording starts, then restored.
   - PLAY plays the last recording for that tab through the PC output device set in Thetis's recording settings (`ARP.OutputPCDeviceID`); nothing is transmitted.
   - REC won't stop a recording Kainos Audio didn't start.
-  - Not yet tested on the radio: it needs the live audio streams.
+  - Confirmed working on the radio (transmit into a dummy load, played back on the PC).
 
 ### Installer
 
