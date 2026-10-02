@@ -28,6 +28,9 @@ namespace Thetis
     // Setup > Appearance > Kainos: the console layout (Classic or Kainos)
     public partial class Setup
     {
+        // the PA profile list, for the console's PA PROFILE tab
+        internal ComboBox KainosPAProfileCombo { get { return comboPAProfile; } }
+
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
