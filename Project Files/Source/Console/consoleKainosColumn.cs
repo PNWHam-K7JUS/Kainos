@@ -101,6 +101,7 @@ namespace Thetis
                 _kainosModeGrid = new KainosButtonGrid(3, KainosUI.Tone.Gold);
                 _kainosFilterGrid = new KainosButtonGrid(3, KainosUI.Tone.Ice);
                 _kainosShiftReset = new KainosButtonGrid(1, KainosUI.Tone.Ice) { LabelFor = b => "Reset" };   // the skin's image button
+                kainosAddVfoSection();          // the VFO faces: consoleKainosFlag.cs
                 _kainosColumn.AddSection("meters", "METERS", kainosMetersMeasure, kainosMetersArrange);
                 _kainosColumn.AddSection("band", "BAND", kainosBandMeasure, kainosBandArrange);
                 _kainosColumn.AddSection("rx", "RX", w => kainosRowsHeight(kainosRxRows), r => kainosRowsArrange(kainosRxRows, r));
@@ -705,7 +706,7 @@ namespace Thetis
                 }
         }
 
-        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollBy(e.Delta); }
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -770,7 +771,7 @@ namespace Thetis
             _column.PaintHeaders(e.Graphics);
         }
 
-        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); _column.ScrollBy(e.Delta); }
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); _column.ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
     }
 
     // A grid of Kainos-drawn buttons bound to Thetis buttons (radio buttons, check boxes or plain buttons): a click
