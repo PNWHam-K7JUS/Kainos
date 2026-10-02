@@ -203,6 +203,12 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - Menu fix: the menu items Kainos adds in code ("Kainos Audio", "FreeDV") now take the Thetis items' text colour; they were drawn in the default black and looked disabled.
   - `setupKainosUI.cs`: Setup > Appearance > Kainos, Layout = Classic / Kainos (saved; applied by `applyKainosUI()` from `ForceAllEvents`).
   - The panadapter and waterfall colours are unchanged until the last stage.
+- **Stage 2 (left dock):** `consoleKainosDock.cs`.
+  - `KainosDock` stands in for Thetis's `panelPower` (POWER, RX2) and `panelOptions` (MON, TUN, MOX, 2TON, DUP, PS-A, xPA, REC, PLAY), plus VOX, in three groups. Each dock button is drawn by Kainos (`KainosUI.DrawButton`) and bound to the real Thetis `CheckBox`: a left click calls the box's `OnClick` (it toggles and runs Thetis's Click handler, e.g. `chkMOX_Click`), a right click calls its `OnMouseDown`/`OnMouseUp` with the right button (Thetis's settings shortcuts). The dock redraws on the boxes' `CheckedChanged`, `EnabledChanged`, `VisibleChanged` and `TextChanged`, and lists only the boxes Thetis shows (VOX lives on the phone panel, so it leaves in CW and digital modes).
+  - Thetis's two panels are collapsed to zero size, not hidden, so Thetis can still show and hide them (its collapsed layouts, "Mon/Tune panel" options) and the dock follows their `Visible`; it covers the area from `panelPower` down to `panelSoundControls`, repositioned on their `LocationChanged` (Thetis's `ResizeConsole` moves them) and the console's `SizeChanged`. Classic restores their sizes; a skin load re-collapses them.
+  - Status bar: Fwd (`calfwdpower`), SWR (`alex_swr`, red from 2.0) and ALC gain reduction (`WDSP.CalculateTXMeter(1, ALC_G)`), polled every 250 ms while transmitting, before Thetis's fill label. The Kainos status renderer keeps each status item's own colour.
+  - `KainosUI.Scale` (Setup > Appearance > Kainos > UI scale, 75–200 %): sizes the dock's text and spacing.
+  - Checked: Kainos and Classic layouts captured from the running program; Classic shows Thetis's panels and the skin unchanged.
 
 ### Installer
 

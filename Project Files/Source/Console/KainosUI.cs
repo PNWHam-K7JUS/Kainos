@@ -19,7 +19,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace Thetis
@@ -42,6 +44,60 @@ namespace Thetis
         public static readonly Color GoldHi = Color.FromArgb(0xe8, 0xc8, 0x8a);
         public static readonly Color Violet = Color.FromArgb(0xb5, 0xa8, 0xe0);     // VFO B
         public static readonly Color Tx = Color.FromArgb(0xe2, 0x57, 0x4c);         // transmit only
+        public static readonly Color Selected = Color.FromArgb(0x1d, 0x2a, 0x33);   // background of a lit button
+
+        // Kainos UI scale (Setup > Appearance > Kainos): sizes Kainos's own controls on top of Windows's display
+        // scaling (Thetis isn't DPI-aware, so Windows already scales the whole program)
+        private static float _scale = 1f;
+        public static float Scale { get { return _scale; } }
+        public static event EventHandler ScaleChanged;
+
+        public static void SetScalePercent(int percent)
+        {
+            float s = Math.Max(75, Math.Min(200, percent)) / 100f;
+            if (Math.Abs(s - _scale) < 0.001f) return;
+            _scale = s;
+            ScaleChanged?.Invoke(null, EventArgs.Empty);
+        }
+
+        public static int S(float designPx) { return (int)Math.Round(designPx * _scale); }
+
+        public static GraphicsPath RoundedRect(RectangleF r, float radius)
+        {
+            float dd = radius * 2f;
+            GraphicsPath p = new GraphicsPath();
+            p.AddArc(r.X, r.Y, dd, dd, 180, 90);
+            p.AddArc(r.Right - dd, r.Y, dd, dd, 270, 90);
+            p.AddArc(r.Right - dd, r.Bottom - dd, dd, dd, 0, 90);
+            p.AddArc(r.X, r.Bottom - dd, dd, dd, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+
+        public enum Tone { Gold, Ice, Violet, Tx }
+
+        // a Kainos push button: navy when off; lit in its tone when on (TX fills red); dimmed when disabled
+        public static void DrawButton(Graphics g, RectangleF r, string text, bool on, bool enabled, bool hover, Tone tone, float fontPx)
+        {
+            Color accent = tone == Tone.Ice ? Ice : tone == Tone.Violet ? Violet : tone == Tone.Tx ? Tx : Gold;
+            Color accentHi = tone == Tone.Ice ? IceHi : tone == Tone.Violet ? Violet : tone == Tone.Tx ? Color.White : GoldHi;
+            Color back, border, fore;
+            if (!enabled) { back = Surface; border = Line; fore = Color.FromArgb(0x3e, 0x50, 0x5e); }
+            else if (on && tone == Tone.Tx) { back = Tx; border = Tx; fore = Color.White; }
+            else if (on) { back = Selected; border = accent; fore = accentHi; }
+            else { back = hover ? Color.FromArgb(0x1a, 0x2e, 0x44) : Raised; border = Line; fore = Dim; }
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (GraphicsPath path = RoundedRect(r, Math.Max(2f, r.Height * 0.14f)))
+            {
+                using (Brush b = new SolidBrush(back)) g.FillPath(b, path);
+                using (Pen p = new Pen(border)) g.DrawPath(p, path);
+            }
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            using (Font f = new Font("Segoe UI", fontPx, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(fore))
+            using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.None, FormatFlags = StringFormatFlags.NoWrap })
+                g.DrawString(text, f, b, r, sf);
+        }
     }
 
     // Menu and status bars in the Kainos colours
@@ -51,11 +107,14 @@ namespace Thetis
 
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
-            // top-level menu items and status labels: light text, gold while hovered or open; drop-down items: light text
-            if (e.Item.Enabled)
-                e.TextColor = e.Item.Selected || e.Item.Pressed ? KainosUI.GoldHi : KainosUI.Text;
-            else
+            // menu items: light text, gold while hovered or open; status bar items keep their own colour (a
+            // warning can be red)
+            if (!e.Item.Enabled)
                 e.TextColor = KainosUI.Faint;
+            else if (e.ToolStrip is StatusStrip)
+                e.TextColor = e.Item.Selected || e.Item.Pressed ? KainosUI.GoldHi : e.Item.ForeColor;
+            else
+                e.TextColor = e.Item.Selected || e.Item.Pressed ? KainosUI.GoldHi : KainosUI.Text;
             base.OnRenderItemText(e);
         }
 
