@@ -5207,6 +5207,7 @@ namespace Thetis
         {
             //if (grid_control) //[2.10.3.9]MW0LGE raw grid control option now just turns off the grid, all other elements are shown
             //{
+                pasteKainos3DStack(rx, W, H, nVerticalShift);       // Kainos: the 3D stack under the grid and filter (displayKainos.cs)
                 int centre_x = drawPanadapterAndWaterfallGridDX2D(nVerticalShift, W, H, rx, bottom, out long left_edge, out long right_edge, false);
             //}
 
@@ -5460,6 +5461,7 @@ namespace Thetis
             {
                 SharpDX.RectangleF clipRect = new SharpDX.RectangleF(0, nVerticalShift, W, H);
                 _d2dRenderTarget.PushAxisAlignedClip(clipRect, AntialiasMode.Aliased);
+                drawKainos3DStack(rx, W, H, nVerticalShift, data, nDecimatedWidth, m_nDecimation, fOffset, grid_max, grid_min, dbmToPixel, local_mox);     // Kainos: 3D stacked traces (displayKainos.cs)
 
                 // modify the data for visual notches
                 if (bDoVisualNotch && m_bShowVisualNotch && !local_mox)
