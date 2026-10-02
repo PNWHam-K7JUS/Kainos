@@ -1,0 +1,1 @@
+xiph/rnnoise 70f1d256acd4b34a572f999a05c87bf00b67730d (2025-02-22); src/x86 restored from upstream. Model: rnnoise_data 0a8755f8e2d834eff6a54714ecc7d75f9932e845df35f8b59bc52a7cfe6e8b37, copied from lib/NR_Algorithms_x64/src/rnnoise/src by build_rade_libs.bat

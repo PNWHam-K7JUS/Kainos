@@ -408,3 +408,8 @@ Project Files/lib/NR_Algorithms_x64/src/libspecbleach/build
 Project Files/lib/NR_Algorithms_x64/src/libspecbleach/old.git
 Project Files/lib/NR_Algorithms_x64/src/libspecbleach/old.github
 
+# Kainos: RADE libraries. The global x86/ rule above would drop their x86 source folders.
+!Project Files/lib/opus_dnn/**/x86/
+!Project Files/lib/rnnoise/src/x86/
+Project Files/lib/opus_dnn/cmake-build/
+
