@@ -127,13 +127,14 @@ void create_txa (int channel)
 		ch[channel].dsp_rate);						// samplerate
 	}
 
-	// AetherSDR channel strip (Kainos): gate, de-esser, compressor and tube before AetherVoice,
+	// AetherSDR channel strip (Kainos): gate, EQ, de-esser, compressor and tube before AetherVoice,
 	// reverb and final limiter after it. Every stage is off by default
 	txa[channel].aetherstrip.p = create_aetherstrip (
 		ch[channel].dsp_size,						// buffer size
 		txa[channel].midbuff,						// pointer to input buffer
 		txa[channel].midbuff,						// pointer to output buffer
-		ch[channel].dsp_rate);						// sample rate
+		ch[channel].dsp_rate,						// sample rate
+		0);											// transmit chain order
 
 	// AetherVoice exciter (Kainos), after the mic EQ and before the leveler, CFC, compressor,
 	// bandpass filters and ALC, so the TX bandpass removes anything it adds outside the TX filter

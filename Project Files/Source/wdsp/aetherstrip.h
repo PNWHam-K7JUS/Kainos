@@ -24,18 +24,21 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef _aetherstrip_h
 #define _aetherstrip_h
 
-// Stages, in processing order. The strip runs in two parts around the AetherVoice exciter
-// (aethervoice.c), matching AetherSDR's TX chain order:
-//   xaetherstrip_pre:  gate, de-esser, compressor, tube
-//   (AetherVoice)
-//   xaetherstrip_post: reverb, final limiter
+// Stages. The strip runs in two parts around the AetherVoice exciter (aethervoice.c), in
+// AetherSDR's chain orders:
+//   transmit  xaetherstrip_pre: gate, EQ, de-esser, compressor, tube   xaetherstrip_post: reverb, final limiter
+//   receive   xaetherstrip_pre: EQ, gate, compressor, tube             (AetherRX has no post stages)
 #define AS_GATE			0
 #define AS_DEESS		1
 #define AS_COMP			2
 #define AS_TUBE			3
 #define AS_REVERB		4
 #define AS_LIMITER		5
-#define AS_NSTAGES		6
+#define AS_EQ			6
+#define AS_NSTAGES		7
+
+#define AS_EQ_BANDS		10			// AetherSDR's default 10-band layout (ClientEq supports 16)
+#define AS_EQ_BAND0		10			// first band parameter
 
 // Parameters, per stage. 0 is always 'enabled' (0/1). Units and ranges are AetherSDR's.
 //   gate:    1 mode (0 expander, 1 gate), 2 threshold dB, 3 ratio, 4 attack ms, 5 release ms,
@@ -47,6 +50,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //            7 envelope amount, 8 release ms
 //   reverb:  1 size, 2 decay s, 3 damping, 4 pre-delay ms, 5 mix
 //   limiter: 1 ceiling dB, 2 output trim dB, 3 DC block on
+//   eq:      1 master gain dB, 2 filter family (0 Butterworth, 1 Chebyshev, 2 Bessel, 3 Elliptic),
+//            band b (0..9): AS_EQ_BAND0 + 6*b + { 0 frequency Hz, 1 gain dB, 2 Q,
+//            3 type (0 peak, 1 low shelf, 2 high shelf, 3 low pass, 4 high pass), 4 on, 5 slope dB/oct }
 // Meters (dB):
 //   gate 0 gain reduction; deess 0 gain reduction; comp 0 gain reduction, 1 limiter gain reduction;
 //   tube 0 drive applied; reverb 0 wet RMS; limiter 0 gain reduction, 1 output peak, 2 output RMS;
@@ -58,7 +64,8 @@ typedef struct _aetherstrip* AETHERSTRIP;
 extern "C" {
 #endif
 
-extern AETHERSTRIP create_aetherstrip (int size, double* in, double* out, int samplerate);
+// rx: 0 = transmit chain order, 1 = receive chain order
+extern AETHERSTRIP create_aetherstrip (int size, double* in, double* out, int samplerate, int rx);
 
 extern void destroy_aetherstrip (AETHERSTRIP a);
 
@@ -78,6 +85,10 @@ extern void setSize_aetherstrip (AETHERSTRIP a, int size);
 extern void setParam_aetherstrip (AETHERSTRIP a, int stage, int param, double value);
 
 extern double getMeter_aetherstrip (AETHERSTRIP a, int stage, int meter);
+
+// AetherSDR's ClientEq::bandMagnitudeDb: one band's response in dB at a probe frequency (for drawing)
+extern double aetherstrip_eqBandMagnitudeDb (int type, double freq, double gain, double q, int on, int slope,
+	int family, double probeHz, double samplerate);
 
 #ifdef __cplusplus
 }
