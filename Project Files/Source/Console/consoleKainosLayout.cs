@@ -97,6 +97,7 @@ namespace Thetis
             }
             kainosDockOn();             // stage 2: consoleKainosDock.cs
             kainosColumnOn();           // stage 3: consoleKainosColumn.cs
+            kainosFlagOn();             // stage 4: consoleKainosFlag.cs
             menuStrip1.Invalidate();
             statusStripMain.Invalidate();
             Invalidate(true);
@@ -104,6 +105,7 @@ namespace Thetis
 
         private void restoreClassicTheme()
         {
+            kainosFlagOff();
             kainosColumnOff();
             kainosDockOff();
             if (_kainosSkinBackground != null || CachedBackgroundImage == _kainosBackground)

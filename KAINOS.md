@@ -232,6 +232,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - METERS right-click menu (on the container and its display area): Multimeter / Cross needle / Magic eye (`RemoveMeterType` + `AddMeter`; the type is saved, `txtKainosMeterType`), Meter settings... (`ShowMultiMeterSetupTab`), Get the FTDX-5000 meter skin (OE3IDE)..., Hide meters.
   - FTDX-5000: offered once, when the METERS container is first created (`txtKainosFtdxOffered`), and from the menu. Kainos reads OE3IDE's skin list (the server Kainos lists) for the current link to "FTDX-5000 (multimeter)" and hands it to `ThetisSkinService.DownloadFile` as a meter skin; Setup's own download handler unpacks it into the Meters folder and refreshes the meters. Nothing of OE3IDE's is shipped with Kainos.
   - Checked: captured with the new tabs on, and with RX / TX only (the scaled phone panel).
+- **Stage 4a (slice flag):** `consoleKainosFlag.cs`.
+  - SmartSDR's slice flag on the panadapter beside the VFO A line: the letter (A, gold), antenna (from Thetis's RX antenna status), filter width (the selected filter, or the width), active DSP (NR / NB / SNB / ANF / BIN), TX (outlined on the transmit VFO, filled red while transmitting), the mode (RADE while RADE is on) and the frequency as Thetis shows it.
+  - The panadapter is drawn by DirectX into `pnlDisplay`'s window; in Thetis's "flip" present mode a flip-model swap chain covers any child window over it, so the flag is a separate borderless window owned by the console (`WS_EX_NOACTIVATE` and `MA_NOACTIVATE`: it never takes the focus) that draws on top whatever the present mode.
+  - Placed every 80 ms (and on the console's `Move` / `Resize`) with `HzToPixel((VFOAFreq - CentreFrequency) * 1e6)`, the conversion Thetis uses for its own filter overlay (it allows for CTUN, RIT, XIT, zoom and pan); left of the line, or right when there's no room; hidden when the VFO is off the panadapter, the console is minimised, the display is collapsed, or in Classic.
+  - Checked: screen capture of the running program (the flag beside the VFO line).
 
 ### Installer
 

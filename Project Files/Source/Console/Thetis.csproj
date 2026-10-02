@@ -683,6 +683,10 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="consoleKainosFlag.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosDock.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
