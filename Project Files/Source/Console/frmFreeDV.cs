@@ -50,7 +50,7 @@ namespace Thetis
         private readonly Console _console;
         private readonly Setup _setup;
         private readonly RadeSetupControls _r;
-        private readonly AetherToggleButton _btnOn, _btnV1, _btnV2, _btnNoise, _btnAGC, _btnEQ, _btnSettings;
+        private readonly AetherToggleButton _btnOn, _btnV1, _btnV2, _btnNoise, _btnAGC, _btnEQ, _btnSettings, _btnReporter;
         private readonly Label _status, _footer;
         private readonly RadeStatusPanel _statusPanel;
         private readonly RadeHeardPanel _heard;
@@ -154,6 +154,13 @@ namespace Thetis
             _tips.SetToolTip(_rxKnob, "Received signal level into the decoder (the RX1 AF slider sets the speech volume).\r\nDrag or scroll; double-click for 0 dB.");
             Controls.Add(_micKnob);
             Controls.Add(_rxKnob);
+
+            _btnReporter = new AetherToggleButton { Text = "Reporter", Bypass = true, Location = new Point(12, 380), Size = new Size(162, 28) };
+            _btnReporter.Click += (s, e) => FreeDVReporter.FreeDVReporterManager.ShowWindow(_console);
+            _tips.SetToolTip(_btnReporter, "Open the FreeDV Reporter: who is on RADE right now (qso.freedv.org). Double-click a station to tune to it.\r\n" +
+                                           "Lit while connected. Your own station is reported only while RADE is on with\r\n" +
+                                           "\"Report my station\" ticked in Settings.");
+            Controls.Add(_btnReporter);
 
             Controls.Add(new AetherBracketLabel { Text = "MIC PROCESSING", Location = new Point(196, 296), Size = new Size(352, 20) });
             _btnNoise = new AetherToggleButton { Text = "Noise", Bypass = true, Location = new Point(196, 326), Size = new Size(84, 28) };
@@ -301,6 +308,8 @@ namespace Thetis
             if (_status.Text != text) _status.Text = text;
             _status.ForeColor = color;
             if (_btnOn.Checked != on) _btnOn.Checked = on;
+            bool connected = FreeDVReporter.FreeDVReporterManager.IsConnected;
+            if (_btnReporter.Checked != connected) _btnReporter.Checked = connected;
         }
 
         protected override void OnVisibleChanged(EventArgs e)
