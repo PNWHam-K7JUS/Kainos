@@ -232,6 +232,17 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - METERS right-click menu (on the container and its display area): Multimeter / Cross needle / Magic eye (`RemoveMeterType` + `AddMeter`; the type is saved, `txtKainosMeterType`), Meter settings... (`ShowMultiMeterSetupTab`), Get the FTDX-5000 meter skin (OE3IDE)..., Hide meters.
   - FTDX-5000: offered once, when the METERS container is first created (`txtKainosFtdxOffered`), and from the menu. Kainos reads OE3IDE's skin list (the server Kainos lists) for the current link to "FTDX-5000 (multimeter)" and hands it to `ThetisSkinService.DownloadFile` as a meter skin; Setup's own download handler unpacks it into the Meters folder and refreshes the meters. Nothing of OE3IDE's is shipped with Kainos.
   - Checked: captured with the new tabs on, and with RX / TX only (the scaled phone panel).
+- **Stage 4a (slice flag):** `consoleKainosFlag.cs`.
+  - SmartSDR's slice flag on the panadapter beside the VFO A line: the letter (A, gold), antenna (from Thetis's RX antenna status), filter width (the selected filter, or the width), active DSP (NR / NB / SNB / ANF / BIN), TX (outlined on the transmit VFO, filled red while transmitting), the mode (RADE while RADE is on) and the frequency as Thetis shows it.
+  - The panadapter is drawn by DirectX into `pnlDisplay`'s window; in Thetis's "flip" present mode a flip-model swap chain covers any child window over it, so the flag is a separate borderless window owned by the console (`WS_EX_NOACTIVATE` and `MA_NOACTIVATE`: it never takes the focus) that draws on top whatever the present mode.
+  - Placed every 80 ms (and on the console's `Move` / `Resize`) with `HzToPixel((VFOAFreq - CentreFrequency) * 1e6)`, the conversion Thetis uses for its own filter overlay (it allows for CTUN, RIT, XIT, zoom and pan); left of the line, or right when there's no room; hidden when the VFO is off the panadapter, the console is minimised, the display is collapsed, or in Classic.
+  - Checked: screen capture of the running program (the flag beside the VFO line).
+- **Stage 4b (flag tabs, RX2 flag, wheel tuning, VFO tab):** `consoleKainosFlag.cs`.
+  - Tabs under each flag: AUDIO (that receiver's AF slider, MUTE, BIN), DSP (its DSP buttons), MODE (mode and filter buttons), RIT/XIT (on/off, zero, the offsets), VAC (VAC1 / VAC2; right click opens their setup as in Thetis), FREEDV (RADE for that receiver, sync / SNR / last callsign, FreeDV...). A click opens the tab's drawer under the flag; a second click closes it.
+  - `KainosSlider` drives a Thetis `PrettyTrackBar`: it sets `Value` and calls its `OnScroll`, as dragging Thetis's slider would.
+  - RX2's flag (B, violet) is on RX2's panadapter, shown when RX2 is on and the display is split (RX2 has the lower half): `HzToPixel((VFOBFreq - CentreRX2Frequency) * 1e6, 2)`.
+  - The mouse wheel over a frequency digit tunes by that digit (SmartSDR's); elsewhere on the flag by Thetis's tune step. Locked VFOs don't move. The wheel is marked handled so it doesn't reach the console's own wheel tuning (the column's scrolling likewise).
+  - VFO tab, first in the right column: the same face for VFO A (and B while RX2 is on), without the tabs, with wheel tuning.
 
 ### Installer
 
