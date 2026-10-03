@@ -26,6 +26,6 @@ namespace Thetis
     // and file name. A release: new features raise the minor number (1.1.0), fixes the patch number (1.0.1).
     internal static class KainosVersion
     {
-        public const string Number = "1.0.1";
+        public const string Number = "1.0.2";
     }
 }

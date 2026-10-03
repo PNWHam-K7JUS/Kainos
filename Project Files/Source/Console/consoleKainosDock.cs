@@ -334,7 +334,7 @@ namespace Thetis
             Item it = hit(e.Location);
             if (it == null || !it.Target.Enabled) return;
             if (e.Button == MouseButtons.Left)
-                _onClick.Invoke(it.Target, new object[] { EventArgs.Empty });
+                KainosUI.Press(it.Target);
             else if (e.Button == MouseButtons.Right)
             {
                 MouseEventArgs m = new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0);
