@@ -260,6 +260,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
   - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
+### Windows in the Kainos Audio look
+
+- Every window Kainos opens (Setup, Memory, Equalizer, CWX, XVTRs, Linearity, Finder, About, the database manager...) is restyled as it opens, in both layouts (`KainosWindowTheme.cs`, a timer watching `Application.OpenForms`; again each time a window is shown and a moment later, since windows set colours of their own after they appear; controls added later are caught by `ControlAdded`). Dark title bar (DWM caption / text / border colours on Windows 11, immersive dark mode on 10), the Kainos Audio navy, light text, flat dark buttons (a skin's picture replaced), dark text / number boxes, owner-drawn drop-downs with Windows's dark arrow (`DarkMode_CFD`), dark lists and grids with dark scroll bars (`DarkMode_Explorer`), group boxes painted by Kainos (frame and title), and tabs drawn by Kainos (dark, the selected one gold, the strip and page edge painted over).
+- Only default colours change (system colours, white, anything too dark to read): colours a window sets on purpose (status colours, colour pickers) stay. Skipped: the console, the splash, Kainos's own windows (Kainos Audio, AetherVoice, RTTY / CW, the flags), meter windows and borderless pop-ups. Windows's own message boxes can't be restyled.
+
 ### Sliders and menus
 
 - Sliders the same on every PC (`consoleKainosSliders.cs`): Thetis's sliders (PrettyTrackBar) take their track (background image) and thumb (head image) from the skin, so they looked different with different skins. In Kainos layout the column's (RX, TX, filter) and the mode panels' sliders get Kainos's: a slim rounded track and a rounded thumb made to each slider's size (again when it's resized), on its parent's colour. The slider itself stays Thetis's (dragging, clicks, the wheel, right clicks, the limit bar). The skin's pictures are saved and put back in Classic; a skin loaded in Kainos layout is saved and covered again.

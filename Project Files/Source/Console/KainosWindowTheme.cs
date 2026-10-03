@@ -72,7 +72,21 @@ namespace Thetis
                 _done.Add(f);
                 if (skipForm(f)) continue;
                 try { Theme(f); } catch { }
+                // a window can set its own colours again after it's made (Setup loads its settings, a skin is
+                // applied...): restyle it each time it's shown
+                Form form = f;
+                form.VisibleChanged += (s, e) => { if (form.Visible && !form.IsDisposed) themeSoon(form); };
+                if (form.Visible) themeSoon(form);
             }
+        }
+
+        // now, and again a moment later (a skin can style a window just after it appears)
+        private static void themeSoon(Form f)
+        {
+            try { Theme(f); } catch { }
+            Timer again = new Timer { Interval = 600 };
+            again.Tick += (s, e) => { again.Stop(); again.Dispose(); if (!f.IsDisposed && f.Visible) try { Theme(f); } catch { } };
+            again.Start();
         }
 
         private static bool skipForm(Form f)
@@ -91,6 +105,7 @@ namespace Thetis
             if (isDefaultFore(f.ForeColor)) f.ForeColor = Text;
             if (f.BackgroundImage != null && isDefaultBack(f.BackColor)) f.BackgroundImage = null;
             themeChildren(f);
+            f.Invalidate(true);         // repaint everything in the new colours
         }
 
         private static void themeChildren(Control parent)
@@ -137,7 +152,16 @@ namespace Thetis
             }
             if (c is LinkLabel) { LinkLabel l = (LinkLabel)c; l.LinkColor = Gold; l.ActiveLinkColor = Color.White; l.VisitedLinkColor = Gold; if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent; return; }
             if (c is Label) { if (isDefaultFore(c.ForeColor)) c.ForeColor = Text; if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent; return; }
-            if (c is GroupBox) { if (isDefaultFore(c.ForeColor)) c.ForeColor = TextMid; if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent; return; }
+            if (c is GroupBox)
+            {
+                GroupBox gb = (GroupBox)c;
+                if (isDefaultFore(c.ForeColor) || c.ForeColor == Text) c.ForeColor = TextMid;
+                if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent;
+                gb.Paint -= paintGroup;                     // Windows's themed group box ignores the colours: Kainos paints it
+                gb.Paint += paintGroup;
+                gb.Invalidate();
+                return;
+            }
 
             if (c is TextBoxBase)
             {
@@ -162,7 +186,14 @@ namespace Thetis
                 ComboBox cb = (ComboBox)c;
                 if (isDefaultBack(c.BackColor) || c.BackColor == SystemColors.Window) c.BackColor = FieldBg;
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
-                if (cb.FlatStyle == FlatStyle.Standard || cb.FlatStyle == FlatStyle.System) cb.FlatStyle = FlatStyle.Flat;
+                cb.FlatStyle = FlatStyle.Flat;
+                darkNative(cb, "DarkMode_CFD");             // Windows's dark drop-down arrow and list
+                if (cb.DrawMode == DrawMode.Normal)
+                {
+                    cb.DrawMode = DrawMode.OwnerDrawFixed;
+                    cb.DrawItem -= drawComboItem;
+                    cb.DrawItem += drawComboItem;
+                }
                 return;
             }
             if (c is ListBox)
@@ -171,6 +202,7 @@ namespace Thetis
                 if (isDefaultBack(c.BackColor) || c.BackColor == SystemColors.Window) c.BackColor = FieldBg;
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
                 if (lb.BorderStyle == BorderStyle.Fixed3D) lb.BorderStyle = BorderStyle.FixedSingle;
+                darkNative(c, "DarkMode_Explorer");
                 return;
             }
             if (c is ListView)
@@ -179,9 +211,10 @@ namespace Thetis
                 if (isDefaultBack(c.BackColor) || c.BackColor == SystemColors.Window) c.BackColor = FieldBg;
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
                 if (lv.BorderStyle == BorderStyle.Fixed3D) lv.BorderStyle = BorderStyle.FixedSingle;
+                darkNative(c, "DarkMode_Explorer");
                 return;
             }
-            if (c is DataGridView) { themeGrid((DataGridView)c); return; }
+            if (c is DataGridView) { themeGrid((DataGridView)c); darkNative(c, "DarkMode_Explorer"); return; }
             if (c is TreeView)
             {
                 if (isDefaultBack(c.BackColor) || c.BackColor == SystemColors.Window) c.BackColor = FieldBg;
@@ -189,6 +222,7 @@ namespace Thetis
                 return;
             }
             if (c is TrackBar) { if (isDefaultBack(c.BackColor)) c.BackColor = WindowBg; return; }
+            if (c is ScrollBar) { darkNative(c, "DarkMode_Explorer"); return; }      // a grid's or panel's own scroll bars
 
             // panels, layout panels, user controls and anything else in the default colours
             if (isDefaultBack(c.BackColor)) c.BackColor = c is Panel || c is UserControl ? Color.Transparent : WindowBg;
@@ -196,10 +230,51 @@ namespace Thetis
             if (c.ContextMenuStrip != null) c.ContextMenuStrip.Renderer = new KainosToolStripRenderer();
         }
 
+        private static void drawComboItem(object sender, DrawItemEventArgs e)
+        {
+            ComboBox cb = (ComboBox)sender;
+            bool edit = (e.State & DrawItemState.ComboBoxEdit) != 0;
+            bool sel = (e.State & DrawItemState.Selected) != 0 && !edit;
+            Color back = sel ? Selection : cb.BackColor.A == 255 ? cb.BackColor : FieldBg;
+            using (Brush b = new SolidBrush(back)) e.Graphics.FillRectangle(b, e.Bounds);
+            if (e.Index < 0) return;
+            string text = cb.GetItemText(cb.Items[e.Index]);
+            Color fore = !cb.Enabled ? TextDim : sel ? Color.White : cb.ForeColor;
+            TextRenderer.DrawText(e.Graphics, text, cb.Font, Rectangle.Inflate(e.Bounds, -2, 0), fore,
+                                  TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+        }
+
+        private static Color effectiveBack(Control c)
+        {
+            for (Control p = c; p != null; p = p.Parent) if (p.BackColor.A == 255) return p.BackColor;
+            return WindowBg;
+        }
+
+        private static void paintGroup(object sender, PaintEventArgs e)
+        {
+            GroupBox gb = (GroupBox)sender;
+            Graphics g = e.Graphics;
+            Color back = effectiveBack(gb);
+            using (Brush b = new SolidBrush(back)) g.FillRectangle(b, gb.ClientRectangle);
+            Size ts = string.IsNullOrEmpty(gb.Text) ? Size.Empty : TextRenderer.MeasureText(gb.Text, gb.Font);
+            int top = Math.Max(ts.Height / 2, 1);
+            Rectangle frame = new Rectangle(0, top, gb.Width - 1, gb.Height - top - 1);
+            using (Pen p = new Pen(Border)) g.DrawRectangle(p, frame);
+            if (ts.Width > 0)
+            {
+                Rectangle tr = new Rectangle(7, 0, ts.Width + 2, ts.Height);
+                using (Brush b = new SolidBrush(back)) g.FillRectangle(b, tr);
+                TextRenderer.DrawText(g, gb.Text, gb.Font, tr, gb.Enabled ? gb.ForeColor : TextDim, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine);
+            }
+        }
+
         private static void themeButton(ButtonBase b)
         {
-            if (b.BackgroundImage != null || b.Image != null && !isDefaultBack(b.BackColor)) return;    // a skinned or pictured button
-            if (!isDefaultBack(b.BackColor) && b.BackColor != SystemColors.ButtonFace) return;        // a colour set on purpose
+            if (b.BackgroundImage != null) b.BackgroundImage = null;                                     // a skin's picture: the Kainos style instead
+            bool plainBack = isDefaultBack(b.BackColor) || b.BackColor == SystemColors.ButtonFace || b.BackColor.A < 255
+                             || b.BackColor.ToArgb() == Color.White.ToArgb() || b.BackColor == SystemColors.ControlLightLight
+                             || lum(b.BackColor) < 60;     // the window's own dark colour, inherited
+            if (!plainBack) return;                                                                         // a colour set on purpose
             b.FlatStyle = FlatStyle.Flat;
             b.BackColor = ButtonBg;
             if (isDefaultFore(b.ForeColor)) b.ForeColor = Text;
@@ -285,6 +360,20 @@ namespace Thetis
                             else if (_tc.Alignment == TabAlignment.Bottom)
                                 g.FillRectangle(b, last.Right + 1, stripTop - 1, Math.Max(0, _tc.Width - last.Right - 1), _tc.Height - stripTop + 1);
                         }
+                        // every tab, over Windows's light 3-D edges
+                        for (int i = 0; i < _tc.TabCount; i++)
+                        {
+                            Rectangle r = _tc.GetTabRect(i);
+                            bool sel = i == _tc.SelectedIndex;
+                            Rectangle o = Rectangle.Inflate(r, 2, 2);
+                            using (Brush b = new SolidBrush(WindowBg)) g.FillRectangle(b, o);
+                            Rectangle t = Rectangle.Inflate(r, -1, -1);
+                            using (Brush b = new SolidBrush(sel ? PanelBg : TitleBg)) g.FillRectangle(b, t);
+                            using (Pen p = new Pen(sel ? Border : Color.FromArgb(0x1a, 0x26, 0x34))) g.DrawRectangle(p, t);
+                            if (sel) using (Pen p = new Pen(Gold, 2)) g.DrawLine(p, t.Left + 2, _tc.Alignment == TabAlignment.Bottom ? t.Top + 1 : t.Bottom - 1, t.Right - 2, _tc.Alignment == TabAlignment.Bottom ? t.Top + 1 : t.Bottom - 1);
+                            TextRenderer.DrawText(g, _tc.TabPages[i].Text, _tc.Font, t, sel ? Gold : TextMid,
+                                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+                        }
                         // the page's border, in the window colours (covers the light 3-D edge)
                         using (Pen p = new Pen(WindowBg, 4)) g.DrawRectangle(p, page.X - 3, page.Y - 3, page.Width + 5, page.Height + 5);
                         using (Pen p = new Pen(Border)) g.DrawRectangle(p, page.X - 2, page.Y - 2, page.Width + 3, page.Height + 3);
@@ -297,6 +386,14 @@ namespace Thetis
         // ---- the title bar: Windows 11 lets an app set its colours (Windows 10: dark mode only) ----
 
         [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] private static extern int SetWindowTheme(IntPtr hwnd, string app, string idList);
+
+        // Windows 10 / 11's own dark versions of its controls (the drop-down's arrow, scroll bars)
+        private static void darkNative(Control c, string theme)
+        {
+            if (c.IsHandleCreated) { try { SetWindowTheme(c.Handle, theme, null); } catch { } }
+            else c.HandleCreated += (s, e) => { try { SetWindowTheme(c.Handle, theme, null); } catch { } };
+        }
 
         private static void darkTitleBar(Form f)
         {
@@ -326,13 +423,17 @@ namespace Thetis
         {
             return c == SystemColors.Control || c == SystemColors.ControlLight || c == SystemColors.ButtonFace || c == SystemColors.Window
                    || c == SystemColors.Menu || c == SystemColors.InactiveBorder || c.ToArgb() == SystemColors.Control.ToArgb()
-                   || c.ToArgb() == Color.White.ToArgb() && c.IsKnownColor;
+                   || c == SystemColors.ControlLightLight || c.ToArgb() == Color.White.ToArgb();
         }
+
+        // the default text colours, and any colour too dark to read on the dark windows
+        private static int lum(Color c) { return (c.R * 299 + c.G * 587 + c.B * 114) / 1000; }
 
         private static bool isDefaultFore(Color c)
         {
-            return c == SystemColors.ControlText || c == SystemColors.WindowText || c == SystemColors.MenuText
-                   || c.ToArgb() == Color.Black.ToArgb() || c.ToArgb() == SystemColors.ControlText.ToArgb();
+            if (c == SystemColors.ControlText || c == SystemColors.WindowText || c == SystemColors.MenuText) return true;
+            if (c.A == 0) return false;
+            return (c.R * 299 + c.G * 587 + c.B * 114) / 1000 < 100;
         }
     }
 }
