@@ -704,6 +704,11 @@
     <Compile Include="KainosCw.cs" />
     <Compile Include="KainosMacros.cs" />
     <Compile Include="KainosSpots.cs" />
+    <Compile Include="KainosKiwi.cs" />
+    <Compile Include="consoleKainosKiwi.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="KainosWindowTheme.cs" />
     <Compile Include="consoleKainosSpots.cs">
       <DependentUpon>console.cs</DependentUpon>
