@@ -120,8 +120,74 @@ namespace Thetis
 
         protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
         {
-            e.ArrowColor = KainosUI.Dim;
+            e.ArrowColor = e.Item != null && e.Item.Selected ? KainosUI.GoldHi : KainosUI.Dim;
             base.OnRenderArrow(e);
+        }
+
+        // ---- the modern look: rounded hover pills, a flat drop-down with a soft outline, gold ticks ----
+
+        private static readonly Color HoverFill = Color.FromArgb(0x1b, 0x31, 0x46);
+        private static readonly Color OpenFill = Color.FromArgb(0x16, 0x29, 0x3b);
+
+        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
+        {
+            if (e.ToolStrip is ToolStripDropDown)
+                using (Brush b = new SolidBrush(KainosUI.Panel)) e.Graphics.FillRectangle(b, e.AffectedBounds);
+            else base.OnRenderToolStripBackground(e);
+        }
+
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
+        {
+            if (e.ToolStrip is ToolStripDropDown)
+            {
+                Rectangle r = new Rectangle(0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
+                using (Pen p = new Pen(KainosUI.Line)) e.Graphics.DrawRectangle(p, r);
+            }
+            else if (e.ToolStrip is MenuStrip)
+                using (Pen p = new Pen(KainosUI.Line)) e.Graphics.DrawLine(p, 0, e.ToolStrip.Height - 1, e.ToolStrip.Width, e.ToolStrip.Height - 1);
+            else base.OnRenderToolStripBorder(e);
+        }
+
+        protected override void OnRenderImageMargin(ToolStripRenderEventArgs e)
+        {
+            using (Brush b = new SolidBrush(KainosUI.Panel)) e.Graphics.FillRectangle(b, e.AffectedBounds);    // no separate margin band
+        }
+
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            if (e.ToolStrip is StatusStrip) { base.OnRenderMenuItemBackground(e); return; }
+            ToolStripMenuItem item = e.Item as ToolStripMenuItem;
+            bool top = e.ToolStrip is MenuStrip;
+            bool open = item != null && item.Pressed && item.HasDropDownItems && item.DropDown.Visible;
+            if (!e.Item.Selected && !open) return;
+            if (!e.Item.Enabled && !top) return;
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            // the bar: a pill around the item; a drop-down: a rounded row inset from the edges
+            RectangleF r = top ? new RectangleF(1, 3, e.Item.Width - 2, e.Item.Height - 6) : new RectangleF(4, 1, e.Item.Width - 8, e.Item.Height - 2);
+            using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(r, top ? r.Height / 2 : 4))
+            using (Brush b = new SolidBrush(open ? OpenFill : HoverFill))
+            {
+                g.FillPath(b, path);
+                if (top && open) using (Pen p = new Pen(Color.FromArgb(120, KainosUI.Gold))) g.DrawPath(p, path);
+            }
+        }
+
+        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+        {
+            int y = e.Item.Height / 2;
+            using (Pen p = new Pen(KainosUI.Line)) e.Graphics.DrawLine(p, 12, y, e.Item.Width - 12, y);
+        }
+
+        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
+        {
+            // a gold tick (no box)
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            Rectangle r = e.ImageRectangle;
+            float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, s = Math.Min(r.Width, r.Height) * 0.36f;
+            using (Pen p = new Pen(KainosUI.GoldHi, 2f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round })
+                g.DrawLines(p, new[] { new PointF(cx - s, cy), new PointF(cx - s * 0.3f, cy + s * 0.7f), new PointF(cx + s, cy - s * 0.7f) });
         }
 
         private class KainosColorTable : ProfessionalColorTable

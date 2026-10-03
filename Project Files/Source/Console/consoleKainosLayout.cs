@@ -100,6 +100,8 @@ namespace Thetis
             kainosFlagOn();             // stage 4: consoleKainosFlag.cs
             kainosTermsPlace();         // the RTTY / CW terminal docks under the panadapter
             KainosPanColoursApply();    // the panadapter in Kainos colours: consoleKainosPanColours.cs
+            kainosSlidersOn();          // Kainos sliders and menus: consoleKainosSliders.cs
+            kainosMenusOn();
             if (!_kpcShownHooked)
             {
                 // Setup's start-up applies the user's display colours too; put Kainos's back once the console is up
@@ -116,6 +118,8 @@ namespace Thetis
         private void restoreClassicTheme()
         {
             kainosPanColoursOff();
+            kainosMenusOff();
+            kainosSlidersOff();
             kainosFlagOff();
             kainosTermsPlace();         // the RTTY / CW terminal becomes a window
             kainosColumnOff();
