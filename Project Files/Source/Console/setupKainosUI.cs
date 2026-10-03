@@ -35,7 +35,7 @@ namespace Thetis
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
         private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -121,6 +121,9 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosCwMacros);
             txtKainos3D = new TextBoxTS { Name = "txtKainos3D", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainos3D);
+            // set once Kainos has made the Kainos layout the starting layout (see applyKainosUI)
+            txtKainosLayoutSet = new TextBoxTS { Name = "txtKainosLayoutSet", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosLayoutSet);
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
@@ -128,6 +131,14 @@ namespace Thetis
         // called from ForceAllEvents at startup, and when the setting changes
         private void applyKainosUI()
         {
+            // Kainos is the starting layout. A fresh install already defaults to it; settings from an earlier Kainos
+            // test build (which defaulted to Classic) or brought over from Thetis are switched to it once, the first
+            // time this version starts. After that the user's choice is kept.
+            if (txtKainosLayoutSet.Text != "1")
+            {
+                txtKainosLayoutSet.Text = "1";
+                if (comboKainosLayout.SelectedIndex != 1) comboKainosLayout.SelectedIndex = 1;
+            }
             if (!_kainosSettingsHooked)
             {
                 _kainosSettingsHooked = true;
