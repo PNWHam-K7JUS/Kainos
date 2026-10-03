@@ -13,12 +13,14 @@ Kainos is a Software Defined Radio application for Windows and the Hermes Lite 2
 - **Slice flags** on the panadapter, SmartSDR style, for VFO A and (with RX2 on) VFO B: antenna, filter, active DSP, mode, frequency and an S meter.
   - Turn the mouse wheel over a digit to tune by that digit. Click the frequency to type one. Click TX to choose the transmit VFO.
   - Tabs under each flag open its audio, DSP, mode, RIT/XIT, VAC and FreeDV controls.
-- **A right-hand column of tabs** you turn on and off: VFO, VFO sync, meters, band / mode / filter, RX, TX, PA profile, EQ, Kainos Audio, FreeDV and memories.
+- **A right-hand column of tabs** you turn on and off: VFO, VFO sync, meters, band / mode / filter, RX, TX, PA profile, EQ, Kainos Audio, FreeDV, memories, spots and KiwiSDR.
   - The meters tab holds an analog meter; OE3IDE's FTDX-5000 skin is offered on first run (downloaded from his skin server, not bundled). Right-click the meter to change its type or open its settings.
   - Band, mode and filter are drop-downs, to save height.
 - **A left-hand column** with power, transmit (MOX, TUN, 2TON, MON, VOX, DUP, PS-A), VFO (split, A>B, A<B, swap, zero beat, IF>V), REC / PLAY and VAC buttons. Right-click works as in Thetis.
 - **A bar under the panadapter** for pan, zoom, display mode, AVG / Peak / CTUN and multi-RX pan.
 - Thetis's VFO boxes and bottom panels are gone in the Kainos layout, so the panadapter and waterfall use the full height. Everything is still there in Classic.
+- **Sliders and menus the same on every PC**: Kainos draws its own slim sliders whatever skin is loaded, and the menu bar and its drop-downs have a modern look (rounded highlights, roomier rows, gold ticks).
+- **Every window in the Kainos look**: Setup, Memory, Equalizer, CWX and the other windows open with a dark title bar, the Kainos navy, light text, flat dark buttons, dark boxes, lists and tabs, like the Kainos Audio window.
 
 ### 3D stacked-trace panadapter (experimental)
 
@@ -37,6 +39,16 @@ DX spots and POTA activators without installing anything else.
 - **POTA**: activators currently on the air, from POTA's spot feed, checked every two minutes.
 - Spots appear on the panadapter as callsign tags with country flags (POTA in green); click one to tune to it.
 - The **SPOTS** tab in the right column shows each source's status and the latest spots (click to tune), with buttons to turn each source on or off, show or hide spots on the panadapter, and list only your current band.
+
+### KiwiSDR
+
+Listen to a public KiwiSDR from inside Kainos: hear how a band, or your own signal, sounds somewhere else.
+
+- Turn on the **KIWI** tab: it lists the nearest public KiwiSDRs with a free channel, by distance from your grid square (Setup > DSP > FreeDV (RADE)). Click one to listen.
+- **Follow** keeps it on VFO A's frequency and mode; turn Follow off to tune the Kiwi on its own (mouse wheel, or click to type, and a mode button).
+- Its own volume, and **Out:** to choose the Windows playback device (a VAC cable feeds a decoder). Right-click a receiver to star it as a favourite; a search box filters the list.
+- While listening, VFO A's flag shows the Kiwi's S reading next to your own ("K S5"): here vs. there.
+- Kainos identifies itself to the receiver's owner with your callsign, as the KiwiSDR client does. Each owner decides who may connect and for how long; receivers behind kiwisdr.com's proxy aren't listed.
 
 ### Kainos Audio
 
@@ -77,7 +89,7 @@ Both terminals have six macro buttons (CQ, ANS, 599, 73, QRZ, MY), each mode its
 
 ## Installing
 
-- Run **Kainos-1.0.0-x64.msi**. Windows will ask for administrator permission. Kainos needs the .NET Framework 4.8 (included with Windows 10 and 11).
+- Run **Kainos-1.0.0-x64.msi**. It replaces any earlier Kainos test build (those were numbered 2.10.3.15). Windows will ask for administrator permission. Kainos needs the .NET Framework 4.8 (included with Windows 10 and 11).
 - **Kainos installs alongside Thetis** and does not upgrade, change or remove it. It installs to `Program Files\OpenHPSDR\Kainos-HL2` and keeps its settings in `%APPDATA%\OpenHPSDR\Kainos-x64`.
 - The first time Kainos starts, if it finds Thetis, it offers once to copy your Thetis settings (databases, meters, skins and cmASIO settings). Your Thetis settings are not changed. Kainos opens in its own layout either way; switch to Classic in Setup > Appearance > Kainos if you prefer the Thetis look.
 - Kainos still identifies itself as Thetis to TCI and TCP CAT clients, so logging and contest software that supports Thetis keeps working. Thetis meter skins work too.
