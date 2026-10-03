@@ -227,7 +227,7 @@ namespace Thetis
         {
             lock (_version_info_lock)
             {
-                int release_version = Common.CompareVersions(_version, _versionInfo.ReleaseVersion);
+                int release_version = Common.CompareVersions(KainosVersion.Number, _versionInfo.ReleaseVersion);
                 bool different_release_build = !string.IsNullOrEmpty(_versionInfo.ReleaseBuild) && _versionInfo.ReleaseBuild != _build;
                 if (release_version < 0 || (release_version == 0 && different_release_build))
                 {
@@ -239,7 +239,7 @@ namespace Thetis
                 else if(_check_dev_version)
                 {
                     // check development
-                    int development_version = Common.CompareVersions(_version, _versionInfo.DevelopmentVersion);
+                    int development_version = Common.CompareVersions(KainosVersion.Number, _versionInfo.DevelopmentVersion);
                     bool different_dev_build = !string.IsNullOrEmpty(_versionInfo.DevelopmentBuild) && _versionInfo.DevelopmentBuild != _build;
                     if (development_version < 0 || (development_version == 0 && different_dev_build))
                     {
