@@ -122,7 +122,7 @@ namespace Thetis
         private static readonly System.Reflection.MethodInfo _kainosOnMouseDown = typeof(Control).GetMethod("OnMouseDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
         // a real click on a Thetis button (it toggles and runs its handlers), and its right click
-        private static void kainosClick(Control c) { _kainosOnClick.Invoke(c, new object[] { EventArgs.Empty }); }
+        private static void kainosClick(Control c) { KainosUI.Press(c); }
         private static void kainosRightClick(Control c) { _kainosOnMouseDown.Invoke(c, new object[] { new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0) }); }
 
         #region KAINOS AUDIO

@@ -71,7 +71,11 @@ namespace Thetis
             bool split = RX2Enabled && Display.SplitDisplay;
 
             placeKainosFlag(_kainosFlagA, layout, () => HzToPixel((float)((VFOAFreq - CentreFrequency) * 1e6)), 0);
-            placeKainosFlag(_kainosFlagB, layout && split, () => HzToPixel((float)((VFOBFreq - CentreRX2Frequency) * 1e6), 2), pnlDisplay.Height / 2);
+            if (KainosSplitB)
+                // split (or quick split) without RX2: VFO B is the transmit frequency, on RX1's panadapter (issue #1)
+                placeKainosFlag(_kainosFlagB, layout, () => HzToPixel((float)((VFOBFreq - CentreFrequency) * 1e6)), 0);
+            else
+                placeKainosFlag(_kainosFlagB, layout && split, () => HzToPixel((float)((VFOBFreq - CentreRX2Frequency) * 1e6), 2), pnlDisplay.Height / 2);
             if (_kainosVfoA != null) { _kainosVfoA.Invalidate(); _kainosVfoB.Invalidate(); }
         }
 
@@ -110,6 +114,7 @@ namespace Thetis
 
         internal string KainosFilterText(int rx)
         {
+            if (rx == 2 && KainosSplitB) return "";
             RadioButton r = kainosFilterPanel(rx).Controls.OfType<RadioButton>().FirstOrDefault(b => b.Checked);
             if (r != null && r.Text.Length > 0 && !r.Text.StartsWith("Var")) return r.Text;
             try
@@ -121,9 +126,13 @@ namespace Thetis
             catch { return ""; }
         }
 
+        // VFO B as split's transmit frequency (split or quick split on, RX2 off): it has no receiver of its own
+        internal bool KainosSplitB { get { return chkVFOSplit.Checked && !RX2Enabled; } }
+
         internal string KainosDspText(int rx)
         {
             List<string> on = new List<string>();
+            if (rx == 2 && KainosSplitB) return _quickSplitState ? "QUICK SPLIT" : "SPLIT";
             if (rx == 1)
             {
                 if (chkNR.Checked) on.Add(chkNR.Text);
@@ -152,7 +161,7 @@ namespace Thetis
         internal string KainosModeText(int rx)
         {
             if (RadeEnabledOn(rx - 1)) return "RADE";
-            return (rx == 1 ? _rx1_dsp_mode : _rx2_dsp_mode).ToString();
+            return (rx == 1 || KainosSplitB ? _rx1_dsp_mode : _rx2_dsp_mode).ToString();      // split without RX2: B transmits in RX1's mode
         }
         internal double KainosVfoMHz(int rx) { return rx == 1 ? VFOAFreq : VFOBFreq; }
 
@@ -191,6 +200,7 @@ namespace Thetis
         internal float KainosSignalDbm(int rx)
         {
             if (!PowerOn) return -200f;
+            if (rx == 2 && !RX2Enabled) return -200f;                       // no RX2: nothing to measure
             return WDSP.CalculateRXMeter(rx == 1 ? 0u : 2u, 0u, WDSP.MeterType.SIGNAL_STRENGTH) + RXOffset(rx);
         }
         internal double KainosSUnits(int rx, float dbm) { return Common.GetSMeterUnits(dbm, KainosVfoMHz(rx) >= S9Frequency); }
@@ -298,13 +308,14 @@ namespace Thetis
             _kainosVfoB = new KainosFlagView(this, 2, false);
             _kainosColumn.Viewport.Controls.Add(_kainosVfoA);
             _kainosColumn.Viewport.Controls.Add(_kainosVfoB);
-            _kainosColumn.AddSection("vfo", "VFO", w => KainosFlagView.FaceHeight + (RX2Enabled ? KainosUI.S(6) + KainosFlagView.FaceHeight : 0), r =>
+            _kainosColumn.AddSection("vfo", "VFO", w => KainosFlagView.FaceHeight + (RX2Enabled || KainosSplitB ? KainosUI.S(6) + KainosFlagView.FaceHeight : 0), r =>
             {
                 _kainosVfoA.SetBounds(r.Left, r.Top, r.Width, KainosFlagView.FaceHeight);
-                if (RX2Enabled) _kainosVfoB.SetBounds(r.Left, r.Top + KainosFlagView.FaceHeight + KainosUI.S(6), r.Width, KainosFlagView.FaceHeight);
+                if (RX2Enabled || KainosSplitB) _kainosVfoB.SetBounds(r.Left, r.Top + KainosFlagView.FaceHeight + KainosUI.S(6), r.Width, KainosFlagView.FaceHeight);
                 else _kainosVfoB.Top = -30000;
             });
             RX2EnabledChangedHandlers += enabled => { if (_kainosLayout) positionKainosColumn(); };
+            chkVFOSplit.CheckedChanged += (s, e) => { if (_kainosLayout) positionKainosColumn(); };      // split shows VFO B
         }
     }
 

@@ -60,6 +60,16 @@ namespace Thetis
             ScaleChanged?.Invoke(null, EventArgs.Empty);
         }
 
+        // a left click on a Thetis button as the mouse makes one: Click, then MouseClick (some Thetis buttons, split for
+        // one, handle only MouseClick, to tell left from right; issue #1)
+        private static readonly System.Reflection.MethodInfo _onClick = typeof(Control).GetMethod("OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        private static readonly System.Reflection.MethodInfo _onMouseClick = typeof(Control).GetMethod("OnMouseClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        public static void Press(Control c)
+        {
+            _onClick.Invoke(c, new object[] { EventArgs.Empty });
+            _onMouseClick.Invoke(c, new object[] { new MouseEventArgs(MouseButtons.Left, 1, Math.Max(1, c.Width / 2), Math.Max(1, c.Height / 2), 0) });
+        }
+
         public static int S(float designPx) { return (int)Math.Round(designPx * _scale); }
 
         public static GraphicsPath RoundedRect(RectangleF r, float radius)

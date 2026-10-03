@@ -658,8 +658,12 @@ namespace Thetis
         private int kainosMetersMeasure(int w)
         {
             if (_kainosMeter == null) return (int)(w * 0.55f);
-            return Math.Max(KainosUI.S(40), _kainosMeter.Height);
+            return Math.Max(KainosUI.S(40), Math.Min(_kainosMeter.Height, kainosMeterMaxHeight(w)));
         }
+
+        // a meter container can grow taller than its meters (issue #1: everything under it was pushed out of sight):
+        // no more than three-quarters of the column's width
+        private static int kainosMeterMaxHeight(int w) { return (int)(w * 0.75f); }
 
         private void kainosMetersArrange(Rectangle r)
         {
@@ -667,6 +671,7 @@ namespace Thetis
             bool on = _kainosColumn.IsOn("meters") && _kainosColumn.Visible;
             if (_kainosMeter.MeterEnabled != on) MeterManager.enableContainer(KainosMeterId, on);
             if (!on) return;
+            if (_kainosMeter.Height > kainosMeterMaxHeight(r.Width)) _kainosMeter.Height = kainosMeterMaxHeight(r.Width);
             kainosPin(_kainosMeter, r, true);
         }
 
@@ -756,21 +761,48 @@ namespace Thetis
             Viewport.SetBounds(1, top, Width - 1, Math.Max(0, Height - top));
             int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(10);
             int w = Viewport.Width - pad * 2;
+            // one section failing must not blank the rest of the column (issue #1): it's measured as empty and logged
+            Dictionary<Section, int> heights = new Dictionary<Section, int>();
+            foreach (Section s in _sections)
+            {
+                if (!s.On) continue;
+                int h = 0;
+                try { h = Math.Max(0, s.Measure(w)); } catch (Exception ex) { logSection(s, "measure", ex); }
+                heights[s] = h;
+            }
             int total = 0;
-            foreach (Section s in _sections) if (s.On) total += header + s.Measure(w) + gap;
+            foreach (int h in heights.Values) total += header + h + gap;
             _contentHeight = total;
             _scroll = Math.Max(0, Math.Min(_scroll, total - Viewport.Height));
             int y = -_scroll;
             foreach (Section s in _sections)
             {
-                if (!s.On) { s.HeaderRect = Rectangle.Empty; s.Arrange(new Rectangle(pad, -30000, w, 0)); continue; }
-                int h = s.Measure(w);
+                if (!s.On)
+                {
+                    s.HeaderRect = Rectangle.Empty;
+                    try { s.Arrange(new Rectangle(pad, -30000, w, 0)); } catch (Exception ex) { logSection(s, "hide", ex); }
+                    continue;
+                }
+                int h = heights[s];
                 s.HeaderRect = new Rectangle(pad, y, w, header);
-                s.Arrange(new Rectangle(pad, y + header, w, h));
+                try { s.Arrange(new Rectangle(pad, y + header, w, h)); } catch (Exception ex) { logSection(s, "arrange", ex); }
                 y += header + h + gap;
             }
             Invalidate();
             Viewport.Invalidate();
+        }
+
+        private static readonly HashSet<string> _logged = new HashSet<string>();
+        private static void logSection(Section s, string what, Exception ex)
+        {
+            string key = s.Key + what + ex.GetType().Name;
+            if (!_logged.Add(key)) return;           // once each
+            try
+            {
+                string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OpenHPSDR", "Kainos-x64", "KainosErrors.txt");
+                System.IO.File.AppendAllText(path, DateTime.Now.ToString("u") + "  column " + s.Key + " " + what + ": " + ex + Environment.NewLine + Environment.NewLine);
+            }
+            catch { }
         }
 
         internal void ScrollBy(int delta)
@@ -1015,7 +1047,7 @@ namespace Thetis
                     Enabled = t.Enabled,
                     ForeColor = KainosUI.Text,
                 };
-                item.Click += (s, a) => _onClick.Invoke(target, new object[] { EventArgs.Empty });
+                item.Click += (s, a) => KainosUI.Press(target);
                 menu.Items.Add(item);
             }
             menu.Closed += (s, a) => { _open = false; Invalidate(); BeginInvoke(new Action(menu.Dispose)); };
@@ -1138,7 +1170,7 @@ namespace Thetis
             base.OnMouseDown(e);
             Cell c = hit(e.Location);
             if (c == null || !c.Target.Enabled) return;
-            if (e.Button == MouseButtons.Left) _onClick.Invoke(c.Target, new object[] { EventArgs.Empty });
+            if (e.Button == MouseButtons.Left) KainosUI.Press(c.Target);
             else if (e.Button == MouseButtons.Right)
             {
                 MouseEventArgs m = new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0);
