@@ -172,6 +172,8 @@ namespace Thetis
                     menu.Items.Add(it);
                 }
             };
+            menu.Items.Add(new ToolStripMenuItem("3D stacked-trace panadapter (experimental)") { Enabled = false });
+            menu.Items.Add(new ToolStripSeparator());
             group("Depth", new[] { 20, 40, 60, 80 }, () => Display.Kainos3DDepth, v => Display.Kainos3DDepth = v, " traces");
             menu.Items.Add(new ToolStripSeparator());
             group("Speed", new[] { 5, 10, 20 }, () => Display.Kainos3DRate, v => Display.Kainos3DRate = v, " a second");
