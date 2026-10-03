@@ -29,6 +29,15 @@ Kainos is a Software Defined Radio application for Windows and the Hermes Lite 2
 - Right-click **3D** for the depth (20 to 80 traces), the speed (5 to 20 a second), the height and the colours.
 - The filter, VFO lines and grid stay on top. The stack clears when you pan, zoom, resize, switch between transmit and receive, or power off.
 
+### Built-in spotting
+
+DX spots and POTA activators without installing anything else.
+
+- **DX cluster**: Kainos connects to NC7J's cluster and logs in with your callsign automatically (the callsign in Setup > DSP > FreeDV (RADE)). It reconnects by itself if the connection drops.
+- **POTA**: activators currently on the air, from POTA's spot feed, checked every two minutes.
+- Spots appear on the panadapter as callsign tags with country flags (POTA in green); click one to tune to it.
+- The **SPOTS** tab in the right column shows each source's status and the latest spots (click to tune), with buttons to turn each source on or off, show or hide spots on the panadapter, and list only your current band.
+
 ### Kainos Audio
 
 Audio processing ported from [AetherSDR](https://github.com/aethersdr/AetherSDR), in one window with Receive and Transmit tabs (Kainos Audio in the menu bar):
