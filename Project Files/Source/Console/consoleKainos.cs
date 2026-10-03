@@ -82,6 +82,8 @@ namespace Thetis
             addCwControls();            // consoleKainosCw.cs
             // built-in spotting (consoleKainosSpots.cs): starts once the console is up, stops when it closes
             Shown += (s, e) => kainosSpotsStart();
+            // every window Kainos opens in the Kainos Audio look (KainosWindowTheme.cs)
+            Shown += (s, e) => KainosWindowTheme.Start();
             FormClosing += (s, e) => KainosSpotting.Stop();
             matchKainosMenuItems();     // consoleKainosLayout.cs
         }
