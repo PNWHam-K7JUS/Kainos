@@ -61,7 +61,7 @@ namespace Thetis
 
             string sBits = Common.Is64Bit ? " x64" : " x86";
 
-            s += " v" + version + sBits;
+            s += " " + KainosVersion.Number + " (Thetis " + version + ")" + sBits;    // Kainos: its own version, and the Thetis it's based on
             s += " (" + VersionInfo.BuildDate + ")<FW>";  //[2.10.2.2]MW0LGE use the auto generated class from pre build event for the BuildDate
 
             if (BUILD_NAME != "") s += " " + BUILD_NAME;

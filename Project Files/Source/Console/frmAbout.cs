@@ -122,7 +122,8 @@ namespace Thetis
             }
 
             lstVersions.Items.Clear();
-            lstVersions.Items.Add("Version: " + version);
+            lstVersions.Items.Add("Kainos Version: " + KainosVersion.Number);     // Kainos
+            lstVersions.Items.Add("Thetis Version: " + version);
             lstVersions.Items.Add("Database Version: " + db_version);
             lstVersions.Items.Add("Radio Model: " + radio_model);
             if (!string.IsNullOrEmpty(andromeda_version)) lstVersions.Items.Add(andromeda_version); // includes the version: preamble in the string

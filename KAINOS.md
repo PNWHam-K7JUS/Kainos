@@ -323,6 +323,8 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 ### Installer
 
+Versions: Kainos has its own version, major.minor.patch (1.0.0 the first release; new features raise the minor number, fixes the patch number), set in one place, `Console/KainosVersion.cs`. The title bar and About window show it with the Thetis version it's based on ("Kainos 1.0.0 (Thetis 2.10.3.15)"); the installer build reads it from that file for the installer's version and its file name (`Kainos-1.0.0-x64.msi`). The installer replaces any other Kainos version, newer or older (`AllowDowngrades`: the test builds before 1.0.0 were numbered 2.10.3.15). A release: bump `KainosVersion.cs`, add release notes in `Documentation/ReleaseNotes/kainos-<version>.md`, build, tag `kainos-<version>`.
+
 The installer's pictures are Kainos's: `binary/kainos_background.bmp` (the welcome and finish pages, 493 x 312: the splash's flame, KAINOΣ and tag line on a dark wave panel at the left, white on the right for the installer's text) and `binary/kainos_banner.bmp` (the other pages' banner, 493 x 58: a Kainos tile at the right). Both are made from `Console/Resources/kainos-splash.png` by `art-source/make_installer_art.py` (Python with Pillow). Thetis's `thetis_*.bmp` are left in place, unused, for easy merges.
 
 The publisher is Justin Cron - K7JUS. The Add/Remove Programs comments credit Thetis (W5WC, MW0LGE, MI0BOT, NR0V), the OpenHPSDR community and PowerSDR. The installer is built with WiX Toolset 3.14 (and .NET Framework 3.5, which WiX 3 needs) after a Release build of Kainos. Visual Studio 2026's MSBuild doesn't find WiX 3's targets by itself, so give it the path:
