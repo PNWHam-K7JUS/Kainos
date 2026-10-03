@@ -99,13 +99,23 @@ namespace Thetis
             kainosColumnOn();           // stage 3: consoleKainosColumn.cs
             kainosFlagOn();             // stage 4: consoleKainosFlag.cs
             kainosTermsPlace();         // the RTTY / CW terminal docks under the panadapter
+            KainosPanColoursApply();    // the panadapter in Kainos colours: consoleKainosPanColours.cs
+            if (!_kpcShownHooked)
+            {
+                // Setup's start-up applies the user's display colours too; put Kainos's back once the console is up
+                _kpcShownHooked = true;
+                Shown += (s, e) => BeginInvoke(new System.Action(KainosPanColoursApply));
+            }
             menuStrip1.Invalidate();
             statusStripMain.Invalidate();
             Invalidate(true);
         }
 
+        private bool _kpcShownHooked;
+
         private void restoreClassicTheme()
         {
+            kainosPanColoursOff();
             kainosFlagOff();
             kainosTermsPlace();         // the RTTY / CW terminal becomes a window
             kainosColumnOff();

@@ -260,6 +260,10 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
   - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
+### Panadapter colours
+
+- In Kainos layout the receive panadapter takes the Kainos colours (`consoleKainosPanColours.cs`): navy grid lines (finer ones darker), ice labels, a bright ice trace over a deep blue fill, gold peak fill, ice filter shading and gold TX filter lines. The waterfall and the transmit colours keep their own. Thetis's colours (Setup > Appearance > Display, or the skin's) are saved and put back in Classic, or with Setup > Appearance > Kainos > Panadapter > Kainos colours off. A colour changed in Setup while Kainos's are showing is the user's and isn't put back over. Applied with the Kainos theme and again once the console is shown (Setup's start-up applies the user's colours too).
+
 ### Panadapter backdrop
 
 - In Kainos layout the panadapter has the Kainos backdrop (AetherSDR's look): a dark navy gradient with the Kainos logo (the splash's flame, KAINOΣ and tag line, cut out by brightness) faint in the middle, under the grid, filter, VFO lines, the 3D stack and the trace. Setup > Appearance > Kainos > Panadapter: on / off, and the logo's strength (off, 6%, 12% default, 20%). It covers the panadapter's own area only, so in Panafall it stays out of the waterfall. The 3D stack is filled with the backdrop's navy over it. Drawn by `drawKainosBackdrop` (`displayKainos.cs`), the first call in `DrawPanadapterDX2D`; the logo bitmap is made once per render target.

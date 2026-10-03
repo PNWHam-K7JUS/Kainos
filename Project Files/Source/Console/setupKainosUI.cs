@@ -33,7 +33,7 @@ namespace Thetis
 
         private TabPage tpAppearanceKainos;
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
-        private CheckBoxTS chkKainosBackdrop;
+        private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
         private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D;
         private bool _kainosSettingsHooked;
@@ -85,7 +85,7 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(grp);
 
             // the panadapter's backdrop in Kainos layout (displayKainos.cs)
-            GroupBoxTS grpPan = new GroupBoxTS { Name = "grpKainosPanadapter", Text = "Panadapter (Kainos layout)", Location = new Point(8, 166), Size = new Size(430, 84) };
+            GroupBoxTS grpPan = new GroupBoxTS { Name = "grpKainosPanadapter", Text = "Panadapter (Kainos layout)", Location = new Point(8, 166), Size = new Size(430, 108) };
             chkKainosBackdrop = new CheckBoxTS { Name = "chkKainosBackdrop", Text = "Kainos background (dark navy, with the Kainos logo behind the trace)", Location = new Point(14, 22), AutoSize = true, Checked = true };
             chkKainosBackdrop.CheckedChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             comboKainosBackdropLogo = new ComboBoxTS { Name = "comboKainosBackdropLogo", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 50), Size = new Size(140, 21) };
@@ -93,6 +93,11 @@ namespace Thetis
             comboKainosBackdropLogo.SelectedIndex = 2;
             toolTip1.SetToolTip(comboKainosBackdropLogo, "How strongly the Kainos logo shows through the panadapter's background.");
             comboKainosBackdropLogo.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            chkKainosPanColours = new CheckBoxTS { Name = "chkKainosPanColours", Text = "Kainos colours (grid, labels, trace and filter; the waterfall keeps its own)", Location = new Point(14, 80), AutoSize = true, Checked = true };
+            toolTip1.SetToolTip(chkKainosPanColours, "In Kainos layout, the panadapter's grid, labels, trace, fill and filter colours are Kainos's.\r\n" +
+                "Your own colours (Setup > Appearance > Display) come back in Classic, or with this off.");
+            chkKainosPanColours.CheckedChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            grpPan.Controls.Add(chkKainosPanColours);
             grpPan.Controls.Add(chkKainosBackdrop);
             grpPan.Controls.Add(avLabel("Logo", 14, 53));
             grpPan.Controls.Add(comboKainosBackdropLogo);
@@ -156,9 +161,11 @@ namespace Thetis
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
+            console.KainosPanColours = chkKainosPanColours.Checked;
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;
+            console.KainosPanColoursApply();
         }
     }
 }
