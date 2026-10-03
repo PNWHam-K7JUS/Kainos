@@ -80,6 +80,9 @@ namespace Thetis
             addRadeControls();
             addRttyControls();          // consoleKainosRtty.cs
             addCwControls();            // consoleKainosCw.cs
+            // built-in spotting (consoleKainosSpots.cs): starts once the console is up, stops when it closes
+            Shown += (s, e) => kainosSpotsStart();
+            FormClosing += (s, e) => KainosSpotting.Stop();
             matchKainosMenuItems();     // consoleKainosLayout.cs
         }
 

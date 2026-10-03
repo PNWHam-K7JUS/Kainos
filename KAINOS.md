@@ -294,6 +294,15 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 - Six macro buttons in each terminal (RTTY and CW have their own sets): a click runs one, F1-F6 in the typing line run them, a right click opens the editor (`KainosMacros.cs`): label, text (`{MY}` your call from the RADE callsign setting, `{CALL}` the box beside the macros), and what a click does: send then back to receive, send and keep transmitting (RTTY), or put the text in the typing line. Reset to default puts back the built-in macro (CQ, ANS, 599, 73, QRZ, MY). Saved with the options as Base64 in hidden Setup boxes (`txtKainosRttyMacros`, `txtKainosCwMacros`).
 
+### Built-in spotting
+
+- DX cluster and POTA spots without another program (`KainosSpots.cs`, `consoleKainosSpots.cs`). On by default; both start once the console is shown and stop when it closes.
+- DX cluster: telnet to `dxc.nc7j.com:7373` (NC7J's AR-Cluster) by default, logged in with the user's callsign when the login prompt comes (with or without a line end); `DX de` lines parsed (spotter, kHz, call, comment, time); reconnects with back-off (15 s to 5 min). The callsign is what Kainos already knows: the RADE callsign, else Thetis's TCI own callsign, else the Discord callsign (`Setup.KainosOtherCallsign`); a change is picked up and the cluster logs in again.
+- POTA: `https://api.pota.app/spot/activator` every 2 minutes (POTA's API is unofficial and runs on its volunteers' goodwill: no hammering), identified as Kainos in the User-Agent.
+- SOTA is not included: SOTA's API terms say no AI-generated software may connect without prior approval, and developers must join the SOTA Reflector's API-consumers group first.
+- Spots go to Thetis's own spot display (`SpotManager2.AddSpot`: callsign tags with flags on the panadapter, click to tune, lifetime and maximum from Setup's TCI spot settings), DX in Kainos ice, POTA in green, with a mode from the spot or guessed from the band plan (FT8 / FT4 frequencies, CW segments, else SSB on the usual sideband). Kainos turns on Thetis's show-spots option (`Setup.KainosShowSpots`) when a source is on.
+- SPOTS tab: each source's status; DX, POTA, Pan (spots on the panadapter), Band (this band only); the latest spots (time, kHz, call, mode and comment; click one to tune VFO A there in its mode). Settings in a hidden Setup box (`txtKainosSpots`: sources, cluster host and port, band filter).
+
 ### Installer
 
 The installer's pictures are Kainos's: `binary/kainos_background.bmp` (the welcome and finish pages, 493 x 312: the splash's flame, KAINOΣ and tag line on a dark wave panel at the left, white on the right for the installer's text) and `binary/kainos_banner.bmp` (the other pages' banner, 493 x 58: a Kainos tile at the right). Both are made from `Console/Resources/kainos-splash.png` by `art-source/make_installer_art.py` (Python with Pillow). Thetis's `thetis_*.bmp` are left in place, unused, for easy merges.

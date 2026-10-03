@@ -28,6 +28,22 @@ namespace Thetis
     // Setup > Appearance > Kainos: the console layout (Classic or Kainos)
     public partial class Setup
     {
+        // for the built-in spotting: the callsign Thetis already has (TCI's own callsign, else Discord's), and Thetis's
+        // "show spots on the panadapter" option (TCI spots), which Kainos's spots use too
+        internal string KainosOtherCallsign
+        {
+            get
+            {
+                string c = txtOwnCallsign.Text.Trim();
+                return c.Length >= 3 ? c : txtDiscordCallsign.Text.Trim();
+            }
+        }
+        internal bool KainosShowSpots
+        {
+            get { return chkShowTCISpots.Checked; }
+            set { if (chkShowTCISpots.Checked != value) chkShowTCISpots.Checked = value; }
+        }
+
         // the PA profile list, for the console's PA PROFILE tab
         internal ComboBox KainosPAProfileCombo { get { return comboPAProfile; } }
 
@@ -35,7 +51,7 @@ namespace Thetis
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
         private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -124,6 +140,8 @@ namespace Thetis
             // set once Kainos has made the Kainos layout the starting layout (see applyKainosUI)
             txtKainosLayoutSet = new TextBoxTS { Name = "txtKainosLayoutSet", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosLayoutSet);
+            txtKainosSpots = new TextBoxTS { Name = "txtKainosSpots", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosSpots);
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
@@ -153,6 +171,7 @@ namespace Thetis
                     txtKainosRttyMacros.Text = console.KainosRttyMacros;
                     txtKainosCwMacros.Text = console.KainosCwMacros;
                     txtKainos3D.Text = console.Kainos3DSettings;
+                    txtKainosSpots.Text = console.KainosSpotSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -169,6 +188,8 @@ namespace Thetis
             console.CwMacrosLoaded();
             console.Kainos3DSettings = txtKainos3D.Text;
             console.Kainos3DLoad();
+            console.KainosSpotSettings = txtKainosSpots.Text;
+            console.KainosSpotsLoad();
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
