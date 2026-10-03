@@ -101,6 +101,7 @@ namespace Thetis
             kainosTermsPlace();         // the RTTY / CW terminal docks under the panadapter
             KainosPanColoursApply();    // the panadapter in Kainos colours: consoleKainosPanColours.cs
             kainosSlidersOn();          // Kainos sliders and menus: consoleKainosSliders.cs
+            kainosButtonsOn();
             kainosMenusOn();
             if (!_kpcShownHooked)
             {
@@ -120,6 +121,7 @@ namespace Thetis
             kainosPanColoursOff();
             kainosMenusOff();
             kainosSlidersOff();
+            kainosButtonsOff();
             kainosFlagOff();
             kainosTermsPlace();         // the RTTY / CW terminal becomes a window
             kainosColumnOff();
