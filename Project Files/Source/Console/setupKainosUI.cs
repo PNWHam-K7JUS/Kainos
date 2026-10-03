@@ -32,7 +32,8 @@ namespace Thetis
         internal ComboBox KainosPAProfileCombo { get { return comboPAProfile; } }
 
         private TabPage tpAppearanceKainos;
-        private ComboBoxTS comboKainosLayout, comboKainosUIScale;
+        private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
+        private CheckBoxTS chkKainosBackdrop;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
         private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D;
         private bool _kainosSettingsHooked;
@@ -75,15 +76,27 @@ namespace Thetis
             comboKainosUIScale.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             grp.Controls.Add(avLabel("UI scale", 250, 27));
             grp.Controls.Add(comboKainosUIScale);
-            LabelTS note = avLabel("The Kainos layout is being built in stages (roadmap Phase 7). So far: the Kainos colours " +
-                "for the console, menu bar and status bar, and the left dock with POWER, RX2, MOX, TUN, 2TON, MON, VOX, " +
-                "DUP, PS-A and REC/PLAY (right-click a dock button for the same settings shortcut as in Classic), with " +
-                "forward power, SWR and ALC in the status bar. Coming next: the tabbed right column (with meters) and " +
-                "the slice flags.", 14, 60);
+            LabelTS note = avLabel("Kainos: the console in the Kainos colours, with the left-hand column of buttons, the " +
+                "right-hand column of tabs, the slice flags on the panadapter and the bar under it. Right-click a button " +
+                "for the same settings shortcut as in Classic. Classic: Thetis's console exactly as your skin draws it.", 14, 60);
             note.AutoSize = false;
             note.Size = new Size(404, 82);
             grp.Controls.Add(note);
             tpAppearanceKainos.Controls.Add(grp);
+
+            // the panadapter's backdrop in Kainos layout (displayKainos.cs)
+            GroupBoxTS grpPan = new GroupBoxTS { Name = "grpKainosPanadapter", Text = "Panadapter (Kainos layout)", Location = new Point(8, 166), Size = new Size(430, 84) };
+            chkKainosBackdrop = new CheckBoxTS { Name = "chkKainosBackdrop", Text = "Kainos background (dark navy, with the Kainos logo behind the trace)", Location = new Point(14, 22), AutoSize = true, Checked = true };
+            chkKainosBackdrop.CheckedChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            comboKainosBackdropLogo = new ComboBoxTS { Name = "comboKainosBackdropLogo", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 50), Size = new Size(140, 21) };
+            comboKainosBackdropLogo.Items.AddRange(new object[] { "Off", "Faint (6%)", "Light (12%)", "Medium (20%)" });
+            comboKainosBackdropLogo.SelectedIndex = 2;
+            toolTip1.SetToolTip(comboKainosBackdropLogo, "How strongly the Kainos logo shows through the panadapter's background.");
+            comboKainosBackdropLogo.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            grpPan.Controls.Add(chkKainosBackdrop);
+            grpPan.Controls.Add(avLabel("Logo", 14, 53));
+            grpPan.Controls.Add(comboKainosBackdropLogo);
+            tpAppearanceKainos.Controls.Add(grpPan);
 
             txtKainosColumnTabs = new TextBoxTS { Name = "txtKainosColumnTabs", Visible = false, Text = "meters,band" };
             txtKainosMeterId = new TextBoxTS { Name = "txtKainosMeterId", Visible = false, Text = "" };
@@ -140,6 +153,9 @@ namespace Thetis
             console.CwMacrosLoaded();
             console.Kainos3DSettings = txtKainos3D.Text;
             console.Kainos3DLoad();
+            Display.KainosBackdrop = chkKainosBackdrop.Checked;
+            Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
+            comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;

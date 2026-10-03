@@ -209,8 +209,11 @@ namespace Thetis
                 st.ImageOwner = _d2dRenderTarget;
             }
             BitmapRenderTarget rt = st.Image;
+            // filled with the background: the Kainos navy over the Kainos backdrop, else Thetis's background colour
             SharpDX.Color4 bgc = m_cDX2_display_background_clear_colour;
-            using (SolidColorBrush fill = new SolidColorBrush(rt, new RawColor4(bgc.Red, bgc.Green, bgc.Blue, 0.92f)))
+            RawColor4 fillColour = KainosBackdrop && console != null && console.KainosLayout
+                ? new RawColor4(0x08 / 255f, 0x12 / 255f, 0x1d / 255f, 0.92f) : new RawColor4(bgc.Red, bgc.Green, bgc.Blue, 0.92f);
+            using (SolidColorBrush fill = new SolidColorBrush(rt, fillColour))
             using (SolidColorBrush line = new SolidColorBrush(rt, new RawColor4(0x7f / 255f, 0xb0 / 255f, 0xcc / 255f, 1f)))
             using (GradientStopCollection stops = new GradientStopCollection(rt, k3dStops(), ExtendMode.Clamp))
             using (LinearGradientBrush rainbow = new LinearGradientBrush(rt, new LinearGradientBrushProperties { StartPoint = new RawVector2(0, yLow), EndPoint = new RawVector2(0, yHigh) }, stops))
@@ -241,6 +244,69 @@ namespace Thetis
                 rt.Transform = new RawMatrix3x2(1, 0, 0, 1, 0, 0);
                 rt.EndDraw();
             }
+        }
+
+        // ---- the Kainos backdrop (AetherSDR's look): a dark navy panadapter with the Kainos logo faint behind it ----
+        //
+        // Drawn first in the panadapter (before the 3D stack and Thetis's grid, filter and trace), over the panadapter's
+        // own area only (so in panafall it stays out of the waterfall), in Kainos layout. The logo is the splash's
+        // flame and lettering, cut out by brightness so only the bright parts show, at KainosBackdropLogo opacity.
+
+        public static bool KainosBackdrop = true;
+        public static float KainosBackdropLogo = 0.12f;
+        private static SharpDX.Direct2D1.Bitmap _kbLogo;
+        private static RenderTarget _kbLogoOwner;
+
+        private static System.Drawing.Bitmap kainosLogoCutout()
+        {
+            System.Drawing.Bitmap splash = Properties.Resources.kainos_splash;
+            Rectangle crop = new Rectangle(206, 48, 308, 178);          // the flame, KAINOΣ and the tag line
+            System.Drawing.Bitmap logo = new System.Drawing.Bitmap(crop.Width, crop.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            for (int y = 0; y < crop.Height; y++)
+                for (int x = 0; x < crop.Width; x++)
+                {
+                    Color c = splash.GetPixel(crop.X + x, crop.Y + y);
+                    int lum = (c.R * 299 + c.G * 587 + c.B * 114) / 1000;
+                    int a = lum <= 95 ? 0 : lum >= 185 ? 255 : (lum - 95) * 255 / 90;       // only the bright logo, not the waves behind it
+                    logo.SetPixel(x, y, Color.FromArgb(a, c.R, c.G, c.B));
+                }
+            return logo;
+        }
+
+        private static void drawKainosBackdrop(int W, int H, int nVerticalShift)
+        {
+            if (!KainosBackdrop || console == null || !console.KainosLayout || _d2dRenderTarget == null || W <= 0 || H <= 0) return;
+
+            // navy, a little lighter at the top
+            RawRectangleF r = new RawRectangleF(0, nVerticalShift, W, nVerticalShift + H);
+            using (GradientStopCollection stops = new GradientStopCollection(_d2dRenderTarget, new[]
+                   {
+                       new GradientStop { Position = 0f, Color = new RawColor4(0x0e / 255f, 0x1b / 255f, 0x29 / 255f, 1f) },
+                       new GradientStop { Position = 1f, Color = new RawColor4(0x05 / 255f, 0x0b / 255f, 0x13 / 255f, 1f) },
+                   }))
+            using (LinearGradientBrush bg = new LinearGradientBrush(_d2dRenderTarget, new LinearGradientBrushProperties { StartPoint = new RawVector2(0, r.Top), EndPoint = new RawVector2(0, r.Bottom) }, stops))
+                _d2dRenderTarget.FillRectangle(r, bg);
+
+            // the logo, made once per render target (Thetis remakes its render target at times)
+            if (_kbLogo == null || _kbLogoOwner != _d2dRenderTarget)
+            {
+                if (_kbLogo != null) { _kbLogo.Dispose(); _kbLogo = null; }
+                try
+                {
+                    using (System.Drawing.Bitmap logo = kainosLogoCutout())
+                        _kbLogo = SDXBitmapFromSysBitmap(_d2dRenderTarget, logo);
+                    _kbLogoOwner = _d2dRenderTarget;
+                }
+                catch { _kbLogo = null; }
+            }
+            if (_kbLogo == null || KainosBackdropLogo <= 0) return;
+
+            // centred, about half the panadapter's height (and never wider than half its width)
+            float lw = _kbLogo.PixelSize.Width, lh = _kbLogo.PixelSize.Height;
+            float h = H * 0.5f, w = h * lw / lh;
+            if (w > W * 0.5f) { w = W * 0.5f; h = w * lh / lw; }
+            float x = (W - w) / 2, y = nVerticalShift + (H - h) / 2;
+            _d2dRenderTarget.DrawBitmap(_kbLogo, new RawRectangleF(x, y, x + w, y + h), KainosBackdropLogo, BitmapInterpolationMode.Linear);
         }
     }
 }

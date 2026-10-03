@@ -260,6 +260,10 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
   - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
+### Panadapter backdrop
+
+- In Kainos layout the panadapter has the Kainos backdrop (AetherSDR's look): a dark navy gradient with the Kainos logo (the splash's flame, KAINOΣ and tag line, cut out by brightness) faint in the middle, under the grid, filter, VFO lines, the 3D stack and the trace. Setup > Appearance > Kainos > Panadapter: on / off, and the logo's strength (off, 6%, 12% default, 20%). It covers the panadapter's own area only, so in Panafall it stays out of the waterfall. The 3D stack is filled with the backdrop's navy over it. Drawn by `drawKainosBackdrop` (`displayKainos.cs`), the first call in `DrawPanadapterDX2D`; the logo bitmap is made once per render target.
+
 ### 3D stacked-trace panadapter
 
 - The 3D button on the panadapter bar (right click: depth 20-80 traces, speed 5-20 a second, height 25-50% of the panadapter): behind the live trace, the last few seconds of traces stacked back into the distance (AetherSDR's stacked-trace panadapter), each older one a step up and to the right, dimmer (Kainos ice), and filled with the background so nearer traces hide the ones behind. Saved in a hidden Setup box (`txtKainos3D`).

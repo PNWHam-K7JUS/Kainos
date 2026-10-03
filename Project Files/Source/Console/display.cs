@@ -5207,6 +5207,7 @@ namespace Thetis
         {
             //if (grid_control) //[2.10.3.9]MW0LGE raw grid control option now just turns off the grid, all other elements are shown
             //{
+                drawKainosBackdrop(W, H, nVerticalShift);           // Kainos: navy with the logo faint behind it (displayKainos.cs)
                 pasteKainos3DStack(rx, W, H, nVerticalShift);       // Kainos: the 3D stack under the grid and filter (displayKainos.cs)
                 int centre_x = drawPanadapterAndWaterfallGridDX2D(nVerticalShift, W, H, rx, bottom, out long left_edge, out long right_edge, false);
             //}
