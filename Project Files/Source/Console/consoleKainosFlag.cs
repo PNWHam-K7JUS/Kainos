@@ -533,6 +533,12 @@ namespace Thetis
             using (Font f = new Font("Consolas", 11 * s, FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush b = new SolidBrush(live ? KainosUI.Text : KainosUI.Faint))
                 g.DrawString(reading, f, b, pad - 2 * s, top);
+            // the KiwiSDR being listened to (KIWI tab), under VFO A's own reading: here vs. there
+            string kiwi = _rx == 1 ? _console.KiwiSignalText : "";
+            if (kiwi.Length > 0)
+                using (Font f = new Font("Segoe UI", 8 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush b = new SolidBrush(KainosUI.Ice))
+                    g.DrawString("K " + kiwi, f, b, pad - 2 * s, top + 11 * s);
 
             RectangleF bar = new RectangleF(pad + lw, top + 2 * s, Width - pad * 2 - lw, 5 * s);
             using (Brush b = new SolidBrush(KainosUI.Line)) g.FillRectangle(b, bar);

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Full version number to display -->
-<?define VersionNumber="!(bind.FileVersion.ThetisEXE)" ?>
+<!-- Kainos: the installer's version is Kainos's own (Console\KainosVersion.cs, passed in by the .wixproj); the Thetis
+     version it's based on is the program's file version -->
+<?define VersionNumber="$(var.KainosVersion)" ?>
+<?define ThetisVersion="!(bind.FileVersion.ThetisEXE)" ?>
 <?define NetFx480MinRelease = 528040 ?>
 <!-- <?define NetFx481MinRelease = 533320 ?> -->
 <?define DocumentationPath = "..\..\lib\Thetis-resources\" ?>
@@ -38,7 +40,7 @@
              Compressed="yes"
              InstallScope="perMachine"
              Description="!(loc.ProductDescription)"
-             Comments="!(loc.Comments) $(var.VersionNumber)"/>
+             Comments="!(loc.Comments) $(var.VersionNumber) (Thetis $(var.ThetisVersion))"/>
 
     <!-- Upgrade logic -->
     <!-- AllowSameVersionUpgrades -> Always upgrade, never allow two versions to be installed next to each other -->
@@ -47,8 +49,7 @@
 	<!-- afterInstallExecute changed to afterInstallValidate which removes any installed version before installing -->
 	<!-- downside is that if install fails you wont have old version either -->
     <MajorUpgrade Schedule="afterInstallValidate" 
-                  DowngradeErrorMessage="!(loc.NewerInstalled)"
-                  AllowSameVersionUpgrades="yes" />
+                  AllowDowngrades="yes" />          <!-- Kainos: any Kainos version replaces any other (its own numbering started at 1.0.0, after test builds numbered 2.10.3.15) -->
     
     <MediaTemplate EmbedCab="yes" />
 

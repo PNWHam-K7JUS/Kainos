@@ -51,7 +51,7 @@ namespace Thetis
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
         private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -142,6 +142,8 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosLayoutSet);
             txtKainosSpots = new TextBoxTS { Name = "txtKainosSpots", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosSpots);
+            txtKainosKiwi = new TextBoxTS { Name = "txtKainosKiwi", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosKiwi);
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
@@ -172,6 +174,7 @@ namespace Thetis
                     txtKainosCwMacros.Text = console.KainosCwMacros;
                     txtKainos3D.Text = console.Kainos3DSettings;
                     txtKainosSpots.Text = console.KainosSpotSettings;
+                    txtKainosKiwi.Text = console.KainosKiwiSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -190,6 +193,8 @@ namespace Thetis
             console.Kainos3DLoad();
             console.KainosSpotSettings = txtKainosSpots.Text;
             console.KainosSpotsLoad();
+            console.KainosKiwiSettings = txtKainosKiwi.Text;
+            console.KiwiLoadSettings();
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;

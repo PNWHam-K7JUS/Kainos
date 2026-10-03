@@ -1,6 +1,6 @@
-# Kainos 2.10.3.15 — first release
+# Kainos 1.0.0 — first release
 
-Kainos is a Software Defined Radio application for Windows and the Hermes Lite 2, maintained by Justin Cron, K7JUS. It is a fork of [Thetis](https://github.com/ramdor/Thetis) 2.10.3.15, built on the Hermes Lite 2 edition by Reid Campbell, MI0BOT ([OpenHPSDR-Thetis](https://github.com/mi0bot/OpenHPSDR-Thetis)). Everything Thetis does, Kainos does; this release adds the following.
+Kainos is a Software Defined Radio application for Windows and the Hermes Lite 2, maintained by Justin Cron, K7JUS. Kainos 1.0.0 is based on [Thetis](https://github.com/ramdor/Thetis) 2.10.3.15, built on the Hermes Lite 2 edition by Reid Campbell, MI0BOT ([OpenHPSDR-Thetis](https://github.com/mi0bot/OpenHPSDR-Thetis)). Everything Thetis does, Kainos does; this release adds the following.
 
 ![Kainos main window](https://raw.githubusercontent.com/PNWHam-K7JUS/Kainos/main/Documentation/images/kainos-main-window.webp)
 
@@ -77,7 +77,7 @@ Both terminals have six macro buttons (CQ, ANS, 599, 73, QRZ, MY), each mode its
 
 ## Installing
 
-- Run **Kainos-v2.10.3.x64.msi**. Windows will ask for administrator permission. Kainos needs the .NET Framework 4.8 (included with Windows 10 and 11).
+- Run **Kainos-1.0.0-x64.msi**. Windows will ask for administrator permission. Kainos needs the .NET Framework 4.8 (included with Windows 10 and 11).
 - **Kainos installs alongside Thetis** and does not upgrade, change or remove it. It installs to `Program Files\OpenHPSDR\Kainos-HL2` and keeps its settings in `%APPDATA%\OpenHPSDR\Kainos-x64`.
 - The first time Kainos starts, if it finds Thetis, it offers once to copy your Thetis settings (databases, meters, skins and cmASIO settings). Your Thetis settings are not changed. Kainos opens in its own layout either way; switch to Classic in Setup > Appearance > Kainos if you prefer the Thetis look.
 - Kainos still identifies itself as Thetis to TCI and TCP CAT clients, so logging and contest software that supports Thetis keeps working. Thetis meter skins work too.

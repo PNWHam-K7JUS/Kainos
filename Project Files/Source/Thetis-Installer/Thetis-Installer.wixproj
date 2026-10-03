@@ -92,16 +92,13 @@
 	<Target Name="AfterBuild">
 	</Target>
 	-->
-  <!-- rename the output msi with Version number -->
+  <!-- Kainos: its version (Console\KainosVersion.cs, the one place it's set) for the installer's version and file name -->
+  <PropertyGroup>
+    <KainosVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\..\Console\KainosVersion.cs')), '(?&lt;=Number = ")[0-9.]+'))</KainosVersion>
+    <DefineConstants>$(DefineConstants);KainosVersion=$(KainosVersion)</DefineConstants>
+  </PropertyGroup>
+  <!-- rename the output msi with the Kainos version -->
   <Target Name="AfterBuild">
-    <GetAssemblyIdentity AssemblyFiles="..\..\Bin\$(Platform)\$(Configuration)\Kainos.exe">
-      <Output TaskParameter="Assemblies" ItemName="AssemblyInfo" />
-    </GetAssemblyIdentity>
-    <PropertyGroup>
-      <In>%(AssemblyInfo.Version)</In>
-      <Pattern>^(\d+.\d+.\d+)</Pattern>
-      <AssemblyVersion>$([System.Text.RegularExpressions.Regex]::Match($(In), $(Pattern)))</AssemblyVersion>
-    </PropertyGroup>
-    <Move SourceFiles="..\..\bin\Installers\$(OutputName).msi" DestinationFiles="..\..\bin\Installers\Kainos-v$(AssemblyVersion).$(Platform).msi" />
+    <Move SourceFiles="..\..\bin\Installers\$(OutputName).msi" DestinationFiles="..\..\bin\Installers\Kainos-$(KainosVersion)-$(Platform).msi" />
   </Target>
 </Project>
