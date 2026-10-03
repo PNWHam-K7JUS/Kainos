@@ -99,6 +99,8 @@ namespace Thetis
             if (MemoryList != null && MemoryList.List != null)
                 MemoryList.List.ListChanged += (s, e) => { if (_kainosLayout) positionKainosColumn(); };
 
+            kainosAddSpotsSection();        // SPOTS: consoleKainosSpots.cs
+
             foreach (Control c in new Control[] { _kainosPaDrop, _kainosPaButtons, _kainosEqGrid, _kainosAudioRxLabel, _kainosAudioTxLabel, _kainosAudioRx, _kainosAudioTx,
                                                   _kainosFreeDvStatus, _kainosFreeDvGrid, _kainosMemoryList, _kainosMemoryButtons })
                 _kainosColumn.Viewport.Controls.Add(c);
