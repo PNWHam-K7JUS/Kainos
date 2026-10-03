@@ -158,7 +158,7 @@ namespace Thetis
 
         private class KainosButtonLook
         {
-            public Image Back, Img; public ImageLayout Layout; public FlatStyle Flat; public Color BackColor, ForeColor, Checked, Over, Down, Border; public int BorderSize; public bool UseVisual;
+            public Image Back, Img; public ImageLayout Layout; public FlatStyle Flat; public Color BackColor, ForeColor, Checked, Over, Down, Border; public int BorderSize; public bool UseVisual; public Padding Padding; public Font Font; public ContentAlignment Align;
         }
         private readonly Dictionary<ButtonBase, KainosButtonLook> _kbtSaved = new Dictionary<ButtonBase, KainosButtonLook>();
 
@@ -185,13 +185,15 @@ namespace Thetis
                     {
                         Back = b.BackgroundImage, Img = b.Image, Layout = b.BackgroundImageLayout, Flat = b.FlatStyle, BackColor = b.BackColor, ForeColor = b.ForeColor,
                         Checked = b.FlatAppearance.CheckedBackColor, Over = b.FlatAppearance.MouseOverBackColor, Down = b.FlatAppearance.MouseDownBackColor,
-                        Border = b.FlatAppearance.BorderColor, BorderSize = b.FlatAppearance.BorderSize, UseVisual = b.UseVisualStyleBackColor,
+                        Border = b.FlatAppearance.BorderColor, BorderSize = b.FlatAppearance.BorderSize, UseVisual = b.UseVisualStyleBackColor, Padding = b.Padding, Font = b.Font, Align = b.TextAlign,
                     };
                 }
                 b.BackgroundImage = null;
                 b.Image = null;
                 b.FlatStyle = FlatStyle.Flat;
                 b.UseVisualStyleBackColor = false;
+                b.Padding = Padding.Empty;          // the scaled-down panels' buttons are small: all the room for the text
+                b.TextAlign = ContentAlignment.MiddleCenter;
                 b.BackColor = KainosUI.Raised;
                 b.ForeColor = KainosUI.Text;
                 b.FlatAppearance.BorderColor = KainosUI.Line;
@@ -199,6 +201,9 @@ namespace Thetis
                 b.FlatAppearance.MouseOverBackColor = Color.FromArgb(0x1b, 0x31, 0x46);
                 b.FlatAppearance.MouseDownBackColor = KainosUI.Selected;
                 b.FlatAppearance.CheckedBackColor = Color.FromArgb(0x3a, 0x2f, 0x18);      // on: a warm gold-brown, as the dock's lit buttons
+                kainosFitButtonText(b);
+                b.SizeChanged -= kainosButtonResized;
+                b.SizeChanged += kainosButtonResized;
                 CheckBox cb = b as CheckBox;
                 if (cb != null)
                 {
@@ -207,6 +212,31 @@ namespace Thetis
                     kainosButtonChecked(cb, EventArgs.Empty);
                 }
             }
+        }
+
+        // the label's font made small enough to fit the (scaled-down) button
+        private void kainosFitButtonText(ButtonBase b)
+        {
+            if (string.IsNullOrEmpty(b.Text) || b.Width < 8) return;
+            KainosButtonLook l;
+            Font basis = _kbtSaved.TryGetValue(b, out l) && l.Font != null ? l.Font : b.Font;
+            float size = Math.Min(b.Font.Size, basis.Size);
+            int room = b.Width - 6;
+            FontFamily family = new FontFamily("Segoe UI");          // Kainos's font (clearer at small sizes than the skin's)
+            Font f = new Font(family, size, FontStyle.Bold, basis.Unit);
+            while (size > 5f && (TextRenderer.MeasureText(b.Text, f).Width > room || TextRenderer.MeasureText(b.Text, f).Height > b.Height - 2))
+            {
+                size -= 0.5f;
+                f.Dispose();
+                f = new Font(family, size, FontStyle.Bold, basis.Unit);
+            }
+            b.Font = f;
+        }
+
+        private void kainosButtonResized(object sender, EventArgs e)
+        {
+            ButtonBase b = (ButtonBase)sender;
+            if (_kainosLayout && _kbtSaved.ContainsKey(b)) kainosFitButtonText(b);
         }
 
         // gold text and outline while on
@@ -225,6 +255,8 @@ namespace Thetis
                 ButtonBase b = kv.Key;
                 KainosButtonLook l = kv.Value;
                 if (b is CheckBox) ((CheckBox)b).CheckedChanged -= kainosButtonChecked;
+                b.SizeChanged -= kainosButtonResized;
+                if (l.Font != null) b.Font = l.Font;
                 b.FlatStyle = l.Flat;
                 b.BackColor = l.BackColor;
                 b.ForeColor = l.ForeColor;
@@ -234,6 +266,8 @@ namespace Thetis
                 b.FlatAppearance.BorderColor = l.Border;
                 b.FlatAppearance.BorderSize = l.BorderSize;
                 b.UseVisualStyleBackColor = l.UseVisual;
+                b.Padding = l.Padding;
+                b.TextAlign = l.Align;
                 b.BackgroundImageLayout = l.Layout;
                 b.BackgroundImage = l.Back;
                 b.Image = l.Img;
