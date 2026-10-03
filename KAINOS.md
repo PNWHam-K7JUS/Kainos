@@ -260,6 +260,12 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
   - RIT/XIT tab: the RIT and XIT offsets are `KainosUpDown` rows (bound to `udRIT` / `udXIT`: - and + by its increment, the wheel the same).
   - VAC1 / VAC2 are a fourth group in the dock (right click opens their setup).
 
+### Sliders and menus
+
+- Sliders the same on every PC (`consoleKainosSliders.cs`): Thetis's sliders (PrettyTrackBar) take their track (background image) and thumb (head image) from the skin, so they looked different with different skins. In Kainos layout the column's (RX, TX, filter) and the mode panels' sliders get Kainos's: a slim rounded track and a rounded thumb made to each slider's size (again when it's resized), on its parent's colour. The slider itself stays Thetis's (dragging, clicks, the wheel, right clicks, the limit bar). The skin's pictures are saved and put back in Classic; a skin loaded in Kainos layout is saved and covered again.
+- Modern menus: the renderer (`KainosUI.cs`) draws the menu bar's items with a rounded hover pill (a gold outline while open), and drop-downs (the menu bar's and every Kainos context menu) as a flat panel with a soft outline, rounded inset hover rows, inset separators and gold ticks. Kainos layout also sets the menu bar's font (Segoe UI Semibold 9.5) and spacing, and roomier drop-down rows (also for menus filled later, as they open); Thetis's are put back in Classic.
+- The 3D stack's navy fill hid the backdrop's logo: the logo is drawn again over the pasted stack (still under the grid, filter and trace).
+
 ### Panadapter colours
 
 - In Kainos layout the receive panadapter takes the Kainos colours (`consoleKainosPanColours.cs`): navy grid lines (finer ones darker), ice labels, a bright ice trace over a deep blue fill, gold peak fill, ice filter shading and gold TX filter lines. The waterfall and the transmit colours keep their own. Thetis's colours (Setup > Appearance > Display, or the skin's) are saved and put back in Classic, or with Setup > Appearance > Kainos > Panadapter > Kainos colours off. A colour changed in Setup while Kainos's are showing is the user's and isn't put back over. Applied with the Kainos theme and again once the console is shown (Setup's start-up applies the user's colours too).

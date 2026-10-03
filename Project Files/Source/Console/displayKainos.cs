@@ -185,6 +185,9 @@ namespace Thetis
             if (st.Image == null || st.ImageOwner != _d2dRenderTarget) return;
             using (SharpDX.Direct2D1.Bitmap b = st.Image.Bitmap)
                 _d2dRenderTarget.DrawBitmap(b, new RawRectangleF(0, nVerticalShift, W, nVerticalShift + H), 1f, BitmapInterpolationMode.NearestNeighbor);
+            // the stack's navy fill hides the backdrop's logo: put the logo back over it (it's faint, and the grid,
+            // filter and trace still go on top)
+            drawKainosBackdropLogo(W, H, nVerticalShift);
         }
 
         private static GradientStop[] k3dStops()
@@ -287,6 +290,13 @@ namespace Thetis
             using (LinearGradientBrush bg = new LinearGradientBrush(_d2dRenderTarget, new LinearGradientBrushProperties { StartPoint = new RawVector2(0, r.Top), EndPoint = new RawVector2(0, r.Bottom) }, stops))
                 _d2dRenderTarget.FillRectangle(r, bg);
 
+            drawKainosBackdropLogo(W, H, nVerticalShift);
+        }
+
+        // the faint logo, centred on the panadapter
+        private static void drawKainosBackdropLogo(int W, int H, int nVerticalShift)
+        {
+            if (!KainosBackdrop || console == null || !console.KainosLayout || _d2dRenderTarget == null || W <= 0 || H <= 0) return;
             // the logo, made once per render target (Thetis remakes its render target at times)
             if (_kbLogo == null || _kbLogoOwner != _d2dRenderTarget)
             {
