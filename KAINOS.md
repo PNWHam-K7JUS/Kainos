@@ -325,6 +325,7 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 ### Column resilience and split
 
 - The right-hand column measures and arranges each section on its own (`ArrangeSections`); a section that throws is laid out empty and logged once to `%APPDATA%\OpenHPSDR\Kainos-x64\KainosErrors.txt`, so one failure can't blank the rest of the column. The analog meter is capped at 3/4 of the column width tall (GitHub issue #1).
+- The slice flags on the panadapter are see-through while the mouse isn't over them (Setup > Appearance > Kainos > Slice flags: Solid, 90, 75 (default), 60 or 45%; `KainosFlagOpacity`) and solid while it is, while a tab's drawer is open and while typing a frequency. Drag a flag by its face (not the frequency or TX) to move it down its panadapter; double-click the face to put it back. The drop is saved per flag (`KainosFlagSettings`, hidden `txtKainosFlags`), so spots, TCI flags and skimmer markers along the top stay visible (GitHub issue #2).
 - With SPLT on and RX2 off, the VFO tab shows the B face (marked SPLIT, or QUICK SPLIT) and the violet B flag sits on RX1's panadapter at VFO B's frequency (`KainosSplitB` in `consoleKainosFlag.cs`).
 
 ### Installer

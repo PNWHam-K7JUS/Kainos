@@ -12,7 +12,7 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 ## What Kainos adds
 
 - **A modern layout**: a dark, tidy console in the Kainos colours, switchable back to the Thetis (Classic) look in Setup > Appearance > Kainos, with its own UI scale (75-200%).
-  - **Slice flags** on the panadapter (SmartSDR style) for VFO A and, with RX2 or split on, VFO B: antenna, filter, active DSP, mode, frequency and an S meter. Turn the mouse wheel over a digit to tune by that digit, click the frequency to type one, and click TX to choose the transmit VFO. Tabs under the flag open its audio, DSP, mode, RIT/XIT, VAC and FreeDV controls.
+  - **Slice flags** on the panadapter (SmartSDR style) for VFO A and, with RX2 or split on, VFO B: antenna, filter, active DSP, mode, frequency and an S meter. Turn the mouse wheel over a digit to tune by that digit, click the frequency to type one, and click TX to choose the transmit VFO. Flags are see-through until the mouse is over them, and can be dragged down the panadapter by their face so spots along the top stay visible. Tabs under the flag open its audio, DSP, mode, RIT/XIT, VAC and FreeDV controls.
   - **A right-hand column of tabs** you turn on and off: VFO, VFO sync, meters (an analog meter; OE3IDE's FTDX-5000 skin is offered on first run), band / mode / filter, RX, TX, PA profile, EQ, Kainos Audio, FreeDV and memories.
   - **A Kainos panadapter background**: dark navy with the logo faint behind the trace (Setup > Appearance > Kainos).
   - **3D stacked-trace panadapter (experimental)**: the **3D** button under the panadapter stacks the last few seconds of traces behind the live one, in the waterfall's colours. It is new, uses more CPU, and may change.

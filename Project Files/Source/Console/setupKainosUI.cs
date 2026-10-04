@@ -51,6 +51,8 @@ namespace Thetis
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
         private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
+        private ComboBoxTS comboKainosFlagOpacity;
+        private TextBoxTS txtKainosFlags;
         private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi;
         private bool _kainosSettingsHooked;
 
@@ -101,7 +103,7 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(grp);
 
             // the panadapter's backdrop in Kainos layout (displayKainos.cs)
-            GroupBoxTS grpPan = new GroupBoxTS { Name = "grpKainosPanadapter", Text = "Panadapter (Kainos layout)", Location = new Point(8, 166), Size = new Size(430, 108) };
+            GroupBoxTS grpPan = new GroupBoxTS { Name = "grpKainosPanadapter", Text = "Panadapter (Kainos layout)", Location = new Point(8, 166), Size = new Size(430, 140) };
             chkKainosBackdrop = new CheckBoxTS { Name = "chkKainosBackdrop", Text = "Kainos background (dark navy, with the Kainos logo behind the trace)", Location = new Point(14, 22), AutoSize = true, Checked = true };
             chkKainosBackdrop.CheckedChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             comboKainosBackdropLogo = new ComboBoxTS { Name = "comboKainosBackdropLogo", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 50), Size = new Size(140, 21) };
@@ -117,6 +119,18 @@ namespace Thetis
             grpPan.Controls.Add(chkKainosBackdrop);
             grpPan.Controls.Add(avLabel("Logo", 14, 53));
             grpPan.Controls.Add(comboKainosBackdropLogo);
+            // the slice flags: how much shows through them while the mouse isn't over them (GitHub issue #2)
+            comboKainosFlagOpacity = new ComboBoxTS { Name = "comboKainosFlagOpacity", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 108), Size = new Size(140, 21) };
+            comboKainosFlagOpacity.Items.AddRange(new object[] { "Solid", "90%", "75%", "60%", "45%" });
+            comboKainosFlagOpacity.SelectedIndex = 2;
+            toolTip1.SetToolTip(comboKainosFlagOpacity, "How solid the slice flags on the panadapter are while the mouse isn't over them, so spots and\r\n" +
+                "markers behind them show through. A flag is solid while the mouse is over it.\r\n" +
+                "Drag a flag by its face to move it down the panadapter; double-click its face to put it back.");
+            comboKainosFlagOpacity.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            grpPan.Controls.Add(avLabel("Slice flags", 14, 111));
+            grpPan.Controls.Add(comboKainosFlagOpacity);
+            txtKainosFlags = new TextBoxTS { Name = "txtKainosFlags", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosFlags);
             tpAppearanceKainos.Controls.Add(grpPan);
 
             txtKainosColumnTabs = new TextBoxTS { Name = "txtKainosColumnTabs", Visible = false, Text = "meters,band" };
@@ -175,6 +189,7 @@ namespace Thetis
                     txtKainos3D.Text = console.Kainos3DSettings;
                     txtKainosSpots.Text = console.KainosSpotSettings;
                     txtKainosKiwi.Text = console.KainosKiwiSettings;
+                    txtKainosFlags.Text = console.KainosFlagSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -195,6 +210,8 @@ namespace Thetis
             console.KainosSpotsLoad();
             console.KainosKiwiSettings = txtKainosKiwi.Text;
             console.KiwiLoadSettings();
+            console.KainosFlagSettings = txtKainosFlags.Text;
+            console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
