@@ -47,6 +47,13 @@ namespace Thetis
             {
                 _kainosFlagA = new KainosFlagForm(this, 1);
                 _kainosFlagB = new KainosFlagForm(this, 2);
+                foreach (KainosFlagForm f in new[] { _kainosFlagA, _kainosFlagB })
+                {
+                    int rx = f == _kainosFlagA ? 1 : 2;
+                    f.View.DragMoved += dy => kainosFlagDrag(rx, dy);
+                    f.View.DragEnded += () => KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+                    f.View.DragReset += () => { _kainosFlagDrop[rx] = 0; placeKainosFlags(); KainosSettingsChanged?.Invoke(this, EventArgs.Empty); };
+                }
                 _kainosFlagTimer = new Timer { Interval = 80 };
                 _kainosFlagTimer.Tick += (s, e) => placeKainosFlags();
                 Move += (s, e) => placeKainosFlags();
@@ -70,16 +77,47 @@ namespace Thetis
                           && pnlDisplay.Visible && pnlDisplay.Width > 100 && pnlDisplay.Height > 60 && !collapsedDisplay;
             bool split = RX2Enabled && Display.SplitDisplay;
 
-            placeKainosFlag(_kainosFlagA, layout, () => HzToPixel((float)((VFOAFreq - CentreFrequency) * 1e6)), 0);
+            int panH = split ? pnlDisplay.Height / 2 : pnlDisplay.Height;
+            placeKainosFlag(_kainosFlagA, 1, layout, () => HzToPixel((float)((VFOAFreq - CentreFrequency) * 1e6)), 0, panH);
             if (KainosSplitB)
                 // split (or quick split) without RX2: VFO B is the transmit frequency, on RX1's panadapter (issue #1)
-                placeKainosFlag(_kainosFlagB, layout, () => HzToPixel((float)((VFOBFreq - CentreFrequency) * 1e6)), 0);
+                placeKainosFlag(_kainosFlagB, 2, layout, () => HzToPixel((float)((VFOBFreq - CentreFrequency) * 1e6)), 0, panH);
             else
-                placeKainosFlag(_kainosFlagB, layout && split, () => HzToPixel((float)((VFOBFreq - CentreRX2Frequency) * 1e6), 2), pnlDisplay.Height / 2);
+                placeKainosFlag(_kainosFlagB, 2, layout && split, () => HzToPixel((float)((VFOBFreq - CentreRX2Frequency) * 1e6), 2), pnlDisplay.Height / 2, panH);
             if (_kainosVfoA != null) { _kainosVfoA.Invalidate(); _kainosVfoB.Invalidate(); }
         }
 
-        private void placeKainosFlag(KainosFlagForm flag, bool show, Func<int> vfoX, int panTop)
+        // How far each flag (rx 1, 2) has been dragged down from the top of its panadapter, in unscaled pixels, so the
+        // spots, TCI flags and skimmer markers drawn along the top can be seen (GitHub issue #2). Double-click the flag's
+        // face to put it back. Saved with the settings (KainosFlagSettings).
+        private readonly float[] _kainosFlagDrop = new float[3];
+        private readonly float[] _kainosFlagMaxDrop = { 0, float.MaxValue, float.MaxValue };
+
+        // how solid the flags are while the mouse isn't over them (Setup > Appearance > Kainos); solid while it is
+        internal double KainosFlagOpacity = 0.75;
+
+        internal string KainosFlagSettings
+        {
+            get { return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0};{1:0}", _kainosFlagDrop[1], _kainosFlagDrop[2]); }
+            set
+            {
+                string[] p = (value ?? "").Split(';');
+                for (int i = 0; i < 2; i++)
+                {
+                    float d;
+                    _kainosFlagDrop[i + 1] = i < p.Length && float.TryParse(p[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out d) ? Math.Max(0, d) : 0;
+                }
+                placeKainosFlags();
+            }
+        }
+
+        private void kainosFlagDrag(int rx, int dy)
+        {
+            _kainosFlagDrop[rx] = Math.Max(0, Math.Min(_kainosFlagMaxDrop[rx], _kainosFlagDrop[rx] + dy / KainosUI.Scale));
+            placeKainosFlags();
+        }
+
+        private void placeKainosFlag(KainosFlagForm flag, int rx, bool show, Func<int> vfoX, int panTop, int panH)
         {
             int x = 0;
             if (show)
@@ -100,10 +138,18 @@ namespace Thetis
             if (left < 2) left = x + gap;
             left = Math.Max(2, Math.Min(left, pnlDisplay.Width - size.Width - 2));
             int top = panTop + KainosUI.S(26);                    // below the frequency scale
+            int maxDrop = Math.Max(0, panH - KainosUI.S(26) - size.Height - 2);
+            _kainosFlagMaxDrop[rx] = maxDrop / KainosUI.Scale;
+            top += Math.Min(maxDrop, KainosUI.S((int)_kainosFlagDrop[rx]));      // dragged down by the user
             Point screen = pnlDisplay.PointToScreen(new Point(left, top));
             Rectangle want = new Rectangle(screen, size);
             if (flag.Bounds != want) flag.Bounds = want;
             if (!flag.Visible) flag.Show(this);
+            // see-through while the mouse isn't over it (the spots behind it show), solid while it is, while a tab's
+            // drawer is open and while typing a frequency
+            double solid = KainosFlagOpacity >= 1 ? 1.0
+                        : flag.Bounds.Contains(Cursor.Position) || flag.DrawerOpen || flag.ContainsFocus || flag.View.Dragging ? 0.99 : KainosFlagOpacity;
+            if (Math.Abs(flag.Opacity - solid) > 0.001) flag.Opacity = solid;
             flag.View.Invalidate();
             flag.RefreshDrawer();
         }
@@ -376,6 +422,8 @@ namespace Thetis
             Invalidate(true);
         }
 
+        public bool DrawerOpen { get { return _drawer != null; } }
+
         // keep the drawer's buttons current (state changes behind them come from Thetis)
         public void RefreshDrawer() { if (_drawer != null) _drawer.Invalidate(true); }
 
@@ -414,6 +462,12 @@ namespace Thetis
         private bool _hoverTx;
         public string OpenTab;
         public event Action<string> TabClicked;
+        // dragging the flag up and down by its face (on the panadapter): the move in screen pixels, the end, and a
+        // double-click to put it back at the top
+        public event Action<int> DragMoved;
+        public event Action DragEnded, DragReset;
+        private int _dragY = int.MinValue;
+        public bool Dragging { get { return _dragY != int.MinValue; } }
 
         public KainosFlagView(Console console, int rx, bool showTabs)
         {
@@ -658,14 +712,23 @@ namespace Thetis
             Invalidate();
         }
 
+        // the face, other than the TX button and the frequency, moves the flag
+        private bool inDragArea(Point p) { return _showTabs && p.Y < FaceHeight && !_txRect.Contains(p) && !_freqRect.Contains(p); }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            if (Dragging)
+            {
+                int dy = Cursor.Position.Y - _dragY;
+                if (dy != 0) { _dragY += dy; DragMoved?.Invoke(dy); }
+                return;
+            }
             int h = -1;
             if (_showTabs) for (int i = 0; i < Tabs.Length; i++) if (_tabRects[i].Contains(e.Location)) h = i;
             bool overDigit = _digits.Any(d => d.Key.Contains(e.Location));
             bool overTx = _txRect.Contains(e.Location) && !_console.KainosIsTxVfo(_rx);
-            Cursor = h >= 0 || overTx ? Cursors.Hand : overDigit ? Cursors.IBeam : Cursors.Default;
+            Cursor = h >= 0 || overTx ? Cursors.Hand : overDigit ? Cursors.IBeam : inDragArea(e.Location) ? Cursors.SizeNS : Cursors.Default;
             if (h != _hoverTab || overTx != _hoverTx) { _hoverTab = h; _hoverTx = overTx; Invalidate(); }
         }
 
@@ -677,9 +740,31 @@ namespace Thetis
             if (e.Button != MouseButtons.Left) return;
             if (_txRect.Contains(e.Location)) { _console.KainosSetTxVfo(_rx); Invalidate(); return; }
             if (_freqRect.Contains(e.Location)) { beginEdit(); return; }
+            if (inDragArea(e.Location)) { _dragY = Cursor.Position.Y; Capture = true; return; }
             if (!_showTabs) return;
             for (int i = 0; i < Tabs.Length; i++)
                 if (_tabRects[i].Contains(e.Location)) { TabClicked?.Invoke(Tabs[i]); return; }
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            if (!Dragging) return;
+            _dragY = int.MinValue;
+            Capture = false;
+            DragEnded?.Invoke();
+        }
+
+        protected override void OnMouseCaptureChanged(EventArgs e)
+        {
+            base.OnMouseCaptureChanged(e);
+            if (Dragging && !Capture) { _dragY = int.MinValue; DragEnded?.Invoke(); }
+        }
+
+        protected override void OnMouseDoubleClick(MouseEventArgs e)
+        {
+            base.OnMouseDoubleClick(e);
+            if (e.Button == MouseButtons.Left && inDragArea(e.Location)) DragReset?.Invoke();
         }
     }
 
