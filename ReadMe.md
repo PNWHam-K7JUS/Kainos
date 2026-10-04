@@ -5,7 +5,7 @@ Kainos is a Software Defined Radio (SDR) application for Windows, maintained by 
 Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on the Hermes Lite 2 edition of Thetis by Reid Campbell, MI0BOT ([OpenHPSDR-Thetis](https://github.com/mi0bot/OpenHPSDR-Thetis)). Nearly everything Kainos can do comes from the many years of work by the Thetis and OpenHPSDR community. See [Credits](#credits) below.
 
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
-- Current version: 1.0.3 (based on Thetis 2.10.3.15)
+- Current version: 1.0.4 (based on Thetis 2.10.3.15)
 
 ![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
 

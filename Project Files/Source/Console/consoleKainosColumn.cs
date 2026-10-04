@@ -107,7 +107,7 @@ namespace Thetis
                 _kainosColumn = new KainosColumn(this);
                 Controls.Add(_kainosColumn);
 
-                _kainosBandDrop = new KainosDropDown("BAND", KainosUI.Tone.Gold);
+                _kainosBandDrop = new KainosDropDown("BAND", KainosUI.Tone.Gold) { BeforeOpen = refreshKainosBandGrid };
                 _kainosModeDrop = new KainosDropDown("MODE", KainosUI.Tone.Gold);
                 _kainosFilterDrop = new KainosDropDown("FILTER", KainosUI.Tone.Ice);
                 _kainosShiftReset = new KainosButtonGrid(1, KainosUI.Tone.Ice) { LabelFor = b => "Reset" };   // the skin's image button
@@ -183,6 +183,7 @@ namespace Thetis
         private void kainosPartsOff()
         {
             _kainosPartsOn = false;
+            kainosRestoreThetisMeters();
             _kainosColumn.Visible = false;
             kainosBarOff();
             setPAProfileLabelPos();
@@ -274,7 +275,8 @@ namespace Thetis
 
         private void refreshKainosBandGrid()
         {
-            Control p = panelBandVHF.Visible ? panelBandVHF : panelBandGEN.Visible ? panelBandGEN : panelBandHF;
+            // the grid Thetis would show (Thetis's own choice: the Legacy Items "Hide band button grid" hides all three panels)
+            Control p = _bands_VHF_selected ? panelBandVHF : _bands_GEN_selected ? panelBandGEN : panelBandHF;
             _kainosBandDrop.SetTargets(orderedButtons(p));
         }
 
@@ -300,9 +302,11 @@ namespace Thetis
                 int top = menuStrip1.Bottom + 4;
                 int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
                 int mid = (top + bottom) / 2;
+                kainosHideThetisMeters();
                 foreach (Control c in Controls)
                 {
                     if (c == _kainosColumn || c is KainosDock || c == panelDisplay || c == menuStrip1 || c == statusStripMain) continue;
+                    if (c is ucMeter) continue;
                     if (c == _kainosMeter || c == grpVFOBetween || kainosModePanels.Contains(c)) continue;
                     if (_kainosCollapsed.ContainsKey(c)) continue;      // ours, collapsed (Thetis can size one again for a moment)
                     if (!c.Visible || c.Width == 0 || c.Height == 0) continue;
@@ -361,7 +365,7 @@ namespace Thetis
             int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
             foreach (Control c in Controls)
             {
-                if (c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn || c is KainosDock || c is IKainosTerminal) continue;
+                if (c == panelDisplay || c == statusStripMain || c == menuStrip1 || c is KainosColumn || c is KainosDock || c is IKainosTerminal || c is ucMeter) continue;
                 if (_kainosCollapsed.ContainsKey(c) || c == _kainosMeter || c == grpVFOBetween || kainosModePanels.Contains(c)) continue;
                 if (!c.Visible || c.Width == 0 || c.Height == 0 || c.Top < -10000) continue;
                 if (c.Right <= panelDisplay.Left || c.Left >= panelDisplay.Right || c.Top < thetis - 2) continue;
@@ -649,6 +653,30 @@ namespace Thetis
             positionKainosDock();       // and the column
         }
 
+        // Thetis meter containers docked on the console (usually brought over from Thetis) sit where Kainos layout puts
+        // the column and the panadapter: they covered the column and squeezed it to nothing, hiding the RX tab's volume
+        // and squelch (GitHub issue #1, and reports of no receive audio after the import). In Kainos layout they're
+        // hidden; Classic shows them again. Floating containers (their own windows) are left alone, so a container can
+        // still be used in Kainos layout by floating it (Setup > Appearance > Meters/Gadgets).
+        private readonly List<ucMeter> _kainosHiddenMeters = new List<ucMeter>();
+
+        private void kainosHideThetisMeters()
+        {
+            foreach (ucMeter m in Controls.OfType<ucMeter>().ToList())
+            {
+                if (m == _kainosMeter || m.ID == KainosMeterId || m.Floating || !m.Visible) continue;
+                m.Visible = false;
+                if (!_kainosHiddenMeters.Contains(m)) _kainosHiddenMeters.Add(m);
+            }
+        }
+
+        private void kainosRestoreThetisMeters()
+        {
+            foreach (ucMeter m in _kainosHiddenMeters)
+                if (!m.IsDisposed && !m.Floating && m.Parent == this && m.MeterEnabled) m.Visible = true;
+            _kainosHiddenMeters.Clear();
+        }
+
         private void kainosDetachMeter()
         {
             if (_kainosMeter != null && !string.IsNullOrEmpty(KainosMeterId))
@@ -671,6 +699,8 @@ namespace Thetis
             bool on = _kainosColumn.IsOn("meters") && _kainosColumn.Visible;
             if (_kainosMeter.MeterEnabled != on) MeterManager.enableContainer(KainosMeterId, on);
             if (!on) return;
+            _kainosHiddenMeters.Remove(_kainosMeter);
+            if (!_kainosMeter.Visible) _kainosMeter.Visible = true;        // never one of the Thetis containers hidden above
             if (_kainosMeter.Height > kainosMeterMaxHeight(r.Width)) _kainosMeter.Height = kainosMeterMaxHeight(r.Width);
             kainosPin(_kainosMeter, r, true);
         }
@@ -928,6 +958,8 @@ namespace Thetis
         private static readonly System.Reflection.MethodInfo _onMouseDown = typeof(Control).GetMethod("OnMouseDown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         private static readonly System.Reflection.MethodInfo _onMouseUp = typeof(Control).GetMethod("OnMouseUp", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
+        public Action BeforeOpen;       // e.g. the band list: which grid (HF, VHF, GEN) is current
+
         public KainosDropDown(string caption, KainosUI.Tone tone)
         {
             _caption = caption;
@@ -960,7 +992,7 @@ namespace Thetis
         }
 
         private static string label(ButtonBase b) { return b.Text.Replace("&&", "&"); }
-        private IEnumerable<ButtonBase> shown { get { return _targets.Where(t => t.Visible && label(t).Length > 0); } }
+        private IEnumerable<ButtonBase> shown { get { return _targets.Where(t => KainosUI.OwnVisible(t) && label(t).Length > 0); } }
         private ButtonBase current { get { return shown.FirstOrDefault(t => t is RadioButton && ((RadioButton)t).Checked); } }
         private string currentText
         {
@@ -1018,6 +1050,7 @@ namespace Thetis
                 return;
             }
             if (e.Button != MouseButtons.Left) return;
+            BeforeOpen?.Invoke();
             ContextMenuStrip menu = new ContextMenuStrip
             {
                 Renderer = new KainosToolStripRenderer(),

@@ -64,6 +64,16 @@ namespace Thetis
         // one, handle only MouseClick, to tell left from right; issue #1)
         private static readonly System.Reflection.MethodInfo _onClick = typeof(Control).GetMethod("OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         private static readonly System.Reflection.MethodInfo _onMouseClick = typeof(Control).GetMethod("OnMouseClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        // A control's own Visible setting, whatever its parents' (Control.Visible is false while any parent is hidden).
+        // Thetis's Setup > Appearance > Legacy Items "Hide band / mode / filter button grid" hide the whole panel, and
+        // Kainos's drop-downs still need its buttons.
+        private static readonly System.Reflection.MethodInfo _getState = typeof(Control).GetMethod("GetState", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, null, new[] { typeof(int) }, null);
+        public static bool OwnVisible(Control c)
+        {
+            try { return (bool)_getState.Invoke(c, new object[] { 0x2 }); }      // STATE_VISIBLE
+            catch { return c.Visible; }
+        }
+
         public static void Press(Control c)
         {
             _onClick.Invoke(c, new object[] { EventArgs.Empty });
