@@ -48,7 +48,7 @@ namespace Thetis
         {
             _console = console;
             Text = "SWR sweep";
-            StartPosition = FormStartPosition.CenterParent;
+            StartPosition = FormStartPosition.Manual;
             ShowInTaskbar = false;
             BackColor = KainosWindowTheme.WindowBg;
             ForeColor = KainosWindowTheme.Text;
@@ -73,7 +73,7 @@ namespace Thetis
             Controls.Add(label("Steps", 500, 18));
             _steps = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Visible = false };
             _steps.Items.AddRange(new object[] { "50", "100", "200" });
-            _steps.SelectedIndex = 1;
+            _steps.SelectedIndex = 0;                  // 50: quick, and the least time on the air
             Controls.Add(_steps);
             Controls.Add(new KainosDropDown(() => _steps, null) { Location = new Point(546, 12), Size = new Size(70, 28) });
             _go = new KainosWizardButton("Start sweep") { Location = new Point(774, 10), Size = new Size(110, 32), Accent = true, Anchor = AnchorStyles.Top | AnchorStyles.Right };
@@ -111,6 +111,12 @@ namespace Thetis
             Controls.AddRange(new Control[] { _readout, _status });
 
             FormClosing += (s, e) => { if (_running) { _stop_requested = true; e.Cancel = true; } };
+            // centred over Kainos (a window shown with Show, not ShowDialog, ignores CenterParent)
+            Load += (s, e) =>
+            {
+                Form o = Owner;
+                if (o != null) Location = new Point(o.Left + (o.Width - Width) / 2, o.Top + (o.Height - Height) / 2);
+            };
             refreshSaved();
         }
 
@@ -126,20 +132,21 @@ namespace Thetis
         // amateur band edges, Region 2 (the Americas) or Region 1 / 3 by the country chosen in the setup wizard
         private List<KeyValuePair<string, double[]>> bands()
         {
+            // 2 kHz inside each edge: the carrier sits a CW pitch from the dial (the sweep also checks every step)
             string c = _console.KainosCountry;
             bool r2 = c == "" || c == "United States" || c == "Canada";
             return new List<KeyValuePair<string, double[]>>
             {
-                new KeyValuePair<string, double[]>("160 m", r2 ? new[] { 1.800, 2.000 } : new[] { 1.810, 2.000 }),
-                new KeyValuePair<string, double[]>("80 m", r2 ? new[] { 3.500, 4.000 } : new[] { 3.500, 3.800 }),
-                new KeyValuePair<string, double[]>("40 m", r2 ? new[] { 7.000, 7.300 } : new[] { 7.000, 7.200 }),
-                new KeyValuePair<string, double[]>("30 m", new[] { 10.100, 10.150 }),
-                new KeyValuePair<string, double[]>("20 m", new[] { 14.000, 14.350 }),
-                new KeyValuePair<string, double[]>("17 m", new[] { 18.068, 18.168 }),
-                new KeyValuePair<string, double[]>("15 m", new[] { 21.000, 21.450 }),
-                new KeyValuePair<string, double[]>("12 m", new[] { 24.890, 24.990 }),
-                new KeyValuePair<string, double[]>("10 m", new[] { 28.000, 29.700 }),
-                new KeyValuePair<string, double[]>("6 m", r2 ? new[] { 50.000, 54.000 } : new[] { 50.000, 52.000 }),
+                new KeyValuePair<string, double[]>("160 m", r2 ? new[] { 1.802, 1.998 } : new[] { 1.812, 1.998 }),
+                new KeyValuePair<string, double[]>("80 m", r2 ? new[] { 3.502, 3.998 } : new[] { 3.502, 3.798 }),
+                new KeyValuePair<string, double[]>("40 m", r2 ? new[] { 7.002, 7.298 } : new[] { 7.002, 7.198 }),
+                new KeyValuePair<string, double[]>("30 m", new[] { 10.102, 10.148 }),
+                new KeyValuePair<string, double[]>("20 m", new[] { 14.002, 14.348 }),
+                new KeyValuePair<string, double[]>("17 m", new[] { 18.070, 18.166 }),
+                new KeyValuePair<string, double[]>("15 m", new[] { 21.002, 21.448 }),
+                new KeyValuePair<string, double[]>("12 m", new[] { 24.892, 24.988 }),
+                new KeyValuePair<string, double[]>("10 m", new[] { 28.002, 29.698 }),
+                new KeyValuePair<string, double[]>("6 m", r2 ? new[] { 50.002, 53.998 } : new[] { 50.002, 51.998 }),
             };
         }
 
@@ -237,10 +244,12 @@ namespace Thetis
             _saved.Items.Clear();
             try
             {
-                if (!Directory.Exists(Folder)) return;
-                string prefix = _band.Text == "Custom" ? "" : _band.Text.Replace(" ", "") + "_";
-                foreach (string f in Directory.GetFiles(Folder, "*.csv").Where(f => Path.GetFileName(f).StartsWith(prefix)).OrderByDescending(f => f))
-                    _saved.Items.Add(Path.GetFileNameWithoutExtension(f));
+                if (Directory.Exists(Folder))
+                {
+                    string prefix = _band.Text == "Custom" ? "" : _band.Text.Replace(" ", "") + "_";
+                    foreach (string f in Directory.GetFiles(Folder, "*.csv").Where(f => Path.GetFileName(f).StartsWith(prefix)).OrderByDescending(f => f))
+                        _saved.Items.Add(Path.GetFileNameWithoutExtension(f));
+                }
             }
             catch { }
             refreshOverlays();

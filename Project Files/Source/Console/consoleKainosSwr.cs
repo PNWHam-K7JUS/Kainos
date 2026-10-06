@@ -86,7 +86,11 @@ namespace Thetis
                 TuneDrivePowerOrigin = DrivePowerSource.FIXED;
                 int power = 10;
                 TunePower = power;
-                VFOAFreq = startMHz;
+                // start on the first frequency inside the band
+                double first = startMHz;
+                for (int i = 0; i <= steps && !kainosSweepInBand(first); i++) first = startMHz + (stopMHz - startMHz) * i / steps;
+                if (!kainosSweepInBand(first)) return "That range is outside the band for your region, so nothing was sent.";
+                VFOAFreq = first;
                 await Task.Delay(150);
                 TUN = true;
                 await Task.Delay(400);
@@ -114,6 +118,9 @@ namespace Thetis
                     if (cancelled()) { why = "Stopped."; break; }
                     if (!TUN || !PowerOn) { why = "Transmit stopped (TUN off, or the radio's protection)."; break; }
                     double f = startMHz + (stopMHz - startMHz) * i / steps;
+                    // never step outside the band: Thetis would stop with an error box. The carrier sits a CW pitch
+                    // from the dial, so check a margin either side.
+                    if (!kainosSweepInBand(f)) continue;
                     VFOAFreq = f;
                     status(string.Format("Sweeping  {0:0.000} MHz", f));
                     await Task.Delay(110);                          // filters, relays and the readings settle
@@ -141,6 +148,16 @@ namespace Thetis
                 VFOAFreq = oldFreq;
                 KainosSweeping = false;
             }
+        }
+
+        private bool kainosSweepInBand(double mhz)
+        {
+            try
+            {
+                DSPMode m = radio.GetDSPTX(0).CurrentDSPMode;
+                return CheckValidTXFreq(current_region, mhz - 0.0015, m, true) && CheckValidTXFreq(current_region, mhz + 0.0015, m, true);
+            }
+            catch { return true; }
         }
 
         // the forward and reflected power, averaged over a few readings (Thetis updates them every millisecond while
