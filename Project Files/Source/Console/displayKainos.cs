@@ -68,6 +68,33 @@ namespace Thetis
             }
         }
 
+        // The licence-aware band plan (KainosBandPlan.cs): a strip along the top of the panadapter, coloured by what
+        // the operator may do there (gold all modes, ice CW and data, violet CW only, red not theirs, grey band edges
+        // only). Not while transmitting (the panadapter shows TX then).
+        private static void drawKainosBandPlanDX2D(int rx, int W, int H, int nVerticalShift)
+        {
+            if (console == null || W <= 0 || _d2dRenderTarget == null || console.MOX) return;
+            List<KeyValuePair<float[], KainosBandPlan.Kind>> spans;
+            try { spans = console.KainosBandPlanSpans(rx, W); } catch { return; }
+            if (spans == null) return;
+            float y0 = nVerticalShift, y1 = nVerticalShift + 4;
+            foreach (KeyValuePair<float[], KainosBandPlan.Kind> sp in spans)
+            {
+                Color c;
+                switch (sp.Value)
+                {
+                    case KainosBandPlan.Kind.AllModes: c = Color.FromArgb(0xd4, 0xad, 0x6a); break;     // Kainos gold
+                    case KainosBandPlan.Kind.CwData: c = Color.FromArgb(0x7f, 0xb0, 0xcc); break;       // Kainos ice
+                    case KainosBandPlan.Kind.CwOnly: c = Color.FromArgb(0x9a, 0x86, 0xd8); break;       // Kainos violet
+                    case KainosBandPlan.Kind.NotYours: c = Color.FromArgb(0xc0, 0x40, 0x40); break;
+                    default: c = Color.FromArgb(0x60, 0x70, 0x80); break;
+                }
+                SharpDX.Direct2D1.Brush b = getDXBrushForColour(c, 210);
+                if (b == null) continue;
+                _d2dRenderTarget.FillRectangle(new SharpDX.Mathematics.Interop.RawRectangleF(sp.Key[0], y0, sp.Key[1], y1), b);
+            }
+        }
+
         // ---- the 3D stacked-trace panadapter (AetherSDR's) ----
         //
         // Behind the live trace, the last few seconds of traces stacked back into the distance: each older one up and

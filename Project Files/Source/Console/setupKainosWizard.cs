@@ -54,6 +54,78 @@ namespace Thetis
             txtKainosUpdate = new TextBoxTS { Name = "txtKainosUpdate", Visible = false, Text = "" };
             page.Controls.Add(txtKainosLightSaved);
             page.Controls.Add(txtKainosUpdate);
+
+            addKainosBandPlanControls(page);
+        }
+
+        // ---- the licence-aware band plan: on or off, and the country and licence class (shared with the wizard,
+        // kept in txtKainosLicence) ----
+        private CheckBoxTS chkKainosBandPlan;
+        private ComboBox comboKainosCountry, comboKainosLicence;     // not saved themselves: txtKainosLicence is
+        private bool _kainosLicenceSync;
+
+        private void addKainosBandPlanControls(TabPage page)
+        {
+            GroupBoxTS grp = new GroupBoxTS { Name = "grpKainosBandPlan", Text = "Band plan (Kainos layout)", Location = new Point(446, 8), Size = new Size(280, 298) };
+            chkKainosBandPlan = new CheckBoxTS { Name = "chkKainosBandPlan", Text = "Show where I may transmit, along the\r\ntop of the panadapter", Location = new Point(12, 22), Size = new Size(270, 34), Checked = true };
+            chkKainosBandPlan.CheckedChanged += (s, e) => { if (!initializing) kainosBandPlanApply(); };
+            grp.Controls.Add(chkKainosBandPlan);
+            grp.Controls.Add(new LabelTS { Name = "lblKainosBPCountry", Text = "Country", Location = new Point(12, 66), AutoSize = true });
+            comboKainosCountry = new ComboBox { Name = "comboKainosBPCountry", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(96, 62), Size = new Size(180, 21) };
+            comboKainosCountry.Items.Add("");
+            foreach (var c in KainosLicences.Countries) comboKainosCountry.Items.Add(c.Key);
+            grp.Controls.Add(new LabelTS { Name = "lblKainosBPLicence", Text = "Licence class", Location = new Point(12, 96), AutoSize = true });
+            comboKainosLicence = new ComboBox { Name = "comboKainosBPLicence", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(96, 92), Size = new Size(180, 21) };
+            comboKainosCountry.SelectedIndexChanged += (s, e) =>
+            {
+                string keep = comboKainosLicence.Text;
+                comboKainosLicence.Items.Clear();
+                comboKainosLicence.Items.AddRange(KainosLicences.ClassesFor(comboKainosCountry.Text));
+                if (comboKainosLicence.Items.Count > 0) comboKainosLicence.SelectedIndex = Math.Max(0, comboKainosLicence.Items.IndexOf(keep));
+                kainosLicenceFromCombos();
+            };
+            comboKainosLicence.SelectedIndexChanged += (s, e) => kainosLicenceFromCombos();
+            grp.Controls.Add(comboKainosCountry);
+            grp.Controls.Add(comboKainosLicence);
+            LabelTS legend = new LabelTS
+            {
+                Name = "lblKainosBPLegend",
+                Text = "Gold: all modes (phone too)\r\nIce: CW and data\r\nViolet: CW only\r\nRed: in the band, but not your privileges\r\nGrey: band edges only\r\n\r\n" +
+                       "Privileges are built in for the United States and Canada; elsewhere the band edges are shown. It's a guide: " +
+                       "always check your own licence.",
+                Location = new Point(12, 126), Size = new Size(268, 166),
+            };
+            grp.Controls.Add(legend);
+            page.Controls.Add(grp);
+            txtKainosLicence.TextChanged += (s, e) => kainosLicenceToCombos();
+        }
+
+        private void kainosLicenceFromCombos()
+        {
+            if (_kainosLicenceSync) return;
+            string v = comboKainosCountry.Text + "|" + (comboKainosLicence.Items.Count > 0 ? comboKainosLicence.Text : "");
+            if (txtKainosLicence.Text != v) txtKainosLicence.Text = v;      // its TextChanged applies it
+        }
+
+        private void kainosLicenceToCombos()
+        {
+            _kainosLicenceSync = true;
+            try
+            {
+                string[] lic = (txtKainosLicence.Text ?? "").Split('|');
+                comboKainosCountry.SelectedIndex = Math.Max(0, comboKainosCountry.Items.IndexOf(lic[0]));
+                if (lic.Length > 1 && comboKainosLicence.Items.IndexOf(lic[1]) >= 0) comboKainosLicence.SelectedIndex = comboKainosLicence.Items.IndexOf(lic[1]);
+            }
+            finally { _kainosLicenceSync = false; }
+            kainosBandPlanApply();
+        }
+
+        // to the console (also from applyKainosUI at startup)
+        internal void kainosBandPlanApply()
+        {
+            string[] lic = (txtKainosLicence.Text ?? "").Split('|');
+            console.KainosBandPlanOn = chkKainosBandPlan.Checked;
+            console.KainosBandPlanSet(lic[0], lic.Length > 1 ? lic[1] : "");
         }
 
         internal bool KainosLight

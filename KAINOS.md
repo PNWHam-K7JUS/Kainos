@@ -27,6 +27,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 **New: light mode**
 - For slower PCs: turns the 3D panadapter off and lowers the display to 20 frames a second. In the Setup menu and Setup > Appearance > Kainos, and suggested by the setup wizard on PCs with 4 or fewer processor threads. Turning it off puts your frame rate and 3D back.
 
+**New: licence-aware band plan**
+- A thin coloured strip along the top of the panadapter shows where you may transmit: gold for all modes (phone too), ice for CW and data, violet for CW only, red for parts of the band that aren't your privileges.
+- Uses the country and licence class from the setup wizard, or set them in Setup > Appearance > Kainos > Band plan (where it can also be turned off).
+- Full privileges are built in for the United States (Technician, General, Amateur Extra; HF and 6 m) and Canada; elsewhere the band edges are shown. It's a guide: always check your own licence.
+
 ### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**
@@ -426,6 +431,12 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - Light mode: Setup's `chkKainosLightMode` (Appearance > Kainos); on, it saves the display FPS and 3D in `txtKainosLightSaved` and sets 20 fps (at most) and 3D off; off puts them back.
 - Updates: once a day after the startup wizard check (`txtKainosUpdate`: last check date, skipped version), `version.json` on GitHub `main` against `KainosVersion.Number` (`Common.CompareVersions`); a newer one shows `KainosUpdateNotice` with `Documentation/ReleaseNotes/kainos-<version>.md` from GitHub.
 - Report a bug: `KainosBugReport` (KainosSupport.cs) builds a GitHub new-issue link (title, `bug` label, body with the diagnostics; shortened if the address would be too long) and opens it in the browser. Diagnostics read the real screen size and scaling (`GetDeviceCaps` DESKTOPHORZRES), and name Windows 11 by build number (its registry still says Windows 10).
+
+### Licence-aware band plan
+
+- `KainosBandPlan.cs`: segments (MHz, kind: all modes, CW and data, CW only, not yours, band edges only) by country and licence class. Built in: the United States from FCC 97.301 / 97.305 (Technician, General, Amateur Extra; 160 to 10 m and 6 m; 60 m's channels left out) and Canada by qualification (Basic: 6 m here; Basic with Honours and Advanced: every band, no mode sub-bands). Other countries: Region 1 / 3 band edges only. "Not yours" fills the rest of each band.
+- `consoleKainosBandPlan.cs` turns the segments into pixel spans with the same `HzToPixel` the slice flags use; `drawKainosBandPlanDX2D` (displayKainos.cs, called from `DrawPanadapterDX2D` after the RTTY markers) fills a 4 px strip along the top, not while transmitting, and only in Kainos layout.
+- Setup > Appearance > Kainos > Band plan (`grpKainosBandPlan`, `chkKainosBandPlan`): the country and licence lists are kept in `txtKainosLicence`, shared with the setup wizard (each updates the other). Setup saves every named control in a list keyed by name, so every control added to Setup must have a unique Name (two unnamed ones crash Setup at startup).
 
 ### Installer
 
