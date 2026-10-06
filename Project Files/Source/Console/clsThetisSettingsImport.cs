@@ -50,17 +50,18 @@ namespace Thetis
                     return;
                 }
 
-                DialogResult dr = MessageBox.Show("Kainos keeps its settings separately from Thetis, and an existing Thetis install was found.\n\n" +
-                    "Would you like to copy your Thetis settings (databases, meters, skins and cmASIO settings) into Kainos?\n\n" +
-                    "Your Thetis settings will not be changed. If Thetis is open, close it first so its latest settings are copied.\n\n" +
-                    "You will only be asked this once. A Thetis database can also be imported later using the Database Manager.\n\n" +
-                    "[" + thetis_data_path + "]",
-                    "Import Thetis Settings?",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1, Common.MB_TOPMOST);
-
-                if (dr != DialogResult.Yes)
+                // Kainos: how to start (set up for the HL2, import, or skip); the setup wizard follows once the console is up
+                string choice;
+                using (KainosFirstRunChoice f = new KainosFirstRunChoice(thetis_data_path))
                 {
-                    writeMarker(marker, "declined");
+                    f.ShowDialog();
+                    choice = f.Choice;
+                }
+                KainosFirstRun.SetPending(kainos_data_path, choice);
+
+                if (choice != "import")
+                {
+                    writeMarker(marker, "declined (" + choice + ")");
                     return;
                 }
 

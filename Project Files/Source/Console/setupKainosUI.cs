@@ -158,6 +158,7 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosSpots);
             txtKainosKiwi = new TextBoxTS { Name = "txtKainosKiwi", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosKiwi);
+            addKainosWizardControls(tpAppearanceKainos);       // setupKainosWizard.cs
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }

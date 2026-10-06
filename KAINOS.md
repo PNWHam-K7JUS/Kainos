@@ -335,6 +335,13 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - The band, mode and filter drop-downs list their Thetis buttons by the buttons' own Visible setting (`KainosUI.OwnVisible`), so they work with Setup > Appearance > Legacy Items "Hide band / mode / filter button grid" on (those hide the whole Thetis panel); the band list follows Thetis's HF / VHF / GEN choice.
 - With SPLT on and RX2 off, the VFO tab shows the B face (marked SPLIT, or QUICK SPLIT) and the violet B flag sits on RX1's panadapter at VFO B's frequency (`KainosSplitB` in `consoleKainosFlag.cs`).
 
+### Setup wizard
+
+- `KainosSetupWizard.cs` (window), `consoleKainosWizard.cs` (when it runs), `setupKainosWizard.cs` (reading and applying through Setup's own controls, so Thetis's handlers run as if the boxes were clicked).
+- First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
+- Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
+- Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Summary (only what changes). Nothing is set until Apply, which also saves.
+
 ### Installer
 
 Versions: Kainos has its own version, major.minor.patch (1.0.0 the first release; new features raise the minor number, fixes the patch number), set in one place, `Console/KainosVersion.cs`. The title bar and About window show it with the Thetis version it's based on ("Kainos 1.0.0 (Thetis 2.10.3.15)"); the installer build reads it from that file for the installer's version and its file name (`Kainos-1.0.0-x64.msi`). The installer replaces any other Kainos version, newer or older (`AllowDowngrades`: the test builds before 1.0.0 were numbered 2.10.3.15). The About window's update check compares this version with `ReleaseVersion` in `version.json` on GitHub `main`. A release: bump `KainosVersion.cs`, add release notes in `Documentation/ReleaseNotes/kainos-<version>.md`, set `version.json`'s `ReleaseVersion` and `ReleaseName` to match, build, tag `kainos-<version>` and publish the GitHub release with the MSI.
