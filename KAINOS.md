@@ -322,6 +322,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - The list is rx.linkfanel.net's copy of kiwisdr.com/public (kiwisdr.com's page is behind a human check), fetched when the tab is first shown and on Refresh. Receivers behind kiwisdr.com's proxy are left out (the proxy answers browsers only).
 - The client follows the KiwiSDR author's kiwiclient: WebSocket `/kiwi/<stamp>/SND` (newer firmware) or `/<stamp>/SND` (older; tried when the first is silent for 4 s), `SET auth t=kiwi p=`, `SET ident_user=<callsign> (Kainos)` so the owner sees who is listening, then on `sample_rate`: IMA-ADPCM compression, AGC, no squelch, mode / passband / frequency, keepalive each second; `SND` frames (flags, sequence, S-meter, audio) decoded with the ADPCM state carried across frames. The receiver's answers (full, password, time limit, down) are shown in the tab. Each owner decides who may connect and for how long.
 
+### TX section (phone modes)
+
+- In voice modes the TX tab lays out Thetis's phone panel for the column (`consoleKainosPhone.cs`) instead of scaling it down as a block: Mic, Comp, VOX and DEXP (whichever Thetis shows) are a caption and value over a full-width slider like Master AF, VOX and DEXP keeping their level bars; the transmit profile is a Kainos drop-down under them (the AM list in AM / SAM, the main list otherwise); the TX filter's Low / High share a row; and MIC, COMP, VOX, DEXP, RX EQ, TX EQ, AV and TX FL are two rows of four. The panel's layout is recorded first and put back in Classic.
+- The mode panels' buttons and the squelch bar are painted with `KainosUI.DrawButton` (rounded, gold while on), like the dock's.
+
 ### Column resilience and split
 
 - The right-hand column measures and arranges each section on its own (`ArrangeSections`); a section that throws is laid out empty and logged once to `%APPDATA%\OpenHPSDR\Kainos-x64\KainosErrors.txt`, so one failure can't blank the rest of the column. The analog meter is capped at 3/4 of the column width tall (GitHub issue #1).

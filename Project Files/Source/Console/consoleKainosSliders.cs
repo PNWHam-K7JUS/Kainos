@@ -204,6 +204,8 @@ namespace Thetis
                 kainosFitButtonText(b);
                 b.SizeChanged -= kainosButtonResized;
                 b.SizeChanged += kainosButtonResized;
+                b.Paint -= kainosButtonPaint;
+                b.Paint += kainosButtonPaint;
                 CheckBox cb = b as CheckBox;
                 if (cb != null)
                 {
@@ -233,6 +235,26 @@ namespace Thetis
             b.Font = f;
         }
 
+        // drawn as the rest of Kainos's buttons (KainosUI.DrawButton: rounded, gold while on) over the flat button
+        private void kainosButtonPaint(object sender, PaintEventArgs e)
+        {
+            ButtonBase b = (ButtonBase)sender;
+            if (!_kainosLayout || !_kbtSaved.ContainsKey(b) || b.Width < 4 || b.Height < 4) return;
+            Graphics g = e.Graphics;
+            g.Clear(b.Parent != null ? b.Parent.BackColor : KainosUI.Bg);
+            bool on = b is CheckBox && ((CheckBox)b).Checked;
+            bool hover = b.Enabled && b.ClientRectangle.Contains(b.PointToClient(Cursor.Position));
+            string text = b.Text.Replace("&&", "&");
+            float px = Math.Min(KainosUI.S(12), b.Height * 0.46f);
+            while (px > 7f)
+            {
+                using (Font f = new Font("Segoe UI", px, FontStyle.Bold, GraphicsUnit.Pixel))
+                    if (g.MeasureString(text, f).Width <= b.Width - 4) break;
+                px -= 0.5f;
+            }
+            KainosUI.DrawButton(g, new RectangleF(0.5f, 0.5f, b.Width - 1.5f, b.Height - 1.5f), text, on, b.Enabled, hover, KainosUI.Tone.Gold, px);
+        }
+
         private void kainosButtonResized(object sender, EventArgs e)
         {
             ButtonBase b = (ButtonBase)sender;
@@ -256,6 +278,7 @@ namespace Thetis
                 KainosButtonLook l = kv.Value;
                 if (b is CheckBox) ((CheckBox)b).CheckedChanged -= kainosButtonChecked;
                 b.SizeChanged -= kainosButtonResized;
+                b.Paint -= kainosButtonPaint;
                 if (l.Font != null) b.Font = l.Font;
                 b.FlatStyle = l.Flat;
                 b.BackColor = l.BackColor;

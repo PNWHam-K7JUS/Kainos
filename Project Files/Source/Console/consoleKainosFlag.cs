@@ -85,6 +85,7 @@ namespace Thetis
             else
                 placeKainosFlag(_kainosFlagB, 2, layout && split, () => HzToPixel((float)((VFOBFreq - CentreRX2Frequency) * 1e6), 2), pnlDisplay.Height / 2, panH);
             if (_kainosVfoA != null) { _kainosVfoA.Invalidate(); _kainosVfoB.Invalidate(); }
+            kainosProfileDropCheck();
         }
 
         // How far each flag (rx 1, 2) has been dragged down from the top of its panadapter, in unscaled pixels, so the

@@ -531,6 +531,7 @@ namespace Thetis
         {
             Control p = kainosModePanel;
             int rows = kainosRowsHeight(kainosTxRows);
+            if (p == panelModeSpecificPhone) return rows + KainosUI.S(8) + kainosPhoneLayout(w, false);     // consoleKainosPhone.cs
             if (p != null) kainosFitPanel(p, w);
             return rows + (p != null ? KainosUI.S(8) + p.Height : 0);
         }
@@ -544,7 +545,8 @@ namespace Thetis
             {
                 if (p == shown)
                 {
-                    kainosFitPanel(p, r.Width);
+                    if (p == panelModeSpecificPhone) kainosPhoneLayout(r.Width, true);
+                    else kainosFitPanel(p, r.Width);
                     kainosPin(p, new Rectangle(r.Left, y, r.Width, p.Height), false);
                 }
                 else if (p.Left > -10000) p.Location = new Point(-20000, -20000);
@@ -608,6 +610,7 @@ namespace Thetis
                 pf.Key.ResumeLayout();
             }
             _kainosFits.Clear();
+            kainosPhoneRestore();
         }
 
         #endregion
