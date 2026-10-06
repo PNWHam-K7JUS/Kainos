@@ -6,6 +6,14 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.7 (not yet released)
+
+**New: SWR sweep**
+- An **SWR** button in the left-hand column opens the sweep window. Pick a band (or your own range) and Kainos steps a low-power carrier (1 W at most) across it, plotting SWR as it goes.
+- Shows the lowest SWR and where it is, and the 2:1 bandwidth.
+- **Save** sweeps and tick earlier ones to lay them over the current one, to compare antennas or watch one change over time. **Export CSV** for a spreadsheet.
+- Before each sweep, a reminder to turn off any antenna tuner, put any amplifier in bypass or off, and connect an antenna or dummy load. The sweep stops by itself if SWR goes above 5:1 or the output above 1 W, and puts your frequency and tune settings back afterwards.
+
 ### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**
@@ -387,6 +395,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
 - Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
 - Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Audio (VAC 1 on or off, audio system, speakers and microphone from PortAudio's lists, as Setup's; a test tone through NAudio on the matching Windows device; the HL2 has no audio output of its own), Look (layout, UI scale, which right-hand column tabs are open: `KainosColumn.TabList` / `SetOn`), Summary (only what changes). Nothing is set until Apply, which also saves.
+
+### SWR sweep
+
+- `KainosSwrSweep.cs` (window, plot, saved sweeps as CSV in `%APPDATA%\OpenHPSDR\Kainos-x64\Sweeps`), `consoleKainosSwr.cs` (the sweep). The dock's SWR button presses a Button of Kainos's own (`kainosSwrButton`), which opens the window.
+- The sweep uses Thetis's TUN: split must be off with VFO A transmitting. It sets the tune power source to fixed and pulsed tune off, finds the tune power giving 0.5 to 1 W from `alex_fwd`, then steps VFO A (about 110 ms to settle, 60 ms of readings averaged), working SWR out from `alex_fwd` / `alex_rev`. It stops at SWR over 5:1 three steps running (Thetis ignores SWR protection at low tune power), output over 1.2 W, no output, or TUN going off; afterwards TUN, tune power, its source, pulsed tune and VFO A are put back. Band edges are Region 2 for the United States and Canada (or no country set), Region 1 / 3 otherwise.
 
 ### Installer
 
