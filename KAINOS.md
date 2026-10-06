@@ -15,7 +15,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 - Before each sweep, a reminder to turn off any antenna tuner, put any amplifier in bypass or off, and connect an antenna or dummy load. The sweep stops by itself if SWR goes above 5:1 or the output above 1 W, and puts your frequency and tune settings back afterwards.
 
 **New: arrange the right-hand column your way**
-- Drag a tab (VFO, METERS, BAND, RX ...) at the top of the column to a new place, and its section moves with it. A gold marker shows where it will land.
+- Drag a section by its title in the column (RX, METERS, BAND ...), or its tab at the top of the column, to a new place. A gold marker shows where it will land.
 - Or right-click a tab for Move up, Move down, Move to the top or bottom, and Reset the order.
 - Your order is saved; tabs added in future versions go at the end.
 
@@ -404,7 +404,7 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 ### Column tab order
 
 - `KainosColumn` keeps the user's tab order (`_order`), saved in the same tab state as which tabs are open (`KainosColumnTabs`: the keys in the order shown). It's applied again whenever a section is added (some, like KIWI and SPOTS, are added after the state loads); tabs it doesn't list follow in the order they were added (`Section.Added`, also what Reset the order goes back to).
-- A tab chip pressed and moved more than 6 px is dragged (a gold marker where it would drop, `dropIndex`); without the move, the release toggles it, as the press used to. Right-click: Move up / down / to the top / to the bottom, Reset the order.
+- A tab chip pressed and moved more than 6 px is dragged (a gold marker where it would drop, `dropIndex`); without the move, the release toggles it, as the press used to. Right-click: Move up / down / to the top / to the bottom, Reset the order. A section's title in the column (`HeaderRect`, painted on the viewport) can be dragged the same way: the viewport passes its mouse to `HeaderDown` / `HeaderMove` / `HeaderUp`, which drop before the first open section whose title is below the pointer, with a gold line there; right-clicking a title opens the same menu.
 
 ### SWR sweep
 

@@ -903,12 +903,18 @@ namespace Thetis
             using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush b = new SolidBrush(KainosUI.Ice))
             using (Pen line = new Pen(KainosUI.Line))
+            using (Brush dim = new SolidBrush(KainosUI.Faint))
+            {
                 foreach (Section s in _sections)
                 {
                     if (!s.On || s.HeaderRect.IsEmpty) continue;
-                    g.DrawString(s.Title, f, b, s.HeaderRect.Left, s.HeaderRect.Top + KainosUI.S(5));
+                    g.DrawString(s.Title, f, s == _hDragging ? dim : b, s.HeaderRect.Left, s.HeaderRect.Top + KainosUI.S(5));
                     g.DrawLine(line, s.HeaderRect.Left, s.HeaderRect.Bottom - 3, s.HeaderRect.Right, s.HeaderRect.Bottom - 3);
                 }
+                if (_hDragging != null && _hDropAt >= 0)
+                    using (Pen p = new Pen(KainosUI.GoldHi, Math.Max(2f, KainosUI.S(2))))
+                        g.DrawLine(p, KainosUI.S(8), _hDropY, Viewport.Width - KainosUI.S(8), _hDropY);
+            }
         }
 
         protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
@@ -963,6 +969,50 @@ namespace Thetis
             if (!pressed.TabRect.Contains(e.Location)) return;
             pressed.On = !pressed.On;                  // a click: open or close the tab
             TabsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        // ---- dragging a section by its title in the column (the viewport passes its mouse here) ----
+        private Section _hPressed, _hDragging;
+        private Point _hPressAt;
+        private int _hDropAt = -1, _hDropY;
+
+        private Section headerAt(Point p) { return _sections.Find(s => s.On && !s.HeaderRect.IsEmpty && s.HeaderRect.Contains(p)); }
+
+        internal bool OverHeader(Point p) { return headerAt(p) != null; }
+        internal bool HeaderBusy { get { return _hPressed != null; } }
+
+        internal void HeaderDown(Point p, MouseButtons b)
+        {
+            Section s = headerAt(p);
+            if (s == null) return;
+            if (b == MouseButtons.Right) { tabMenu(s, PointToClient(Viewport.PointToScreen(p))); return; }
+            if (b != MouseButtons.Left) return;
+            _hPressed = s;
+            _hPressAt = p;
+            _hDragging = null;
+        }
+
+        internal void HeaderMove(Point p, MouseButtons b)
+        {
+            if (_hPressed == null || b != MouseButtons.Left) return;
+            if (_hDragging == null && Math.Abs(p.Y - _hPressAt.Y) + Math.Abs(p.X - _hPressAt.X) > KainosUI.S(6)) _hDragging = _hPressed;
+            if (_hDragging == null) return;
+            // before the first open section whose title is below the pointer, or after the last
+            List<Section> open = _sections.Where(s => s.On && !s.HeaderRect.IsEmpty).ToList();
+            Section before = open.FirstOrDefault(s => s.HeaderRect.Top + s.HeaderRect.Height / 2 > p.Y);
+            int at = before != null ? _sections.IndexOf(before) : _sections.Count;
+            int y = before != null ? before.HeaderRect.Top - KainosUI.S(4) : _contentHeight - _scroll - KainosUI.S(4);
+            if (at != _hDropAt || y != _hDropY) { _hDropAt = at; _hDropY = y; Viewport.Invalidate(); }
+        }
+
+        internal void HeaderUp(Point p, MouseButtons b)
+        {
+            Section dragged = _hDragging;
+            int at = _hDropAt;
+            _hPressed = _hDragging = null;
+            _hDropAt = -1;
+            Viewport.Invalidate();
+            if (dragged != null && at >= 0) moveTab(dragged, at);
         }
 
         private void tabMenu(Section s, Point at)
@@ -1050,6 +1100,16 @@ namespace Thetis
         {
             base.OnPaint(e);
             _column.PaintHeaders(e.Graphics);
+        }
+
+        // a section's title can be dragged to move the section (or right-clicked for the tab menu)
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); _column.HeaderDown(e.Location, e.Button); }
+        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _column.HeaderUp(e.Location, e.Button); }
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            _column.HeaderMove(e.Location, e.Button);
+            Cursor = _column.HeaderBusy ? Cursors.SizeNS : _column.OverHeader(e.Location) ? Cursors.SizeAll : Cursors.Default;
         }
 
         protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); _column.ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
