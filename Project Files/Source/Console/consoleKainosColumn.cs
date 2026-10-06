@@ -719,6 +719,7 @@ namespace Thetis
         {
             public string Key, Title;
             public bool On, DefaultOn;
+            public int Added;                   // the order the sections were added in (Reset order)
             public Func<int, int> Measure;
             public Action<Rectangle> Arrange;
             public RectangleF TabRect;
@@ -730,6 +731,13 @@ namespace Thetis
         private int _scroll, _contentHeight;
         private Section _hoverTab;
         public readonly KainosViewport Viewport;
+        // the order the user has put the tabs in (from the saved tab state); tabs it doesn't list follow, in the
+        // order they were added. Some sections are added after the state is loaded, so it's applied again each time.
+        private List<string> _order = new List<string>();
+        // dragging a tab chip to a new place: the chip pressed, where, and where it would go (index in _sections)
+        private Section _pressed, _dragging;
+        private Point _pressAt;
+        private int _dropAt = -1;
         public event EventHandler TabsChanged;
 
         public KainosColumn(Console console)
@@ -744,7 +752,38 @@ namespace Thetis
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
         {
-            _sections.Add(new Section { Key = key, Title = title, On = defaultOn, DefaultOn = defaultOn, Measure = measure, Arrange = arrange });
+            _sections.Add(new Section { Key = key, Title = title, On = defaultOn, DefaultOn = defaultOn, Measure = measure, Arrange = arrange, Added = _sections.Count });
+            applyOrder();
+        }
+
+        private void applyOrder()
+        {
+            List<Section> sorted = _sections.OrderBy(s => { int i = _order.IndexOf(s.Key); return i < 0 ? int.MaxValue : i; }).ThenBy(s => s.Added).ToList();
+            _sections.Clear();
+            _sections.AddRange(sorted);
+        }
+
+        // moves a tab to index (in the current order), remembers the order, and lets the console save it and lay out
+        private void moveTab(Section s, int index)
+        {
+            int from = _sections.IndexOf(s);
+            if (from < 0) return;
+            index = Math.Max(0, Math.Min(_sections.Count, index));
+            if (index == from || index == from + 1) return;
+            _sections.RemoveAt(from);
+            if (index > from) index--;
+            _sections.Insert(index, s);
+            _order = _sections.Select(x => x.Key).ToList();
+            Invalidate();
+            TabsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void resetOrder()
+        {
+            _order = new List<string>();
+            applyOrder();
+            Invalidate();
+            TabsChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public bool IsOn(string key) { Section s = _sections.Find(x => x.Key == key); return s != null && s.On; }
@@ -760,8 +799,8 @@ namespace Thetis
             TabsChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        // "meters,band,-rx": tabs that are on, and "-" before the ones turned off; a tab not listed (new in this
-        // version of Kainos) starts as its section says
+        // "meters,band,-rx": tabs that are on, and "-" before the ones turned off, in the order they're shown; a tab
+        // not listed (new in this version of Kainos) starts as its section says, after the others
         public string TabState
         {
             get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key)); }
@@ -770,6 +809,8 @@ namespace Thetis
                 string[] items = (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (Section s in _sections)
                     s.On = items.Contains(s.Key) || (!items.Contains("-" + s.Key) && s.DefaultOn);
+                _order = items.Select(i => i.TrimStart('-')).ToList();
+                applyOrder();
                 Invalidate();
             }
         }
@@ -875,8 +916,73 @@ namespace Thetis
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            if (_pressed != null && e.Button == MouseButtons.Left)
+            {
+                if (_dragging == null && (Math.Abs(e.X - _pressAt.X) > KainosUI.S(6) || Math.Abs(e.Y - _pressAt.Y) > KainosUI.S(6)))
+                {
+                    _dragging = _pressed;
+                    Cursor = Cursors.SizeAll;
+                }
+                if (_dragging != null)
+                {
+                    int at = dropIndex(e.Location);
+                    if (at != _dropAt) { _dropAt = at; Invalidate(); }
+                    return;
+                }
+            }
             Section h = _sections.Find(s => s.TabRect.Contains(e.Location));
             if (h != _hoverTab) { _hoverTab = h; Cursor = h != null ? Cursors.Hand : Cursors.Default; Invalidate(); }
+        }
+
+        // where a dragged chip would go: before the chip under the pointer (after it, past its middle), or at the
+        // end of the row it's on
+        private int dropIndex(Point p)
+        {
+            float h = _sections.Count > 0 ? _sections[0].TabRect.Height : 0;
+            for (int i = 0; i < _sections.Count; i++)
+            {
+                RectangleF r = _sections[i].TabRect;
+                if (p.Y < r.Top - KainosUI.S(4) || p.Y > r.Bottom + KainosUI.S(4)) continue;
+                if (p.X < r.Left + r.Width / 2) return i;
+                bool lastOnRow = i == _sections.Count - 1 || _sections[i + 1].TabRect.Top > r.Top;
+                if (lastOnRow) return i + 1;
+            }
+            return p.Y < (_sections.Count > 0 ? _sections[0].TabRect.Top : 0) ? 0 : _sections.Count;
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            Section pressed = _pressed, dragged = _dragging;
+            int at = _dropAt;
+            _pressed = _dragging = null;
+            _dropAt = -1;
+            Cursor = Cursors.Default;
+            if (e.Button != MouseButtons.Left || pressed == null) return;
+            if (dragged != null) { if (at >= 0) moveTab(dragged, at); Invalidate(); return; }
+            if (!pressed.TabRect.Contains(e.Location)) return;
+            pressed.On = !pressed.On;                  // a click: open or close the tab
+            TabsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void tabMenu(Section s, Point at)
+        {
+            ContextMenuStrip menu = new ContextMenuStrip { Renderer = new KainosToolStripRenderer(), BackColor = KainosUI.Raised, ForeColor = KainosUI.Text, ShowImageMargin = false };
+            int i = _sections.IndexOf(s);
+            Action<string, bool, Action> add = (text, enabled, act) =>
+            {
+                ToolStripMenuItem item = new ToolStripMenuItem(text) { Enabled = enabled, ForeColor = KainosUI.Text };
+                item.Click += (o, a) => act();
+                menu.Items.Add(item);
+            };
+            add("Move up", i > 0, () => moveTab(s, i - 1));
+            add("Move down", i < _sections.Count - 1, () => moveTab(s, i + 2));
+            add("Move to the top", i > 0, () => moveTab(s, 0));
+            add("Move to the bottom", i < _sections.Count - 1, () => moveTab(s, _sections.Count));
+            menu.Items.Add(new ToolStripSeparator());
+            add("Reset the order", _order.Count > 0, resetOrder);
+            menu.Closed += (o, a) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(this, at);
         }
 
         protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hoverTab = null; Invalidate(); }
@@ -886,9 +992,12 @@ namespace Thetis
             base.OnMouseDown(e);
             Focus();
             Section s = _sections.Find(x => x.TabRect.Contains(e.Location));
-            if (s == null || e.Button != MouseButtons.Left) return;
-            s.On = !s.On;
-            TabsChanged?.Invoke(this, EventArgs.Empty);
+            if (s == null) return;
+            if (e.Button == MouseButtons.Right) { tabMenu(s, e.Location); return; }
+            if (e.Button != MouseButtons.Left) return;
+            _pressed = s;                               // a click (on release) or the start of a drag
+            _pressAt = e.Location;
+            _dragging = null;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -909,7 +1018,15 @@ namespace Thetis
                         if (s.On) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillPath(b, path);
                         using (Pen p = new Pen(border)) g.DrawPath(p, path);
                     }
-                    using (Brush b = new SolidBrush(fore)) g.DrawString(s.Title, f, b, s.TabRect, sf);
+                    using (Brush b = new SolidBrush(s == _dragging ? KainosUI.Faint : fore)) g.DrawString(s.Title, f, b, s.TabRect, sf);
+                }
+                if (_dragging != null && _dropAt >= 0 && _sections.Count > 0)
+                {
+                    // after the chip before the gap when the gap ends a row, otherwise before the chip after it
+                    bool after = _dropAt > 0 && (_dropAt == _sections.Count || _sections[_dropAt].TabRect.Top > _sections[_dropAt - 1].TabRect.Top);
+                    RectangleF r = after ? _sections[_dropAt - 1].TabRect : _sections[_dropAt].TabRect;
+                    float x = after ? r.Right + KainosUI.S(2) : r.Left - KainosUI.S(2);
+                    using (Pen p = new Pen(KainosUI.GoldHi, Math.Max(2f, KainosUI.S(2)))) g.DrawLine(p, x, r.Top - 1, x, r.Bottom + 1);
                 }
             }
             using (Pen p = new Pen(KainosUI.Line)) g.DrawLine(p, 0, top - 1, Width, top - 1);

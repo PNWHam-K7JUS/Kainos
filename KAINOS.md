@@ -14,6 +14,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **Save** sweeps and tick earlier ones to lay them over the current one, to compare antennas or watch one change over time. **Export CSV** for a spreadsheet.
 - Before each sweep, a reminder to turn off any antenna tuner, put any amplifier in bypass or off, and connect an antenna or dummy load. The sweep stops by itself if SWR goes above 5:1 or the output above 1 W, and puts your frequency and tune settings back afterwards.
 
+**New: arrange the right-hand column your way**
+- Drag a tab (VFO, METERS, BAND, RX ...) at the top of the column to a new place, and its section moves with it. A gold marker shows where it will land.
+- Or right-click a tab for Move up, Move down, Move to the top or bottom, and Reset the order.
+- Your order is saved; tabs added in future versions go at the end.
+
 ### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**
@@ -395,6 +400,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
 - Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
 - Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Audio (VAC 1 on or off, audio system, speakers and microphone from PortAudio's lists, as Setup's; a test tone through NAudio on the matching Windows device; the HL2 has no audio output of its own), Look (layout, UI scale, which right-hand column tabs are open: `KainosColumn.TabList` / `SetOn`), Summary (only what changes). Nothing is set until Apply, which also saves.
+
+### Column tab order
+
+- `KainosColumn` keeps the user's tab order (`_order`), saved in the same tab state as which tabs are open (`KainosColumnTabs`: the keys in the order shown). It's applied again whenever a section is added (some, like KIWI and SPOTS, are added after the state loads); tabs it doesn't list follow in the order they were added (`Section.Added`, also what Reset the order goes back to).
+- A tab chip pressed and moved more than 6 px is dragged (a gold marker where it would drop, `dropIndex`); without the move, the release toggles it, as the press used to. Right-click: Move up / down / to the top / to the bottom, Reset the order.
 
 ### SWR sweep
 
