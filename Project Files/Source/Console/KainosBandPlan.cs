@@ -120,6 +120,82 @@ namespace Thetis
             return all.OrderBy(x => x.Lo).ToList();
         }
 
+        // ---- what each part of the band is used for (voluntary band plans, simplified): the ARRL plan for Region 2
+        // (the United States, Canada, or no country set), the IARU Region 1 plan elsewhere. Labels, and the popular
+        // spot frequencies (FT8, FT4, WSPR, PSK31, SSTV, AM, QRP) ----
+
+        internal struct Use
+        {
+            public double Lo, Hi;
+            public string Label;
+            public Use(double lo, double hi, string label) { Lo = lo; Hi = hi; Label = label; }
+        }
+
+        internal struct Spot
+        {
+            public double MHz;
+            public string Label;
+            public Spot(double mhz, string label) { MHz = mhz; Label = label; }
+        }
+
+        private static readonly Use[] UseRegion2 =
+        {
+            new Use(1.800, 1.840, "CW"), new Use(1.840, 1.843, "DIGITAL"), new Use(1.843, 2.000, "SSB"),
+            new Use(3.500, 3.570, "CW"), new Use(3.570, 3.600, "DIGITAL"), new Use(3.600, 4.000, "SSB"),
+            new Use(7.000, 7.070, "CW"), new Use(7.070, 7.125, "DIGITAL"), new Use(7.125, 7.300, "SSB"),
+            new Use(10.100, 10.130, "CW"), new Use(10.130, 10.150, "DIGITAL"),
+            new Use(14.000, 14.070, "CW"), new Use(14.070, 14.0995, "DIGITAL"), new Use(14.0995, 14.1005, "BEACONS"), new Use(14.1005, 14.150, "CW / DIGITAL"), new Use(14.150, 14.350, "SSB"),
+            new Use(18.068, 18.100, "CW"), new Use(18.100, 18.1095, "DIGITAL"), new Use(18.1095, 18.1105, "BEACONS"), new Use(18.1105, 18.168, "SSB"),
+            new Use(21.000, 21.070, "CW"), new Use(21.070, 21.110, "DIGITAL"), new Use(21.110, 21.1495, "CW"), new Use(21.1495, 21.1505, "BEACONS"), new Use(21.1505, 21.200, "CW"), new Use(21.200, 21.450, "SSB"),
+            new Use(24.890, 24.910, "CW"), new Use(24.910, 24.9295, "DIGITAL"), new Use(24.9295, 24.9305, "BEACONS"), new Use(24.9305, 24.990, "SSB"),
+            new Use(28.000, 28.070, "CW"), new Use(28.070, 28.190, "DIGITAL"), new Use(28.190, 28.300, "BEACONS"), new Use(28.300, 29.000, "SSB"),
+            new Use(29.000, 29.200, "AM"), new Use(29.200, 29.300, "SSB"), new Use(29.300, 29.510, "SATELLITE"), new Use(29.510, 29.700, "FM"),
+            new Use(50.000, 50.100, "CW / BEACONS"), new Use(50.100, 50.300, "SSB"), new Use(50.300, 50.600, "DIGITAL"), new Use(50.600, 51.000, "DIGITAL / OTHER"), new Use(51.000, 54.000, "FM"),
+        };
+
+        private static readonly Use[] UseRegion1 =
+        {
+            new Use(1.810, 1.838, "CW"), new Use(1.838, 1.843, "DIGITAL"), new Use(1.843, 2.000, "SSB"),
+            new Use(3.500, 3.570, "CW"), new Use(3.570, 3.600, "DIGITAL"), new Use(3.600, 3.800, "SSB"),
+            new Use(7.000, 7.040, "CW"), new Use(7.040, 7.060, "DIGITAL"), new Use(7.060, 7.200, "SSB"),
+            new Use(10.100, 10.130, "CW"), new Use(10.130, 10.150, "DIGITAL"),
+            new Use(14.000, 14.070, "CW"), new Use(14.070, 14.099, "DIGITAL"), new Use(14.099, 14.101, "BEACONS"), new Use(14.101, 14.125, "DIGITAL"), new Use(14.125, 14.350, "SSB"),
+            new Use(18.068, 18.095, "CW"), new Use(18.095, 18.109, "DIGITAL"), new Use(18.109, 18.111, "BEACONS"), new Use(18.111, 18.168, "SSB"),
+            new Use(21.000, 21.070, "CW"), new Use(21.070, 21.149, "DIGITAL"), new Use(21.149, 21.151, "BEACONS"), new Use(21.151, 21.450, "SSB"),
+            new Use(24.890, 24.915, "CW"), new Use(24.915, 24.929, "DIGITAL"), new Use(24.929, 24.931, "BEACONS"), new Use(24.931, 24.990, "SSB"),
+            new Use(28.000, 28.070, "CW"), new Use(28.070, 28.190, "DIGITAL"), new Use(28.190, 28.225, "BEACONS"), new Use(28.225, 29.000, "SSB"),
+            new Use(29.000, 29.200, "AM"), new Use(29.200, 29.300, "DIGITAL"), new Use(29.300, 29.510, "SATELLITE"), new Use(29.510, 29.700, "FM"),
+            new Use(50.000, 50.100, "CW / BEACONS"), new Use(50.100, 50.300, "SSB"), new Use(50.300, 50.500, "DIGITAL"), new Use(50.500, 52.000, "FM / OTHER"),
+        };
+
+        private static readonly Spot[] SpotsCommon =
+        {
+            new Spot(1.840, "FT8"), new Spot(3.573, "FT8"), new Spot(3.575, "FT4"), new Spot(7.074, "FT8"), new Spot(7.0475, "FT4"),
+            new Spot(10.136, "FT8"), new Spot(10.140, "FT4"), new Spot(14.074, "FT8"), new Spot(14.080, "FT4"), new Spot(18.100, "FT8"), new Spot(18.104, "FT4"),
+            new Spot(21.074, "FT8"), new Spot(21.140, "FT4"), new Spot(24.915, "FT8"), new Spot(24.919, "FT4"), new Spot(28.074, "FT8"), new Spot(28.180, "FT4"),
+            new Spot(50.313, "FT8"), new Spot(50.318, "FT4"),
+            new Spot(3.5686, "WSPR"), new Spot(7.0386, "WSPR"), new Spot(10.1387, "WSPR"), new Spot(14.0956, "WSPR"), new Spot(18.1046, "WSPR"),
+            new Spot(21.0946, "WSPR"), new Spot(24.9246, "WSPR"), new Spot(28.1246, "WSPR"),
+            new Spot(14.070, "PSK31"), new Spot(21.070, "PSK31"), new Spot(28.120, "PSK31"),
+            new Spot(14.230, "SSTV"), new Spot(21.340, "SSTV"), new Spot(28.680, "SSTV"),
+            new Spot(3.560, "QRP"), new Spot(7.030, "QRP"), new Spot(14.060, "QRP"), new Spot(21.060, "QRP"), new Spot(28.060, "QRP"),
+        };
+
+        private static readonly Spot[] SpotsRegion2 =
+        {
+            new Spot(3.845, "SSTV"), new Spot(7.171, "SSTV"), new Spot(3.885, "AM"), new Spot(7.290, "AM"), new Spot(14.286, "AM"), new Spot(29.000, "AM"),
+            new Spot(7.070, "PSK31"),
+        };
+
+        private static readonly Spot[] SpotsRegion1 =
+        {
+            new Spot(3.735, "SSTV"), new Spot(7.165, "SSTV"), new Spot(7.040, "PSK31"),
+        };
+
+        public static Use[] UsesFor(string country) { return isRegion2(country) ? UseRegion2 : UseRegion1; }
+        public static Spot[] SpotsFor(string country) { return SpotsCommon.Concat(isRegion2(country) ? SpotsRegion2 : SpotsRegion1).ToArray(); }
+        private static bool isRegion2(string country) { return string.IsNullOrEmpty(country) || country == "United States" || country == "Canada"; }
+
         // the plan for a country and licence class, and whether it's the full privileges (false: band edges only)
         public static List<Seg> For(string country, string licence, out bool privileges)
         {

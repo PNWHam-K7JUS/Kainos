@@ -28,7 +28,8 @@ Newest first. Each version's section is written to be copied straight into a Git
 - For slower PCs: turns the 3D panadapter off and lowers the display to 20 frames a second. In the Setup menu and Setup > Appearance > Kainos, and suggested by the setup wizard on PCs with 4 or fewer processor threads. Turning it off puts your frame rate and 3D back.
 
 **New: licence-aware band plan**
-- A coloured band along the bottom of the panadapter shows where you may transmit, with the mode written in it: gold ALL MODES (phone, CW, data), ice CW / DATA, violet CW ONLY, and red NOT YOUR PRIVILEGES for the rest of the band. It's see-through, so signals still show.
+- A band along the bottom of the panadapter shows what each part of the band is used for (CW, DIGITAL, SSB, BEACONS, AM, SATELLITE, FM, from the ARRL band plan, or IARU Region 1's outside the Americas), with small tags above it at the popular spot frequencies (FT8, FT4, WSPR, PSK31, SSTV, AM, QRP).
+- Its colour shows where you may transmit: gold all modes, ice CW and data, violet CW only, red not your privileges (labels add "(not yours)" there). It's see-through, so signals still show.
 - Uses the country and licence class from the setup wizard, or set them in Setup > Appearance > Kainos > Band plan (where it can also be turned off).
 - Full privileges are built in for the United States (Technician, General, Amateur Extra; HF and 6 m) and Canada; elsewhere the band edges are shown. It's a guide: always check your own licence.
 
@@ -434,7 +435,8 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 ### Licence-aware band plan
 
-- `KainosBandPlan.cs`: segments (MHz, kind: all modes, CW and data, CW only, not yours, band edges only) by country and licence class. Built in: the United States from FCC 97.301 / 97.305 (Technician, General, Amateur Extra; 160 to 10 m and 6 m; 60 m's channels left out) and Canada by qualification (Basic: 6 m here; Basic with Honours and Advanced: every band, no mode sub-bands). Other countries: Region 1 / 3 band edges only. "Not yours" fills the rest of each band.
+- `KainosBandPlan.cs` also holds what each part of each band is used for (`Use`: the ARRL plan for Region 2, a simplified IARU Region 1 plan otherwise) and the popular spot frequencies (`Spot`); the band's labels are those, its colour the privileges.
+- `KainosBandPlan.cs`: privilege segments (MHz, kind: all modes, CW and data, CW only, not yours, band edges only) by country and licence class. Built in: the United States from FCC 97.301 / 97.305 (Technician, General, Amateur Extra; 160 to 10 m and 6 m; 60 m's channels left out) and Canada by qualification (Basic: 6 m here; Basic with Honours and Advanced: every band, no mode sub-bands). Other countries: Region 1 / 3 band edges only. "Not yours" fills the rest of each band.
 - `consoleKainosBandPlan.cs` turns the segments into pixel spans with the same `HzToPixel` the slice flags use; `drawKainosBandPlanDX2D` (displayKainos.cs, called from `DrawPanadapterDX2D` after the RTTY markers) fills a 20 px see-through band along the bottom (the top has the scale, slice flags and spot tags) with a solid top edge, a divider where segments meet, and the mode written in each segment (`measureStringDX2D` picks the longest wording that fits); not while transmitting, and only in Kainos layout.
 - Setup > Appearance > Kainos > Band plan (`grpKainosBandPlan`, `chkKainosBandPlan`): the country and licence lists are kept in `txtKainosLicence`, shared with the setup wizard (each updates the other). Setup saves every named control in a list keyed by name, so every control added to Setup must have a unique Name (two unnamed ones crash Setup at startup).
 

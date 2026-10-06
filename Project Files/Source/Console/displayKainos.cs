@@ -68,10 +68,10 @@ namespace Thetis
             }
         }
 
-        // The licence-aware band plan (KainosBandPlan.cs): a band along the bottom of the panadapter (the top has the
-        // scale, the slice flags and the spot tags), coloured by what the operator may do there (gold all modes, ice CW
-        // and data, violet CW only, red not theirs, grey band edges only), see-through so signals show, with a solid
-        // top edge and the mode written in each segment wide enough for it. Not while transmitting.
+        // The band plan (KainosBandPlan.cs): a band along the bottom of the panadapter (the top has the scale, the
+        // slice flags and the spot tags). Its colour is the operator's privileges; its labels what each part of the
+        // band is used for (CW, DIGITAL, SSB ...); ticks above it mark the popular spot frequencies (FT8, FT4 ...).
+        // Not while transmitting.
         private static void drawKainosBandPlanDX2D(int rx, int W, int H, int nVerticalShift)
         {
             if (console == null || W <= 0 || _d2dRenderTarget == null || console.MOX) return;
@@ -79,33 +79,84 @@ namespace Thetis
             try { spans = console.KainosBandPlanSpans(rx, W); } catch { return; }
             if (spans == null || spans.Count == 0) return;
             float y1 = nVerticalShift + H, y0 = y1 - 20;
+
+            // the privileges: the band's colour (gold all modes, ice CW and data, violet CW only, red not yours, grey
+            // band edges only), see-through, with a solid top edge
             foreach (KeyValuePair<float[], KainosBandPlan.Kind> sp in spans)
             {
-                Color c;
-                string[] text;          // longest first; the first that fits is written
-                switch (sp.Value)
+                Color c = bandPlanColour(sp.Value);
+                SharpDX.Direct2D1.Brush fill = getDXBrushForColour(c, 60), edge = getDXBrushForColour(c, 230);
+                if (fill == null || edge == null) continue;
+                _d2dRenderTarget.FillRectangle(new RawRectangleF(sp.Key[0], y0, sp.Key[1], y1), fill);
+                _d2dRenderTarget.FillRectangle(new RawRectangleF(sp.Key[0], y0, sp.Key[1], y0 + 2), edge);
+            }
+
+            // what each part of the band is used for: a divider where it starts, and its name in white ("(not yours)"
+            // added where it's outside the privileges), the longest wording that fits
+            SharpDX.Direct2D1.Brush ink = getDXBrushForColour(Color.FromArgb(0xe6, 0xee, 0xf6), 235), divider = getDXBrushForColour(Color.White, 110);
+            List<Tuple<float, float, string, bool>> uses = null;
+            try { uses = console.KainosBandUseSpans(rx, W); } catch { }
+            if (uses != null && ink != null && divider != null)
+                foreach (Tuple<float, float, string, bool> u in uses)
                 {
-                    case KainosBandPlan.Kind.AllModes: c = Color.FromArgb(0xd4, 0xad, 0x6a); text = new[] { "ALL MODES (PHONE, CW, DATA)", "ALL MODES", "ALL" }; break;
-                    case KainosBandPlan.Kind.CwData: c = Color.FromArgb(0x7f, 0xb0, 0xcc); text = new[] { "CW / DATA", "CW/D" }; break;
-                    case KainosBandPlan.Kind.CwOnly: c = Color.FromArgb(0x9a, 0x86, 0xd8); text = new[] { "CW ONLY", "CW" }; break;
-                    case KainosBandPlan.Kind.NotYours: c = Color.FromArgb(0xc0, 0x40, 0x40); text = new[] { "NOT YOUR PRIVILEGES", "NOT YOURS", "NO" }; break;
-                    default: c = Color.FromArgb(0x60, 0x70, 0x80); text = new[] { "BAND (CHECK YOUR LICENCE)", "BAND" }; break;
+                    float x0 = Math.Max(0, u.Item1), x1 = Math.Min(W, u.Item2);
+                    if (u.Item1 >= 0) drawLineDX2D(divider, u.Item1 + 0.5f, y0, u.Item1 + 0.5f, y1, 1f);
+                    string shortName = bandPlanShort(u.Item3);
+                    string[] text = u.Item4 ? new[] { u.Item3 + " (not yours)", u.Item3, shortName } : new[] { u.Item3, shortName };
+                    foreach (string t in text)
+                    {
+                        SizeF sz = measureStringDX2D(t, fontDX2d_font9b, cacheStringLength: true);
+                        if (sz.Width + 10 > x1 - x0) continue;
+                        float lx = x0 + (x1 - x0 - sz.Width) / 2, ly = y0 + 2 + (y1 - y0 - 2 - sz.Height) / 2;
+                        _d2dRenderTarget.DrawText(t, fontDX2d_font9b, new RawRectangleF(lx, ly, lx + sz.Width + 4, ly + sz.Height + 2), ink, DrawTextOptions.None);
+                        break;
+                    }
                 }
-                float x0 = sp.Key[0], x1 = sp.Key[1];
-                SharpDX.Direct2D1.Brush fill = getDXBrushForColour(c, 60), edge = getDXBrushForColour(c, 230), ink = getDXBrushForColour(c, 255);
-                if (fill == null || edge == null || ink == null) continue;
-                _d2dRenderTarget.FillRectangle(new RawRectangleF(x0, y0, x1, y1), fill);
-                _d2dRenderTarget.FillRectangle(new RawRectangleF(x0, y0, x1, y0 + 2), edge);
-                if (x1 - x0 > 2) drawLineDX2D(edge, x0 + 0.5f, y0, x0 + 0.5f, y1, 1f);        // where one segment meets the next
-                // the label, centred in the part of the segment that's on screen
-                foreach (string t in text)
+
+            // the popular spot frequencies (FT8, FT4, WSPR, PSK31, SSTV, AM, QRP): a tick and a tag just above the band
+            // (a tag that would run into the one before is left out)
+            List<KeyValuePair<float, string>> spots = null;
+            try { spots = console.KainosBandSpots(rx, W); } catch { }
+            SharpDX.Direct2D1.Brush tag = getDXBrushForColour(Color.FromArgb(0x7f, 0xb0, 0xcc), 240);
+            if (spots != null && tag != null)
+            {
+                float lastRight = -1000;
+                foreach (KeyValuePair<float, string> sp in spots)
                 {
-                    SizeF sz = measureStringDX2D(t, fontDX2d_font9b, cacheStringLength: true);
-                    if (sz.Width + 10 > x1 - x0) continue;
-                    float lx = x0 + (x1 - x0 - sz.Width) / 2, ly = y0 + 2 + (y1 - y0 - 2 - sz.Height) / 2;
-                    _d2dRenderTarget.DrawText(t, fontDX2d_font9b, new RawRectangleF(lx, ly, lx + sz.Width + 4, ly + sz.Height + 2), ink, DrawTextOptions.None);
-                    break;
+                    drawLineDX2D(tag, sp.Key, y0 - 7, sp.Key, y0, 1.5f);
+                    SizeF sz = measureStringDX2D(sp.Value, fontDX2d_font9b, cacheStringLength: true);
+                    float lx = sp.Key - sz.Width / 2;
+                    if (lx < lastRight + 4) continue;
+                    _d2dRenderTarget.DrawText(sp.Value, fontDX2d_font9b, new RawRectangleF(lx, y0 - 8 - sz.Height, lx + sz.Width + 4, y0 - 6), tag, DrawTextOptions.None);
+                    lastRight = lx + sz.Width;
                 }
+            }
+        }
+
+        private static Color bandPlanColour(KainosBandPlan.Kind k)
+        {
+            switch (k)
+            {
+                case KainosBandPlan.Kind.AllModes: return Color.FromArgb(0xd4, 0xad, 0x6a);     // Kainos gold
+                case KainosBandPlan.Kind.CwData: return Color.FromArgb(0x7f, 0xb0, 0xcc);       // Kainos ice
+                case KainosBandPlan.Kind.CwOnly: return Color.FromArgb(0x9a, 0x86, 0xd8);       // Kainos violet
+                case KainosBandPlan.Kind.NotYours: return Color.FromArgb(0xc0, 0x40, 0x40);
+                default: return Color.FromArgb(0x60, 0x70, 0x80);
+            }
+        }
+
+        private static string bandPlanShort(string name)
+        {
+            switch (name)
+            {
+                case "DIGITAL": return "DIGI";
+                case "BEACONS": return "BCN";
+                case "SATELLITE": return "SAT";
+                case "CW / DIGITAL": return "CW/DIGI";
+                case "CW / BEACONS": return "CW/BCN";
+                case "DIGITAL / OTHER": return "DIGI";
+                case "FM / OTHER": return "FM";
+                default: return name;
             }
         }
 
