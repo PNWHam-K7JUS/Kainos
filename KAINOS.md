@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.6 (not yet released)
+### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**
 - A few questions and Kainos sets itself up: your callsign and grid square (used for spots, FreeDV RADE and the FreeDV Reporter), your country and licence class, and which HL2 boards you have (N2ADR filter board, HL2 I/O board, built-in PA, band data for an amplifier).
