@@ -16,6 +16,7 @@ Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-13
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 
@@ -58,10 +59,22 @@ namespace Thetis
         internal void KainosRunWizard(bool offer)
         {
             if (IsSetupFormNull) return;
-            using (KainosSetupWizard w = new KainosSetupWizard(SetupForm.KainosWizardRead(), offer))
+            KainosWizardAnswers now = SetupForm.KainosWizardRead();
+            if (_kainosColumn != null)
+                foreach (KeyValuePair<string, string> t in _kainosColumn.TabList)
+                {
+                    now.TabTitles.Add(new KeyValuePair<string, string>(t.Key, t.Value));
+                    now.Tabs[t.Key] = _kainosColumn.IsOn(t.Key);
+                }
+            using (KainosSetupWizard w = new KainosSetupWizard(now, offer))
             {
                 DialogResult dr = w.ShowDialog(this);
-                if (dr == DialogResult.OK) SetupForm.KainosWizardApply(w.Answers);
+                if (dr == DialogResult.OK)
+                {
+                    if (_kainosColumn != null)
+                        foreach (KeyValuePair<string, bool> t in w.Answers.Tabs) _kainosColumn.SetOn(t.Key, t.Value);
+                    SetupForm.KainosWizardApply(w.Answers);
+                }
                 else if (SetupForm.KainosWizardState == "") { SetupForm.KainosWizardState = "later"; SetupForm.SaveOptions(); }
             }
         }

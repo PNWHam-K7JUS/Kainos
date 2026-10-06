@@ -749,6 +749,17 @@ namespace Thetis
 
         public bool IsOn(string key) { Section s = _sections.Find(x => x.Key == key); return s != null && s.On; }
 
+        // the tabs (key, title), and turning one on or off as a click on it would (the setup wizard)
+        public IEnumerable<KeyValuePair<string, string>> TabList { get { return _sections.Select(x => new KeyValuePair<string, string>(x.Key, x.Title)).ToList(); } }
+        public void SetOn(string key, bool on)
+        {
+            Section s = _sections.Find(x => x.Key == key);
+            if (s == null || s.On == on) return;
+            s.On = on;
+            Invalidate();
+            TabsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         // "meters,band,-rx": tabs that are on, and "-" before the ones turned off; a tab not listed (new in this
         // version of Kainos) starts as its section says
         public string TabState

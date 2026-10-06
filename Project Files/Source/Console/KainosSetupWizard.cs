@@ -20,6 +20,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace Thetis
 {
@@ -30,8 +32,21 @@ namespace Thetis
         public bool N2adr, IoBoard, Pa, BandVolts;
         public bool Ext10MHz, Cl2;
         public decimal Cl2Freq, TxLatency, PttHang;
+        // audio: VAC1 (the HL2 has no audio output of its own: receive audio and the mic go through the PC)
+        public bool AudioOn;
+        public string AudioHost = "", AudioOut = "", AudioIn = "";
+        // look
+        public int Layout = 1;                      // 0 Classic, 1 Kainos
+        public string UIScale = "100%";
+        public Dictionary<string, bool> Tabs = new Dictionary<string, bool>();     // right-hand column tab key: open
+        public List<KeyValuePair<string, string>> TabTitles = new List<KeyValuePair<string, string>>();
 
-        public KainosWizardAnswers Copy() { return (KainosWizardAnswers)MemberwiseClone(); }
+        public KainosWizardAnswers Copy()
+        {
+            KainosWizardAnswers a = (KainosWizardAnswers)MemberwiseClone();
+            a.Tabs = new Dictionary<string, bool>(Tabs);
+            return a;
+        }
     }
 
     // Countries and their licence classes, for the station page (the band plans will use them)
@@ -74,6 +89,12 @@ namespace Thetis
         private CheckBox _n2adr, _io, _pa, _bandVolts, _ext10, _cl2;
         private NumericUpDown _cl2Freq, _txLat, _pttHang;
         private Panel _advanced;
+        // the audio page
+        private CheckBox _audioOn;
+        private ComboBox _host, _out, _in;
+        // the look page
+        private ComboBox _layout, _scale;
+        private readonly Dictionary<string, CheckBox> _tabs = new Dictionary<string, CheckBox>();
         private Label _summary;
 
         public KainosWizardAnswers Answers { get { return _now; } }
@@ -113,8 +134,10 @@ namespace Thetis
             if (offer) _pages.Add(welcomePage());
             _pages.Add(stationPage());
             _pages.Add(hardwarePage());
+            _pages.Add(audioPage());
+            _pages.Add(lookPage());
             _pages.Add(summaryPage());
-            _titles = (offer ? new[] { "Welcome" } : new string[0]).Concat(new[] { "Station", "Hardware", "Summary" }).ToArray();
+            _titles = (offer ? new[] { "Welcome" } : new string[0]).Concat(new[] { "Station", "Hardware", "Audio", "Look", "Summary" }).ToArray();
             show(0);
         }
 
@@ -175,11 +198,11 @@ namespace Thetis
                     "panadapter (coming in a later version).", 140, 44, true);
             text(p, "Country", 196, 20, false, 130);
             // the lists are Kainos drop-downs (as Band / Mode / Filter) over combo boxes that aren't shown
-            _country = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+            _country = hidden(p);
             _country.Items.Add("");
             _country.Items.AddRange(KainosLicences.Countries.Select(c => (object)c.Key).ToArray());
             text(p, "Licence class", 232, 20, false, 130);
-            _licence = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+            _licence = hidden(p);
             _country.SelectedIndexChanged += (s, e) =>
             {
                 _licence.Items.Clear();
@@ -219,6 +242,131 @@ namespace Thetis
             return p;
         }
 
+        private Panel audioPage()
+        {
+            Panel p = newPage("Audio");
+            text(p, "The HL2 has no speaker or headphone output of its own, so receive audio and your microphone go through this " +
+                    "PC's sound devices (Thetis's VAC 1).", 0, 44, true);
+            _audioOn = new CheckBox { Text = "Play receive audio on this PC, and use a PC microphone  (recommended)", Location = new Point(0, 50), AutoSize = true, Checked = _now.AudioOn, ForeColor = KainosWindowTheme.Text, Font = new Font(Font, FontStyle.Bold) };
+            p.Controls.Add(_audioOn);
+
+            _host = hidden(p); _out = hidden(p); _in = hidden(p);
+            text(p, "Audio system", 92, 20, false, 130);
+            p.Controls.Add(new KainosDropDown(() => _host, null) { Location = new Point(140, 88), Size = new Size(300, 28) });
+            text(p, "Speakers", 128, 20, false, 130);
+            p.Controls.Add(new KainosDropDown(() => _out, null) { Location = new Point(140, 124), Size = new Size(420, 28) });
+            text(p, "Microphone", 164, 20, false, 130);
+            p.Controls.Add(new KainosDropDown(() => _in, null) { Location = new Point(140, 160), Size = new Size(420, 28) });
+
+            foreach (string h in hosts()) _host.Items.Add(h);
+            _host.SelectedIndexChanged += (s, e) =>
+            {
+                fill(_out, false, _now.AudioOut);
+                fill(_in, true, _now.AudioIn);
+            };
+            int hi = _host.Items.IndexOf(_now.AudioHost);
+            if (hi < 0) hi = _host.Items.IndexOf("MME");
+            if (_host.Items.Count > 0) _host.SelectedIndex = Math.Max(0, hi);
+
+            KainosWizardButton tone = new KainosWizardButton("Play a test tone") { Location = new Point(140, 202), Size = new Size(160, 30) };
+            tone.Click += (s, e) => playTone(_out.Text);
+            p.Controls.Add(tone);
+            text(p, "Using a sound card interface or a virtual cable for digital modes? Pick it here, or set it later in " +
+                    "Setup > Audio > VAC 1.", 248, 44, true);
+            return p;
+        }
+
+        private ComboBox hidden(Panel p)
+        {
+            ComboBox c = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Visible = false };
+            p.Controls.Add(c);
+            return c;
+        }
+
+        // the audio systems (PortAudio host APIs) that have any devices, as Setup lists them
+        private static List<string> hosts()
+        {
+            List<string> list = new List<string>();
+            try
+            {
+                int i = 0;
+                foreach (string name in Audio.GetPAHosts())
+                {
+                    if (Audio.GetPAInputDevices(i).Count > 0 || Audio.GetPAOutputDevices(i).Count > 0) list.Add(name);
+                    i++;
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        private void fill(ComboBox c, bool input, string want)
+        {
+            c.Items.Clear();
+            try
+            {
+                int host = Audio.GetPAHosts().Cast<string>().ToList().IndexOf(_host.Text);
+                if (host >= 0)
+                    foreach (PADeviceInfo d in input ? Audio.GetPAInputDevices(host) : Audio.GetPAOutputDevices(host)) c.Items.Add(d.Name);
+            }
+            catch { }
+            if (c.Items.Count > 0) c.SelectedIndex = Math.Max(0, c.Items.IndexOf(want));
+        }
+
+        // a second of 700 Hz on the chosen speakers (by name: Windows's device list shortens names to 31 characters)
+        private static void playTone(string device)
+        {
+            try
+            {
+                int dev = -1;
+                for (int i = 0; i < WaveOut.DeviceCount; i++)
+                {
+                    string n = WaveOut.GetCapabilities(i).ProductName;
+                    if (n.Length > 0 && (device.StartsWith(n) || n.StartsWith(device))) { dev = i; break; }
+                }
+                SignalGenerator tone = new SignalGenerator(48000, 1) { Frequency = 700, Gain = 0.2, Type = SignalGeneratorType.Sin };
+                WaveOutEvent wo = new WaveOutEvent { DeviceNumber = dev };
+                wo.Init(tone.Take(TimeSpan.FromSeconds(1)));
+                wo.PlaybackStopped += (s, e) => wo.Dispose();
+                wo.Play();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("The test tone couldn't be played on that device.\r\n\r\n" + ex.Message, "Kainos setup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private Panel lookPage()
+        {
+            Panel p = newPage("Look and feel");
+            _layout = hidden(p); _scale = hidden(p);
+            text(p, "Layout", 4, 20, false, 130);
+            _layout.Items.AddRange(new object[] { "Classic (Thetis)", "Kainos" });
+            _layout.SelectedIndex = _now.Layout == 0 ? 0 : 1;
+            p.Controls.Add(new KainosDropDown(() => _layout, null) { Location = new Point(140, 0), Size = new Size(220, 28) });
+            text(p, "UI scale", 40, 20, false, 130);
+            _scale.Items.AddRange(new object[] { "75%", "90%", "100%", "110%", "125%", "150%", "175%", "200%" });
+            _scale.SelectedIndex = Math.Max(0, _scale.Items.IndexOf(_now.UIScale));
+            p.Controls.Add(new KainosDropDown(() => _scale, null) { Location = new Point(140, 36), Size = new Size(120, 28) });
+            text(p, "On top of Windows's own display scaling. 100% suits most screens; choose a larger size if the text is hard to read.", 72, 40, true);
+
+            if (_now.TabTitles.Count > 0)
+            {
+                text(p, "Tabs open in the right-hand column (any can be opened or closed later by clicking it):", 120, 22);
+                int i = 0;
+                foreach (KeyValuePair<string, string> t in _now.TabTitles)
+                {
+                    bool on;
+                    _now.Tabs.TryGetValue(t.Key, out on);
+                    CheckBox c = new CheckBox { Text = t.Value, Checked = on, AutoSize = true, ForeColor = KainosWindowTheme.Text, Location = new Point(i % 3 * 190, 148 + i / 3 * 28) };
+                    _tabs[t.Key] = c;
+                    p.Controls.Add(c);
+                    i++;
+                }
+            }
+            return p;
+        }
+
         private Panel _summaryPage;
         private Panel summaryPage()
         {
@@ -241,6 +389,13 @@ namespace Thetis
             _now.N2adr = _n2adr.Checked; _now.IoBoard = _io.Checked; _now.Pa = _pa.Checked; _now.BandVolts = _bandVolts.Checked;
             _now.Ext10MHz = _ext10.Checked; _now.Cl2 = _cl2.Checked;
             _now.Cl2Freq = _cl2Freq.Value; _now.TxLatency = _txLat.Value; _now.PttHang = _pttHang.Value;
+            if (_audioOn == null) return;
+            _now.AudioOn = _audioOn.Checked;
+            _now.AudioHost = _host.Text; _now.AudioOut = _out.Text; _now.AudioIn = _in.Text;
+            if (_layout == null) return;
+            _now.Layout = _layout.SelectedIndex;
+            _now.UIScale = _scale.Text;
+            foreach (KeyValuePair<string, CheckBox> t in _tabs) _now.Tabs[t.Key] = t.Value.Checked;
         }
 
         private string summaryText()
@@ -261,6 +416,20 @@ namespace Thetis
             diff("CL2 frequency (MHz)", _was.Cl2Freq.ToString(), _now.Cl2Freq.ToString());
             diff("TX latency (ms)", _was.TxLatency.ToString(), _now.TxLatency.ToString());
             diff("PTT hang (ms)", _was.PttHang.ToString(), _now.PttHang.ToString());
+            diff("Audio through this PC (VAC 1)", onOff(_was.AudioOn), onOff(_now.AudioOn));
+            if (_now.AudioOn)
+            {
+                diff("Audio system", _was.AudioHost, _now.AudioHost);
+                diff("Speakers", _was.AudioOut, _now.AudioOut);
+                diff("Microphone", _was.AudioIn, _now.AudioIn);
+            }
+            diff("Layout", _was.Layout == 0 ? "Classic" : "Kainos", _now.Layout == 0 ? "Classic" : "Kainos");
+            diff("UI scale", _was.UIScale, _now.UIScale);
+            Func<string, string> title = k => _now.TabTitles.Where(t => t.Key == k).Select(t => t.Value).FirstOrDefault() ?? k;
+            string opened = string.Join(", ", _now.Tabs.Where(t => t.Value && !(_was.Tabs.ContainsKey(t.Key) && _was.Tabs[t.Key])).Select(t => title(t.Key)));
+            string closed = string.Join(", ", _now.Tabs.Where(t => !t.Value && _was.Tabs.ContainsKey(t.Key) && _was.Tabs[t.Key]).Select(t => title(t.Key)));
+            if (opened.Length > 0) lines.Add("•  Tabs to open:  " + opened);
+            if (closed.Length > 0) lines.Add("•  Tabs to close:  " + closed);
             if (lines.Count == 0) return "Nothing to change: your settings already match your answers.\r\n\r\nPress Apply to finish.";
             if (_now.N2adr && !_was.N2adr)
                 lines.Add("\r\nThe N2ADR preset replaces the band filter pins in Setup > General > Ant/Filters.");

@@ -66,6 +66,12 @@ namespace Thetis
                 Cl2Freq = udCl2Freq.Value,
                 TxLatency = udTxBufferLat.Value,
                 PttHang = udPTTHang.Value,
+                AudioOn = chkAudioEnableVAC.Checked,
+                AudioHost = comboAudioDriver2.Text,
+                AudioOut = comboAudioOutput2.Text,
+                AudioIn = comboAudioInput2.Text,
+                Layout = comboKainosLayout.SelectedIndex,
+                UIScale = comboKainosUIScale.Text,
             };
         }
 
@@ -86,11 +92,30 @@ namespace Thetis
             setValue(udCl2Freq, a.Cl2Freq);
             setValue(udTxBufferLat, a.TxLatency);
             setValue(udPTTHang, a.PttHang);
+
+            // audio: the system first (Setup then lists its devices), then the devices, then VAC 1 on or off
+            if (a.AudioOn)
+            {
+                select(comboAudioDriver2, a.AudioHost);
+                select(comboAudioOutput2, a.AudioOut);
+                select(comboAudioInput2, a.AudioIn);
+            }
+            setChecked(chkAudioEnableVAC, a.AudioOn);
+
+            if (a.Layout >= 0 && comboKainosLayout.SelectedIndex != a.Layout) comboKainosLayout.SelectedIndex = a.Layout;
+            select(comboKainosUIScale, a.UIScale);
             KainosWizardState = "done";
             SaveOptions();
         }
 
         private static void setChecked(CheckBox c, bool on) { if (c.Checked != on) c.Checked = on; }
+
+        private static void select(ComboBox c, string text)
+        {
+            if (string.IsNullOrEmpty(text) || c.Text == text) return;
+            for (int i = 0; i < c.Items.Count; i++)
+                if (c.GetItemText(c.Items[i]) == text) { c.SelectedIndex = i; return; }
+        }
 
         private static void setValue(NumericUpDown u, decimal v)
         {
