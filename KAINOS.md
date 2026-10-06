@@ -19,6 +19,14 @@ Newest first. Each version's section is written to be copied straight into a Git
 - Or right-click a tab for Move up, Move down, Move to the top or bottom, and Reset the order.
 - Your order is saved; tabs added in future versions go at the end.
 
+**New: safety nets**
+- **Report a bug** at the top right of the menu bar (and in the Setup menu): describe what happened and Kainos opens a new GitHub issue with diagnostics filled in (versions, Windows, screen, layout, radio, recent errors). Nothing is sent until you press Submit on GitHub; you can also copy it all to paste elsewhere.
+- **Setup > Back up settings now**: one click backs up your current settings. Restore a backup, or keep several settings profiles, in Setup > Database Manager.
+- **Update notice**: once a day Kainos checks for a new version and, if there is one, shows what's new with Download, Later and Skip this version. Setup > Check for updates checks right away.
+
+**New: light mode**
+- For slower PCs: turns the 3D panadapter off and lowers the display to 20 frames a second. In the Setup menu and Setup > Appearance > Kainos, and suggested by the setup wizard on PCs with 4 or fewer processor threads. Turning it off puts your frame rate and 3D back.
+
 ### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**
@@ -410,6 +418,14 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 - `KainosSwrSweep.cs` (window, plot, saved sweeps as CSV in `%APPDATA%\OpenHPSDR\Kainos-x64\Sweeps`), `consoleKainosSwr.cs` (the sweep). The dock's SWR button presses a Button of Kainos's own (`kainosSwrButton`), which opens the window.
 - The sweep uses Thetis's TUN: split must be off with VFO A transmitting. It sets the tune power source to fixed and pulsed tune off, finds the tune power giving 0.5 to 1 W from `alex_fwd`, then steps VFO A (about 110 ms to settle, 60 ms of readings averaged), working SWR out from `alex_fwd` / `alex_rev`. It stops at SWR over 5:1 three steps running (Thetis ignores SWR protection at low tune power), output over 1.2 W, no output, or TUN going off; afterwards TUN, tune power, its source, pulsed tune and VFO A are put back. Band edges are Region 2 for the United States and Canada (or no country set), Region 1 / 3 otherwise.
+
+### Safety nets and light mode
+
+- `consoleKainosSupport.cs`: items added to the Setup menu (Back up settings now, Run setup wizard, Light mode, Check for updates, Report a bug; Database Manager's item renamed to say it holds profiles, backups and restore) and a right-aligned Report a bug on the menu bar.
+- Back up: `SaveOptions`, `DB.WriteDB` (the file, as on exit), then `DBMan.TakeBackup` with a dated description.
+- Light mode: Setup's `chkKainosLightMode` (Appearance > Kainos); on, it saves the display FPS and 3D in `txtKainosLightSaved` and sets 20 fps (at most) and 3D off; off puts them back.
+- Updates: once a day after the startup wizard check (`txtKainosUpdate`: last check date, skipped version), `version.json` on GitHub `main` against `KainosVersion.Number` (`Common.CompareVersions`); a newer one shows `KainosUpdateNotice` with `Documentation/ReleaseNotes/kainos-<version>.md` from GitHub.
+- Report a bug: `KainosBugReport` (KainosSupport.cs) builds a GitHub new-issue link (title, `bug` label, body with the diagnostics; shortened if the address would be too long) and opens it in the browser. Diagnostics read the real screen size and scaling (`GetDeviceCaps` DESKTOPHORZRES), and name Windows 11 by build number (its registry still says Windows 10).
 
 ### Installer
 

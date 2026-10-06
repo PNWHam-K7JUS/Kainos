@@ -27,6 +27,10 @@ namespace Thetis
     public partial class Setup
     {
         private TextBoxTS txtKainosWizard, txtKainosLicence;
+        // light mode (consoleKainosSupport.cs): the box, and the frame rate and 3D it replaced; the update check's
+        // "last=yyyy-mm-dd;skip=version"
+        private CheckBoxTS chkKainosLightMode;
+        private TextBoxTS txtKainosLightSaved, txtKainosUpdate;
 
         // called from the Kainos appearance page's setup (setupKainosUI.cs)
         private void addKainosWizardControls(TabPage page)
@@ -40,7 +44,42 @@ namespace Thetis
             toolTip1.SetToolTip(run, "Set Kainos up for your Hermes Lite 2: callsign, grid square, licence class and which boards the HL2 has.");
             run.Click += (s, e) => console.KainosRunWizard(false);
             page.Controls.Add(run);
+
+            chkKainosLightMode = new CheckBoxTS { Name = "chkKainosLightMode", Text = "Light mode (for slower PCs: no 3D, 20 frames a second)", Location = new Point(180, 320), AutoSize = true };
+            toolTip1.SetToolTip(chkKainosLightMode, "Turns the 3D panadapter off and lowers the display to 20 frames a second, so Kainos runs well on an\r\n" +
+                "older or slower PC. Turning it off puts your frame rate and 3D back.");
+            chkKainosLightMode.CheckedChanged += (s, e) => { if (!initializing) console.KainosSetLightMode(chkKainosLightMode.Checked, false); };
+            page.Controls.Add(chkKainosLightMode);
+            txtKainosLightSaved = new TextBoxTS { Name = "txtKainosLightSaved", Visible = false, Text = "" };
+            txtKainosUpdate = new TextBoxTS { Name = "txtKainosUpdate", Visible = false, Text = "" };
+            page.Controls.Add(txtKainosLightSaved);
+            page.Controls.Add(txtKainosUpdate);
         }
+
+        internal bool KainosLight
+        {
+            get { return chkKainosLightMode != null && chkKainosLightMode.Checked; }
+            set { if (chkKainosLightMode != null && chkKainosLightMode.Checked != value) chkKainosLightMode.Checked = value; }
+        }
+        internal string KainosLightSaved { get { return txtKainosLightSaved.Text; } set { txtKainosLightSaved.Text = value; } }
+        internal int KainosDisplayFps
+        {
+            get { return (int)udDisplayFPS.Value; }
+            set { udDisplayFPS.Value = Math.Max(udDisplayFPS.Minimum, Math.Min(udDisplayFPS.Maximum, value)); }
+        }
+        private string updateField(string key)
+        {
+            foreach (string kv in (txtKainosUpdate.Text ?? "").Split(';'))
+                if (kv.StartsWith(key + "=")) return kv.Substring(key.Length + 1);
+            return "";
+        }
+        private void setUpdateField(string key, string value)
+        {
+            string other = key == "last" ? "skip" : "last";
+            txtKainosUpdate.Text = key + "=" + value + ";" + other + "=" + updateField(other);
+        }
+        internal string KainosUpdateLastCheck { get { return updateField("last"); } set { setUpdateField("last", value); } }
+        internal string KainosUpdateSkip { get { return updateField("skip"); } set { setUpdateField("skip", value); } }
 
         internal string KainosWizardState
         {
@@ -72,6 +111,7 @@ namespace Thetis
                 AudioIn = comboAudioInput2.Text,
                 Layout = comboKainosLayout.SelectedIndex,
                 UIScale = comboKainosUIScale.Text,
+                LightMode = KainosLight,
             };
         }
 
@@ -104,6 +144,7 @@ namespace Thetis
 
             if (a.Layout >= 0 && comboKainosLayout.SelectedIndex != a.Layout) comboKainosLayout.SelectedIndex = a.Layout;
             select(comboKainosUIScale, a.UIScale);
+            KainosLight = a.LightMode;
             KainosWizardState = "done";
             SaveOptions();
         }
