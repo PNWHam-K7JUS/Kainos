@@ -2,6 +2,52 @@
 
 This file records what Kainos changes compared with Thetis, and why, so that future work and upstream merges don't have to rediscover it. For the user-facing description, see [ReadMe.md](ReadMe.md). For how the Thetis code fits together, see [CODEMAP.md](CODEMAP.md).
 
+## Changelog
+
+Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
+
+### Kainos 1.0.6
+
+**New: setup wizard for the Hermes Lite 2**
+- A few questions and Kainos sets itself up: your callsign and grid square (used for spots, FreeDV RADE and the FreeDV Reporter), your country and licence class, and which HL2 boards you have (N2ADR filter board, HL2 I/O board, built-in PA, band data for an amplifier).
+- **Audio page:** the HL2 has no audio output of its own, so receive audio and your microphone go through the PC. Pick your speakers and microphone, and play a test tone to check.
+- **Look page:** Kainos or Classic layout, UI scale, and which right-hand column tabs start open.
+- A summary shows exactly what will change before anything is set.
+- Offered once after updating (choose "Not now" to skip), and available any time from Setup > Appearance > Kainos > **Run setup wizard**.
+- On a new install with Thetis on the PC, the first-run question becomes a choice: set up for my HL2, import my Thetis settings, or skip.
+
+### Kainos 1.0.5
+
+**Changed**
+- A cleaner TX tab in voice modes: Mic, Comp and VOX are full-width sliders like Master AF, the Transmit Profile is a drop-down right under them with Low / High on one row, and the buttons are in two rows of four.
+- The TX tab's buttons and the squelch bar have the same rounded look as the rest of Kainos, gold while on.
+
+### Kainos 1.0.4
+
+**Fixed**
+- Band, Mode and Filter drop-downs did nothing for some people who imported their Thetis settings (the Legacy Items "Hide ... button grid" options).
+- The right-hand column could be squeezed or blank after importing Thetis settings, hiding the RX volume and squelch so it seemed there was no audio. Docked Thetis meter containers are now hidden in the Kainos layout; you no longer need to delete them.
+
+### Kainos 1.0.3
+
+**Changed**
+- The VFO flags on the panadapter no longer hide spots, TCI flags or skimmer markers: they're see-through until you point at them (Setup > Appearance > Kainos > Slice flags), and you can drag them down the panadapter. Double-click a flag to put it back.
+
+### Kainos 1.0.2
+
+**Fixed**
+- SPLT (split) didn't work. With split on, the VFO tab shows a VFO B box marked SPLIT, and VFO B's marker appears on the panadapter.
+- Part of the right-hand column could go blank. Any cause is now written to `KainosErrors.txt`.
+
+### Kainos 1.0.1
+
+**Fixed**
+- The squelch bar and the transmit panel's buttons are now clean Kainos controls instead of squashed skin pictures.
+
+### Kainos 1.0.0
+
+The first release: the Kainos layout (slice flags, right-hand column of tabs, left-hand button column), Kainos Audio, FreeDV RADE, built-in RTTY and CW, DX cluster and POTA spots, KiwiSDR listening, and an experimental 3D panadapter.
+
 ## The project
 
 Kainos is a fork of Thetis maintained by Justin Cron, K7JUS. It is based on the Hermes Lite 2 edition of Thetis by Reid Campbell, MI0BOT ([mi0bot/OpenHPSDR-Thetis](https://github.com/mi0bot/OpenHPSDR-Thetis)), at release **v2.10.3.15**.
@@ -334,6 +380,13 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - Thetis meter containers docked on the console (usually brought over with the Thetis settings import) are hidden in Kainos layout and shown again in Classic (`kainosHideThetisMeters`): they sat over the column and squeezed it, hiding the RX tab's volume and squelch. Floating containers are left alone. The column's own meter is never one of them.
 - The band, mode and filter drop-downs list their Thetis buttons by the buttons' own Visible setting (`KainosUI.OwnVisible`), so they work with Setup > Appearance > Legacy Items "Hide band / mode / filter button grid" on (those hide the whole Thetis panel); the band list follows Thetis's HF / VHF / GEN choice.
 - With SPLT on and RX2 off, the VFO tab shows the B face (marked SPLIT, or QUICK SPLIT) and the violet B flag sits on RX1's panadapter at VFO B's frequency (`KainosSplitB` in `consoleKainosFlag.cs`).
+
+### Setup wizard
+
+- `KainosSetupWizard.cs` (window), `consoleKainosWizard.cs` (when it runs), `setupKainosWizard.cs` (reading and applying through Setup's own controls, so Thetis's handlers run as if the boxes were clicked).
+- First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
+- Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
+- Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Audio (VAC 1 on or off, audio system, speakers and microphone from PortAudio's lists, as Setup's; a test tone through NAudio on the matching Windows device; the HL2 has no audio output of its own), Look (layout, UI scale, which right-hand column tabs are open: `KainosColumn.TabList` / `SetOn`), Summary (only what changes). Nothing is set until Apply, which also saves.
 
 ### Installer
 

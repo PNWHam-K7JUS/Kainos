@@ -84,6 +84,7 @@ namespace Thetis
             Shown += (s, e) => kainosSpotsStart();
             // every window Kainos opens in the Kainos Audio look (KainosWindowTheme.cs)
             Shown += (s, e) => KainosWindowTheme.Start();
+            Shown += (s, e) => kainosWizardOnStartup();         // consoleKainosWizard.cs
             FormClosing += (s, e) => KainosSpotting.Stop();
             matchKainosMenuItems();     // consoleKainosLayout.cs
         }

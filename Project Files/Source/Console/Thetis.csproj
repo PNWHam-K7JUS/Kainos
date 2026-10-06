@@ -705,6 +705,17 @@
     <Compile Include="KainosMacros.cs" />
     <Compile Include="KainosSpots.cs" />
     <Compile Include="KainosVersion.cs" />
+    <Compile Include="KainosSetupWizard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="setupKainosWizard.cs">
+      <DependentUpon>setup.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="consoleKainosWizard.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosPhone.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
