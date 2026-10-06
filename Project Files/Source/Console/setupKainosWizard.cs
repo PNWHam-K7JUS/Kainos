@@ -90,7 +90,7 @@ namespace Thetis
             LabelTS legend = new LabelTS
             {
                 Name = "lblKainosBPLegend",
-                Text = "Gold: all modes (phone too)\r\nIce: CW and data\r\nViolet: CW only\r\nRed: in the band, but not your privileges\r\nGrey: band edges only\r\n\r\n" +
+                Text = "Gold: all modes (phone too)\r\nIce: CW and data\r\nViolet: CW only\r\nRed: out of privileges (in the band, but not yours)\r\nGrey: band edges only\r\n\r\n" +
                        "Privileges are built in for the United States and Canada; elsewhere the band edges are shown. It's a guide: " +
                        "always check your own licence.",
                 Location = new Point(12, 126), Size = new Size(268, 166),

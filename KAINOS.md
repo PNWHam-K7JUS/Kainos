@@ -29,7 +29,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 **New: licence-aware band plan**
 - A band along the bottom of the panadapter shows what each part of the band is used for (CW, DIGITAL, SSB, BEACONS, AM, SATELLITE, FM, from the ARRL band plan, or IARU Region 1's outside the Americas), with small tags above it at the popular spot frequencies (FT8, FT4, WSPR, PSK31, SSTV, AM, QRP).
-- Its colour shows where you may transmit: gold all modes, ice CW and data, violet CW only, red not your privileges (labels add "(not yours)" there). It's see-through, so signals still show.
+- Its colour shows where you may transmit: gold all modes, ice CW and data, violet CW only, red out of privileges (labelled "OUT OF PRIVILEGES" there). It's see-through, so signals still show.
 - Uses the country and licence class from the setup wizard, or set them in Setup > Appearance > Kainos > Band plan (where it can also be turned off).
 - Full privileges are built in for the United States (Technician, General, Amateur Extra; HF and 6 m) and Canada; elsewhere the band edges are shown. It's a guide: always check your own licence.
 

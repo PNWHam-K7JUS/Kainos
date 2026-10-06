@@ -37,7 +37,7 @@ namespace Thetis
         }
 
         // what the strip's colours mean, for Setup's legend
-        public const string Legend = "Gold: all modes (phone too)   Ice: CW and data   Violet: CW only   Red: in the band, not your privileges   Grey: band edges only";
+        public const string Legend = "Gold: all modes (phone too)   Ice: CW and data   Violet: CW only   Red: out of privileges   Grey: band edges only";
 
         private static readonly double[][] UsBands =
         {

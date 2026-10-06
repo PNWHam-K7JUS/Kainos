@@ -80,7 +80,7 @@ namespace Thetis
             if (spans == null || spans.Count == 0) return;
             float y1 = nVerticalShift + H, y0 = y1 - 20;
 
-            // the privileges: the band's colour (gold all modes, ice CW and data, violet CW only, red not yours, grey
+            // the privileges: the band's colour (gold all modes, ice CW and data, violet CW only, red out of privileges, grey
             // band edges only), see-through, with a solid top edge
             foreach (KeyValuePair<float[], KainosBandPlan.Kind> sp in spans)
             {
@@ -91,7 +91,7 @@ namespace Thetis
                 _d2dRenderTarget.FillRectangle(new RawRectangleF(sp.Key[0], y0, sp.Key[1], y0 + 2), edge);
             }
 
-            // what each part of the band is used for: a divider where it starts, and its name in white ("(not yours)"
+            // what each part of the band is used for: a divider where it starts, and its name in white ("OUT OF PRIVILEGES"
             // added where it's outside the privileges), the longest wording that fits
             SharpDX.Direct2D1.Brush ink = getDXBrushForColour(Color.FromArgb(0xe6, 0xee, 0xf6), 235), divider = getDXBrushForColour(Color.White, 110);
             List<Tuple<float, float, string, bool>> uses = null;
@@ -102,7 +102,7 @@ namespace Thetis
                     float x0 = Math.Max(0, u.Item1), x1 = Math.Min(W, u.Item2);
                     if (u.Item1 >= 0) drawLineDX2D(divider, u.Item1 + 0.5f, y0, u.Item1 + 0.5f, y1, 1f);
                     string shortName = bandPlanShort(u.Item3);
-                    string[] text = u.Item4 ? new[] { u.Item3 + " (not yours)", u.Item3, shortName } : new[] { u.Item3, shortName };
+                    string[] text = u.Item4 ? new[] { u.Item3 + " · OUT OF PRIVILEGES", "OUT OF PRIVILEGES", shortName + " · OUT", shortName } : new[] { u.Item3, shortName };
                     foreach (string t in text)
                     {
                         SizeF sz = measureStringDX2D(t, fontDX2d_font9b, cacheStringLength: true);
