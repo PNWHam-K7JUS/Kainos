@@ -453,16 +453,16 @@ namespace Thetis
 
         #region VFO SYNC
 
+        // laid out for the column (consoleKainosSync.cs)
         private int kainosSyncMeasure(int w)
         {
-            kainosFitPanel(grpVFOBetween, w);
-            return grpVFOBetween.Height;
+            return kainosSyncLayout(w, false);
         }
 
         private void kainosSyncArrange(Rectangle r)
         {
-            kainosFitPanel(grpVFOBetween, r.Width);
-            kainosPin(grpVFOBetween, new Rectangle(r.Left, r.Top, r.Width, grpVFOBetween.Height), false);
+            int h = kainosSyncLayout(r.Width, true);
+            kainosPin(grpVFOBetween, new Rectangle(r.Left, r.Top, r.Width, h), false);
         }
 
         #endregion
@@ -611,6 +611,7 @@ namespace Thetis
             }
             _kainosFits.Clear();
             kainosPhoneRestore();
+            kainosSyncRestore();
         }
 
         #endregion

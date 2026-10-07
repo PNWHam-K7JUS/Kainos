@@ -166,7 +166,7 @@ namespace Thetis
         {
             get
             {
-                IEnumerable<Control> panels = kainosModePanels.SelectMany(p => kainosDescendants(p));
+                IEnumerable<Control> panels = kainosModePanels.Concat(new Control[] { grpVFOBetween }).SelectMany(p => kainosDescendants(p));     // and the VFO SYNC tab's
                 return new Control[] { chkSquelch }.Concat(panels).OfType<ButtonBase>()
                     .Where(b => !(b is CheckBox) || ((CheckBox)b).Appearance == Appearance.Button)
                     .Where(b => !(b is RadioButton) || ((RadioButton)b).Appearance == Appearance.Button)

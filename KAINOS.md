@@ -37,6 +37,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 - A scroll bar down the right-hand side when the open tabs don't all fit: drag it, or click above or below it.
 - The mouse wheel anywhere over the column now scrolls the column instead of changing whatever slider is under the pointer. Hold Ctrl to use the wheel on a slider or list (GitHub issue #4).
 
+**Changed: the VFO SYNC tab in the Kainos look**
+- VFO Sync, Rx Ant, VFO lock A / B, tune step, quick memory (Save / Restore) and the band stack are now in rows like the rest of the right-hand column, with Kainos's rounded buttons instead of the old scaled-down Thetis panel. The Classic layout is unchanged.
+
 **New: one-line VFO flags**
 - Click the A or B on a VFO flag to shrink it to one line (mode, frequency and TX), as in SmartSDR; click it again for the full flag. The frequency still tunes with the wheel and can be clicked to type one (GitHub issue #4).
 
@@ -426,6 +429,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
 - Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
 - Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Audio (VAC 1 on or off, audio system, speakers and microphone from PortAudio's lists, as Setup's; a test tone through NAudio on the matching Windows device; the HL2 has no audio output of its own), Look (layout, UI scale, which right-hand column tabs are open: `KainosColumn.TabList` / `SetOn`), Summary (only what changes). Nothing is set until Apply, which also saves.
+
+### VFO SYNC tab
+
+- `consoleKainosSync.cs` lays out Thetis's `grpVFOBetween` for the column (as consoleKainosPhone.cs does the phone panel): rows for VFO Sync / Rx Ant, VFO lock A / B, tune step, quick memory, Save / Restore, and band stack with the quick recall pad; Thetis's labels moved away and Kainos captions in their place; the group box's frame painted over in Kainos layout; text alignment and the recorded layout put back in Classic. Its buttons are in `kainosStyledButtons`, so they're drawn rounded.
+- The console, like Setup, keeps its controls in a list keyed by name: every control Kainos adds to a Thetis panel needs a unique Name, or Kainos stops at startup ("An item with the same key has already been added").
 
 ### Readable windows (issue #3)
 
