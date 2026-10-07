@@ -160,6 +160,155 @@ namespace Thetis
         }
     }
 
+    // A KiwiSDR's waterfall stream (/<stamp>/W/F, the same address and stamp as the sound stream so it shares its
+    // receiver slot): asks for a span (zoom 0 is the whole 0-30 MHz, each step halves it) around a centre, and hands
+    // on each line of 1024 levels in dBm. Uncompressed (wf_comp=0), a few lines a second.
+    internal class KiwiWaterfallClient : IDisposable
+    {
+        public const int Bins = 1024;
+        public event Action<float[], int, double> Line;     // dBm per bin, zoom and centre (kHz) it was asked for
+        public double FullSpanKhz { get; private set; } = 30000;
+        public int Zoom { get; private set; } = 9;
+        public double CentreKhz { get; private set; } = 7100;
+
+        private ClientWebSocket _ws;
+        private CancellationTokenSource _cts;
+        private readonly object _sendLock = new object();
+        private bool _ready;
+
+        public double SpanKhz { get { return FullSpanKhz / Math.Pow(2, Zoom); } }
+
+        // lines a second: 1 slow .. 4 fast
+        private int _speed = 3;
+        public int Speed
+        {
+            get { return _speed; }
+            set { _speed = Math.Max(1, Math.Min(4, value)); if (_ready) send("SET wf_speed=" + _speed); }
+        }
+
+        public void Connect(string wsBase, string prefix, long stamp, string callsign)
+        {
+            Disconnect();
+            _cts = new CancellationTokenSource();
+            CancellationToken ct = _cts.Token;
+            Task.Run(() => run(wsBase + prefix + "/" + stamp + "/W/F", callsign, ct));
+        }
+
+        public void Disconnect()
+        {
+            try { _cts?.Cancel(); } catch { }
+            try { _ws?.Abort(); } catch { }
+            _ws = null;
+            _ready = false;
+        }
+
+        public void Dispose() { Disconnect(); }
+
+        // the span and centre; the centre is kept so the span stays inside 0 .. the receiver's bandwidth
+        public void View(int zoom, double centreKhz)
+        {
+            Zoom = Math.Max(0, Math.Min(14, zoom));
+            double half = SpanKhz / 2;
+            CentreKhz = Math.Max(half, Math.Min(FullSpanKhz - half, centreKhz));
+            if (_ready) sendView();
+        }
+
+        private void sendView()
+        {
+            // older firmware takes the start (in bins at the deepest zoom), newer the centre: both are sent
+            double start = (CentreKhz - SpanKhz / 2) / FullSpanKhz * Bins * Math.Pow(2, 14);
+            send(string.Format(CultureInfo.InvariantCulture, "SET zoom={0} start={1:0}", Zoom, start));
+            send(string.Format(CultureInfo.InvariantCulture, "SET zoom={0} cf={1:0.000}", Zoom, CentreKhz));
+        }
+
+        private void send(string text)
+        {
+            ClientWebSocket ws = _ws;
+            if (ws == null || ws.State != WebSocketState.Open) return;
+            byte[] b = Encoding.ASCII.GetBytes(text);
+            lock (_sendLock)
+            {
+                try { ws.SendAsync(new ArraySegment<byte>(b), WebSocketMessageType.Text, true, CancellationToken.None).Wait(5000); } catch { }
+            }
+        }
+
+        private void run(string url, string callsign, CancellationToken ct)
+        {
+            ClientWebSocket ws = new ClientWebSocket();
+            _ws = ws;
+            try
+            {
+                ws.ConnectAsync(new Uri(url), ct).Wait(15000, ct);
+                if (ws.State != WebSocketState.Open) return;
+                send("SET auth t=kiwi p=");
+                string ident = string.IsNullOrWhiteSpace(callsign) ? "Kainos" : callsign.Trim().ToUpperInvariant() + " (Kainos)";
+                send("SET ident_user=" + Uri.EscapeDataString(ident));
+                send("SET maxdb=0 mindb=-120");
+                send("SET wf_speed=" + _speed);
+                send("SET wf_comp=0");
+                send("SET interp=13");
+                _ready = true;
+                sendView();
+
+                byte[] buf = new byte[65536];
+                List<byte> msg = new List<byte>(8192);
+                DateTime lastKeep = DateTime.MinValue;
+                while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
+                {
+                    if ((DateTime.UtcNow - lastKeep).TotalSeconds >= 1) { send("SET keepalive"); lastKeep = DateTime.UtcNow; }
+                    msg.Clear();
+                    WebSocketReceiveResult r;
+                    do
+                    {
+                        Task<WebSocketReceiveResult> t = ws.ReceiveAsync(new ArraySegment<byte>(buf), ct);
+                        if (!t.Wait(10000, ct)) return;
+                        r = t.Result;
+                        if (r.MessageType == WebSocketMessageType.Close) return;
+                        for (int i = 0; i < r.Count; i++) msg.Add(buf[i]);
+                    } while (!r.EndOfMessage);
+                    if (msg.Count < 3) continue;
+                    byte[] m = msg.ToArray();
+                    string tag = Encoding.ASCII.GetString(m, 0, 3);
+                    if (tag == "MSG") handleMsg(Encoding.UTF8.GetString(m, 4, Math.Max(0, m.Length - 4)));
+                    else if (tag == "W/F") handleLine(m);
+                }
+            }
+            catch { }
+            finally
+            {
+                _ready = false;
+                try { ws.Abort(); ws.Dispose(); } catch { }
+            }
+        }
+
+        private void handleMsg(string text)
+        {
+            foreach (string part in text.Split(' '))
+            {
+                int eq = part.IndexOf('=');
+                if (eq <= 0) continue;
+                string key = part.Substring(0, eq), val = part.Substring(eq + 1);
+                double v;
+                if (key == "bandwidth" && double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out v) && v > 1e6)
+                {
+                    FullSpanKhz = v / 1000;
+                    View(Zoom, CentreKhz);
+                }
+            }
+        }
+
+        // "W/F", a pad byte, the start bin, zoom and flags, a sequence number (three 32-bit), then a byte a bin:
+        // the level in dB above -255
+        private void handleLine(byte[] m)
+        {
+            int start = 4 + 12, n = m.Length - start;
+            if (n < 64) return;
+            float[] dbm = new float[n];
+            for (int i = 0; i < n; i++) dbm[i] = m[start + i] - 255f;
+            Line?.Invoke(dbm, Zoom, CentreKhz);
+        }
+    }
+
     internal class KiwiClient : IDisposable
     {
         public event Action<string> Status;                 // what the receiver says, for the tab
@@ -167,6 +316,11 @@ namespace Thetis
         public double Rssi { get; private set; } = -127;
         public int SampleRate { get; private set; }
         public bool Connected { get; private set; }
+        // where the sound stream connected (the waterfall stream joins the same slot: same address, path and stamp)
+        public string WsBase { get; private set; }
+        public string Prefix { get; private set; }
+        public long Stamp { get; private set; }
+        public event Action Ready;
 
         private ClientWebSocket _ws;
         private CancellationTokenSource _cts;
@@ -198,6 +352,9 @@ namespace Thetis
         public void Dispose() { Disconnect(); }
 
         // tune (kHz, the dial frequency) and the mode ("usb", "lsb", "cw", "am", "nbfm")
+        // CW: the pitch the signal is heard at (Hz); the CW passband is centred on it
+        public int CwPitch = 500;
+
         public void Tune(double khz, string mode)
         {
             _khz = khz;
@@ -211,7 +368,7 @@ namespace Thetis
             switch (_mode)
             {
                 case "lsb": _lowCut = -2700; _highCut = -300; break;
-                case "cw": _lowCut = 300; _highCut = 700; break;
+                case "cw": _lowCut = Math.Max(50, CwPitch - 250); _highCut = CwPitch + 250; break;
                 case "am": _lowCut = -4900; _highCut = 4900; break;
                 case "nbfm": _lowCut = -6000; _highCut = 6000; break;
                 default: _mode = "usb"; _lowCut = 300; _highCut = 2700; break;
@@ -260,6 +417,7 @@ namespace Thetis
                 say("Connecting...");
                 ws.ConnectAsync(new Uri(wsUrl + prefix + "/" + stamp + "/SND"), ct).Wait(15000, ct);
                 if (ws.State != WebSocketState.Open) return false;
+                WsBase = wsUrl; Prefix = prefix; Stamp = stamp;
 
                 send("SET auth t=kiwi p=");
                 string ident = string.IsNullOrWhiteSpace(callsign) ? "Kainos" : callsign.Trim().ToUpperInvariant() + " (Kainos)";
@@ -332,6 +490,7 @@ namespace Thetis
                         _ready = true;
                         Connected = true;
                         say("Listening");
+                        Ready?.Invoke();
                         break;
                     case "audio_rate":
                         int ar;

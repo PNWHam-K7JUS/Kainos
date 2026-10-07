@@ -1108,7 +1108,7 @@ if (!DoesRadioExist(item.Key))
                 if (y > viewport.Bottom) break;
             }
 
-            using (Pen border = new Pen(Color.FromArgb(210, 210, 210)))
+            using (Pen border = new Pen(_dark ? Color.FromArgb(0x2a, 0x3a, 0x4d) : Color.FromArgb(210, 210, 210)))
             {
                 g.DrawRectangle(border, new Rectangle(viewport.Left, viewport.Top, viewport.Width - 1, viewport.Height - 1));
             }
@@ -1116,11 +1116,12 @@ if (!DoesRadioExist(item.Key))
 
         private void drawRow(Graphics g, Rectangle rowRect, RowItem item, bool selected, bool hovered, bool hoverTrash, bool canRemove, bool compact)
         {
+            // Kainos: on a dark background (the Kainos window theme) the dark palette, so nothing is light on light
             Color baseFill = BackColor;
-            Color hoverFill = Color.FromArgb(240, 247, 255);
-            Color selectedFill = Color.FromArgb(225, 240, 255);
-            Color connectedFill = Color.FromArgb(235, 248, 235);
-            Color selectedConnectedFill = Color.FromArgb(222, 246, 230);
+            Color hoverFill = _dark ? Color.FromArgb(0x14, 0x25, 0x38) : Color.FromArgb(240, 247, 255);
+            Color selectedFill = _dark ? Color.FromArgb(0x1d, 0x3a, 0x55) : Color.FromArgb(225, 240, 255);
+            Color connectedFill = _dark ? Color.FromArgb(0x12, 0x2e, 0x22) : Color.FromArgb(235, 248, 235);
+            Color selectedConnectedFill = _dark ? Color.FromArgb(0x1a, 0x40, 0x2e) : Color.FromArgb(222, 246, 230);
 
             Color fill = baseFill;
 
@@ -1134,7 +1135,7 @@ if (!DoesRadioExist(item.Key))
                 g.FillRectangle(b, rowRect);
             }
 
-            using (Pen sep = new Pen(Color.FromArgb(225, 225, 225)))
+            using (Pen sep = new Pen(_dark ? Color.FromArgb(0x1c, 0x2a, 0x38) : Color.FromArgb(225, 225, 225)))
             {
                 g.DrawLine(sep, rowRect.Left, rowRect.Bottom - 1, rowRect.Right, rowRect.Bottom - 1);
             }
@@ -1218,17 +1219,17 @@ if (!DoesRadioExist(item.Key))
                     g.DrawString(line1, f1, t1, r1, sf);
                 }
 
-                using (SolidBrush t2 = new SolidBrush(Color.FromArgb(70, 70, 70)))
+                using (SolidBrush t2 = new SolidBrush(_dark ? Color.FromArgb(0xa8, 0xc0, 0xd4) : Color.FromArgb(70, 70, 70)))
                 {
                     g.DrawString(line2, Font, t2, r2, sf);
                 }
 
-                using (SolidBrush t3 = new SolidBrush(Color.FromArgb(60, 60, 60)))
+                using (SolidBrush t3 = new SolidBrush(_dark ? Color.FromArgb(0x8a, 0xa8, 0xc0) : Color.FromArgb(60, 60, 60)))
                 {
                     g.DrawString(line3, Font, t3, r3, sf);
                 }
 
-                using (SolidBrush t4 = new SolidBrush(Color.FromArgb(110, 110, 110)))
+                using (SolidBrush t4 = new SolidBrush(_dark ? Color.FromArgb(0x8a, 0xa8, 0xc0) : Color.FromArgb(110, 110, 110)))
                 {
                     g.DrawString(line4, Font, t4, r4, sf);
                 }
@@ -1237,7 +1238,7 @@ if (!DoesRadioExist(item.Key))
 
         private void drawRadioGlyph(Graphics g, Rectangle rect, bool selected)
         {
-            using (Pen p = new Pen(Color.FromArgb(110, 110, 110)))
+            using (Pen p = new Pen(_dark ? Color.FromArgb(0x8a, 0xa8, 0xc0) : Color.FromArgb(110, 110, 110)))
             {
                 g.DrawEllipse(p, rect);
             }
@@ -1248,7 +1249,7 @@ if (!DoesRadioExist(item.Key))
                 int inset = Math.Max(2, rect.Width / 4);
                 inner.Inflate(-inset, -inset);
 
-                using (SolidBrush b = new SolidBrush(Color.FromArgb(40, 120, 200)))
+                using (SolidBrush b = new SolidBrush(_dark ? Color.FromArgb(0xd4, 0xad, 0x6a) : Color.FromArgb(40, 120, 200)))
                 {
                     g.FillEllipse(b, inner);
                 }
@@ -1274,7 +1275,33 @@ if (!DoesRadioExist(item.Key))
             int x = rect.Left + (rect.Width - w) / 2;
             int y = rect.Top + (rect.Height - h) / 2;
 
+            if (_dark)
+            {
+                // the black trash can, turned light so it shows on the dark background
+                using (System.Drawing.Imaging.ImageAttributes ia = new System.Drawing.Imaging.ImageAttributes())
+                {
+                    ia.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix(new float[][]
+                    {
+                        new float[] { -0.75f, 0, 0, 0, 0 }, new float[] { 0, -0.75f, 0, 0, 0 }, new float[] { 0, 0, -0.75f, 0, 0 },
+                        new float[] { 0, 0, 0, 1, 0 }, new float[] { 0.78f, 0.84f, 0.9f, 0, 1 },
+                    }));
+                    g.DrawImage(img, new Rectangle(x, y, w, h), 0, 0, img.Width, img.Height, GraphicsUnit.Pixel, ia);
+                }
+                return;
+            }
             g.DrawImage(img, new Rectangle(x, y, w, h));
+        }
+
+        // Kainos: the background is dark (the Kainos window theme), so the list draws in dark colours
+        private bool _dark
+        {
+            get
+            {
+                // the colour actually behind it (the theme makes the list itself transparent)
+                Color c = BackColor;
+                for (Control p = this; p != null && c.A < 255; p = p.Parent) c = p.BackColor;
+                return c.A == 255 && (c.R * 299 + c.G * 587 + c.B * 114) / 1000 < 100;
+            }
         }
 
         private string buildLine1(RowItem item)

@@ -43,9 +43,10 @@ namespace Thetis
                 {
                     if (IsSetupFormNull) return;
                     string pending = KainosFirstRun.TakePending(AppDataPath);
-                    if (pending == "skip") { SetupForm.KainosWizardState = "skipped"; SetupForm.SaveOptions(); return; }
-                    if (pending == "hl2" || pending == "import") { KainosRunWizard(false); return; }
+                    if (pending == "skip") { SetupForm.KainosWizardState = "skipped"; SetupForm.SaveOptions(); kainosCheckForUpdate(false); return; }
+                    if (pending == "hl2" || pending == "import") { KainosRunWizard(false); kainosCheckForUpdate(false); return; }
                     if (string.IsNullOrEmpty(SetupForm.KainosWizardState)) KainosRunWizard(true);
+                    kainosCheckForUpdate(false);        // once a day: a newer Kainos?
                 }
                 catch (Exception ex)
                 {

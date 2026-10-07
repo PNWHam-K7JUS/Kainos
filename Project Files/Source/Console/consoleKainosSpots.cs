@@ -222,6 +222,12 @@ namespace Thetis
             return false;
         }
 
+        // the latest spots between two frequencies (Hz), for the Kiwi view
+        internal List<KainosSpot> KainosSpotsBetween(double loHz, double hiHz, int max)
+        {
+            return _spotRecent.Where(sp => sp.Hz >= loHz && sp.Hz <= hiHz).Take(max).ToList();
+        }
+
         // click a spot in the list: tune VFO A there, in its mode
         internal void KainosTuneToSpot(KainosSpot sp)
         {

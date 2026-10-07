@@ -27,6 +27,10 @@ namespace Thetis
     public partial class Setup
     {
         private TextBoxTS txtKainosWizard, txtKainosLicence;
+        // light mode (consoleKainosSupport.cs): the box, and the frame rate and 3D it replaced; the update check's
+        // "last=yyyy-mm-dd;skip=version"
+        private CheckBoxTS chkKainosLightMode;
+        private TextBoxTS txtKainosLightSaved, txtKainosUpdate;
 
         // called from the Kainos appearance page's setup (setupKainosUI.cs)
         private void addKainosWizardControls(TabPage page)
@@ -40,7 +44,116 @@ namespace Thetis
             toolTip1.SetToolTip(run, "Set Kainos up for your Hermes Lite 2: callsign, grid square, licence class and which boards the HL2 has.");
             run.Click += (s, e) => console.KainosRunWizard(false);
             page.Controls.Add(run);
+
+            chkKainosLightMode = new CheckBoxTS { Name = "chkKainosLightMode", Text = "Light mode (for slower PCs: no 3D, 20 frames a second)", Location = new Point(180, 320), AutoSize = true };
+            toolTip1.SetToolTip(chkKainosLightMode, "Turns the 3D panadapter off and lowers the display to 20 frames a second, so Kainos runs well on an\r\n" +
+                "older or slower PC. Turning it off puts your frame rate and 3D back.");
+            chkKainosLightMode.CheckedChanged += (s, e) => { if (!initializing) console.KainosSetLightMode(chkKainosLightMode.Checked, false); };
+            page.Controls.Add(chkKainosLightMode);
+            txtKainosLightSaved = new TextBoxTS { Name = "txtKainosLightSaved", Visible = false, Text = "" };
+            txtKainosUpdate = new TextBoxTS { Name = "txtKainosUpdate", Visible = false, Text = "" };
+            page.Controls.Add(txtKainosLightSaved);
+            page.Controls.Add(txtKainosUpdate);
+
+            addKainosBandPlanControls(page);
         }
+
+        // ---- the licence-aware band plan: on or off, and the country and licence class (shared with the wizard,
+        // kept in txtKainosLicence) ----
+        private CheckBoxTS chkKainosBandPlan;
+        private ComboBox comboKainosCountry, comboKainosLicence;     // not saved themselves: txtKainosLicence is
+        private bool _kainosLicenceSync;
+
+        private void addKainosBandPlanControls(TabPage page)
+        {
+            GroupBoxTS grp = new GroupBoxTS { Name = "grpKainosBandPlan", Text = "Band plan (Kainos layout)", Location = new Point(446, 8), Size = new Size(280, 298) };
+            chkKainosBandPlan = new CheckBoxTS { Name = "chkKainosBandPlan", Text = "Show where I may transmit, along the\r\ntop of the panadapter", Location = new Point(12, 22), Size = new Size(270, 34), Checked = true };
+            chkKainosBandPlan.CheckedChanged += (s, e) => { if (!initializing) kainosBandPlanApply(); };
+            grp.Controls.Add(chkKainosBandPlan);
+            grp.Controls.Add(new LabelTS { Name = "lblKainosBPCountry", Text = "Country", Location = new Point(12, 66), AutoSize = true });
+            comboKainosCountry = new ComboBox { Name = "comboKainosBPCountry", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(96, 62), Size = new Size(180, 21) };
+            comboKainosCountry.Items.Add("");
+            foreach (var c in KainosLicences.Countries) comboKainosCountry.Items.Add(c.Key);
+            grp.Controls.Add(new LabelTS { Name = "lblKainosBPLicence", Text = "Licence class", Location = new Point(12, 96), AutoSize = true });
+            comboKainosLicence = new ComboBox { Name = "comboKainosBPLicence", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(96, 92), Size = new Size(180, 21) };
+            comboKainosCountry.SelectedIndexChanged += (s, e) =>
+            {
+                string keep = comboKainosLicence.Text;
+                comboKainosLicence.Items.Clear();
+                comboKainosLicence.Items.AddRange(KainosLicences.ClassesFor(comboKainosCountry.Text));
+                if (comboKainosLicence.Items.Count > 0) comboKainosLicence.SelectedIndex = Math.Max(0, comboKainosLicence.Items.IndexOf(keep));
+                kainosLicenceFromCombos();
+            };
+            comboKainosLicence.SelectedIndexChanged += (s, e) => kainosLicenceFromCombos();
+            grp.Controls.Add(comboKainosCountry);
+            grp.Controls.Add(comboKainosLicence);
+            LabelTS legend = new LabelTS
+            {
+                Name = "lblKainosBPLegend",
+                Text = "Gold: all modes (phone too)\r\nIce: CW and data\r\nViolet: CW only\r\nRed: out of privileges (in the band, but not yours)\r\nGrey: band edges only\r\n\r\n" +
+                       "Privileges are built in for the United States and Canada; elsewhere the band edges are shown. It's a guide: " +
+                       "always check your own licence.",
+                Location = new Point(12, 126), Size = new Size(268, 166),
+            };
+            grp.Controls.Add(legend);
+            page.Controls.Add(grp);
+            txtKainosLicence.TextChanged += (s, e) => kainosLicenceToCombos();
+        }
+
+        private void kainosLicenceFromCombos()
+        {
+            // while the settings load, the lists (saved too) mustn't overwrite the licence: it's the one that counts,
+            // and the lists are set from it afterwards (applyKainosUI)
+            if (_kainosLicenceSync || initializing) return;
+            string v = comboKainosCountry.Text + "|" + (comboKainosLicence.Items.Count > 0 ? comboKainosLicence.Text : "");
+            if (txtKainosLicence.Text != v) txtKainosLicence.Text = v;      // its TextChanged applies it
+        }
+
+        internal void kainosLicenceToCombos()
+        {
+            _kainosLicenceSync = true;
+            try
+            {
+                string[] lic = (txtKainosLicence.Text ?? "").Split('|');
+                comboKainosCountry.SelectedIndex = Math.Max(0, comboKainosCountry.Items.IndexOf(lic[0]));
+                if (lic.Length > 1 && comboKainosLicence.Items.IndexOf(lic[1]) >= 0) comboKainosLicence.SelectedIndex = comboKainosLicence.Items.IndexOf(lic[1]);
+            }
+            finally { _kainosLicenceSync = false; }
+            kainosBandPlanApply();
+        }
+
+        // to the console (also from applyKainosUI at startup)
+        internal void kainosBandPlanApply()
+        {
+            string[] lic = (txtKainosLicence.Text ?? "").Split('|');
+            console.KainosBandPlanOn = chkKainosBandPlan.Checked;
+            console.KainosBandPlanSet(lic[0], lic.Length > 1 ? lic[1] : "");
+        }
+
+        internal bool KainosLight
+        {
+            get { return chkKainosLightMode != null && chkKainosLightMode.Checked; }
+            set { if (chkKainosLightMode != null && chkKainosLightMode.Checked != value) chkKainosLightMode.Checked = value; }
+        }
+        internal string KainosLightSaved { get { return txtKainosLightSaved.Text; } set { txtKainosLightSaved.Text = value; } }
+        internal int KainosDisplayFps
+        {
+            get { return (int)udDisplayFPS.Value; }
+            set { udDisplayFPS.Value = Math.Max(udDisplayFPS.Minimum, Math.Min(udDisplayFPS.Maximum, value)); }
+        }
+        private string updateField(string key)
+        {
+            foreach (string kv in (txtKainosUpdate.Text ?? "").Split(';'))
+                if (kv.StartsWith(key + "=")) return kv.Substring(key.Length + 1);
+            return "";
+        }
+        private void setUpdateField(string key, string value)
+        {
+            string other = key == "last" ? "skip" : "last";
+            txtKainosUpdate.Text = key + "=" + value + ";" + other + "=" + updateField(other);
+        }
+        internal string KainosUpdateLastCheck { get { return updateField("last"); } set { setUpdateField("last", value); } }
+        internal string KainosUpdateSkip { get { return updateField("skip"); } set { setUpdateField("skip", value); } }
 
         internal string KainosWizardState
         {
@@ -72,6 +185,7 @@ namespace Thetis
                 AudioIn = comboAudioInput2.Text,
                 Layout = comboKainosLayout.SelectedIndex,
                 UIScale = comboKainosUIScale.Text,
+                LightMode = KainosLight,
             };
         }
 
@@ -104,6 +218,7 @@ namespace Thetis
 
             if (a.Layout >= 0 && comboKainosLayout.SelectedIndex != a.Layout) comboKainosLayout.SelectedIndex = a.Layout;
             select(comboKainosUIScale, a.UIScale);
+            KainosLight = a.LightMode;
             KainosWizardState = "done";
             SaveOptions();
         }

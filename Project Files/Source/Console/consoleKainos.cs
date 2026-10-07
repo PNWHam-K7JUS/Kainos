@@ -54,6 +54,7 @@ namespace Thetis
             };
             kainosAudioToolStripMenuItem.Click += (s, e) => ShowKainosAudio();
             menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(equalizerToolStripMenuItem) + 1, kainosAudioToolStripMenuItem);
+            kainosSupportMenus();       // consoleKainosSupport.cs: backup, light mode, updates, report a bug
 
             // AV button on the phone-mode panel, below RX EQ and styled like it
             chkAetherVoice = new CheckBoxTS

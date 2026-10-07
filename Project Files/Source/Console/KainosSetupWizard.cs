@@ -38,6 +38,7 @@ namespace Thetis
         // look
         public int Layout = 1;                      // 0 Classic, 1 Kainos
         public string UIScale = "100%";
+        public bool LightMode;
         public Dictionary<string, bool> Tabs = new Dictionary<string, bool>();     // right-hand column tab key: open
         public List<KeyValuePair<string, string>> TabTitles = new List<KeyValuePair<string, string>>();
 
@@ -94,6 +95,7 @@ namespace Thetis
         private ComboBox _host, _out, _in;
         // the look page
         private ComboBox _layout, _scale;
+        private CheckBox _light;
         private readonly Dictionary<string, CheckBox> _tabs = new Dictionary<string, CheckBox>();
         private Label _summary;
 
@@ -349,6 +351,11 @@ namespace Thetis
             _scale.SelectedIndex = Math.Max(0, _scale.Items.IndexOf(_now.UIScale));
             p.Controls.Add(new KainosDropDown(() => _scale, null) { Location = new Point(140, 36), Size = new Size(120, 28) });
             text(p, "On top of Windows's own display scaling. 100% suits most screens; choose a larger size if the text is hard to read.", 72, 40, true);
+            // light mode: suggested (ticked) on a PC with 4 or fewer processor threads, if it isn't on already
+            bool slow = Environment.ProcessorCount <= 4;
+            _light = new CheckBox { Text = "Light mode: no 3D, 20 frames a second" + (slow ? "  (suggested for this PC)" : ""), AutoSize = true,
+                                    Checked = _now.LightMode || (slow && !_was.LightMode && _offer), ForeColor = KainosWindowTheme.Text, Location = new Point(270, 40) };
+            p.Controls.Add(_light);
 
             if (_now.TabTitles.Count > 0)
             {
@@ -395,6 +402,7 @@ namespace Thetis
             if (_layout == null) return;
             _now.Layout = _layout.SelectedIndex;
             _now.UIScale = _scale.Text;
+            _now.LightMode = _light.Checked;
             foreach (KeyValuePair<string, CheckBox> t in _tabs) _now.Tabs[t.Key] = t.Value.Checked;
         }
 
@@ -425,6 +433,7 @@ namespace Thetis
             }
             diff("Layout", _was.Layout == 0 ? "Classic" : "Kainos", _now.Layout == 0 ? "Classic" : "Kainos");
             diff("UI scale", _was.UIScale, _now.UIScale);
+            diff("Light mode", onOff(_was.LightMode), onOff(_now.LightMode));
             Func<string, string> title = k => _now.TabTitles.Where(t => t.Key == k).Select(t => t.Value).FirstOrDefault() ?? k;
             string opened = string.Join(", ", _now.Tabs.Where(t => t.Value && !(_was.Tabs.ContainsKey(t.Key) && _was.Tabs[t.Key])).Select(t => title(t.Key)));
             string closed = string.Join(", ", _now.Tabs.Where(t => !t.Value && _was.Tabs.ContainsKey(t.Key) && _was.Tabs[t.Key]).Select(t => title(t.Key)));

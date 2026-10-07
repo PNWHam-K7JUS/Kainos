@@ -164,14 +164,15 @@ namespace Thetis
         {
             if (_kainosPhoneCaps == null)
             {
-                _kainosPhoneCaps = _kainosPhoneCaptions.Select(t => new Label
+                _kainosPhoneCaps = _kainosPhoneCaptions.Select((t, i) => new Label
                 {
+                    Name = "lblKainosPhone" + i,      // Thetis keeps its controls by name: each must be unique
                     Text = t,
                     AutoSize = false,
                     TextAlign = ContentAlignment.MiddleLeft,
                     BackColor = Color.Transparent,
                 }).ToArray();
-                _kainosProfileDrop = new KainosDropDown(() => kainosTxProfileCombo, "TRANSMIT PROFILE");
+                _kainosProfileDrop = new KainosDropDown(() => kainosTxProfileCombo, "TRANSMIT PROFILE") { Name = "kainosProfileDrop" };
                 // Thetis shows / hides VOX and DEXP's sliders: lay out again
                 foreach (Control c in kainosPhoneSliders.Select(r => r[1]))
                     c.VisibleChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };

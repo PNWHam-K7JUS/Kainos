@@ -5952,6 +5952,7 @@ namespace Thetis
 
                 drawRadeOverlayDX2D(rx, W, H, nVerticalShift);
                 drawKainosDigiMarkersDX2D(rx, W, H, nVerticalShift);       // Kainos: RTTY tone markers (displayKainos.cs)
+                drawKainosBandPlanDX2D(rx, W, H, nVerticalShift);          // Kainos: licence-aware band plan strip (displayKainos.cs)
 
                 _d2dRenderTarget.PopAxisAlignedClip();
             }

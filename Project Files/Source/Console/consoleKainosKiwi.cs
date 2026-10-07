@@ -79,6 +79,19 @@ namespace Thetis
                     case "fav": KiwiFavourites.Clear(); foreach (string u in v.Split('|')) if (u.Length > 0) KiwiFavourites.Add(Uri.UnescapeDataString(u)); break;
                     case "dev": if (int.TryParse(v, out n)) _kiwiDevice = n; break;
                     case "follow": _kiwiFollow = v != "0"; break;
+                    case "followb": _kiwiFollowB = v == "1"; break;
+                    case "main": KiwiOnPanadapter = v != "0"; break;
+                    case "wfc": if (int.TryParse(v, out n)) KiwiWfContrast = Math.Max(0, Math.Min(2, n)); break;
+                    case "wfs": if (int.TryParse(v, out n)) KiwiWfSpeed = Math.Max(1, Math.Min(4, n)); break;
+                    case "zooms":
+                        _kiwiZoomByBand.Clear();
+                        foreach (string bz in v.Split('|'))
+                        {
+                            string[] p = bz.Split(':');
+                            int z;
+                            if (p.Length == 2 && int.TryParse(p[1], out z)) _kiwiZoomByBand[p[0]] = Math.Max(0, Math.Min(14, z));
+                        }
+                        break;
                     case "vol": if (int.TryParse(v, out n)) KiwiVolume.Value = Math.Max(0, Math.Min(100, n)); break;
                 }
             }
@@ -87,7 +100,10 @@ namespace Thetis
         private void kiwiSave()
         {
             KainosKiwiSettings = "fav=" + string.Join("|", KiwiFavourites.Select(Uri.EscapeDataString)) + ";dev=" + _kiwiDevice
-                                 + ";follow=" + (_kiwiFollow ? 1 : 0) + ";vol=" + (int)KiwiVolume.Value;
+                                 + ";follow=" + (_kiwiFollow ? 1 : 0) + ";followb=" + (_kiwiFollowB ? 1 : 0) + ";main=" + (KiwiOnPanadapter ? 1 : 0)
+                                 + ";wfc=" + KiwiWfContrast + ";wfs=" + KiwiWfSpeed
+                                 + ";zooms=" + string.Join("|", _kiwiZoomByBand.Select(kv => kv.Key + ":" + kv.Value))
+                                 + ";vol=" + (int)KiwiVolume.Value;
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -138,14 +154,23 @@ namespace Thetis
             _kiwiStatus = new KainosTextLine(() => _kiwiState, () => _kiwi != null && _kiwi.Connected ? KainosUI.Text : KainosUI.Dim);
             _kiwiButtons = new KainosActionGrid(3);
             _kiwiButtons.Add("Refresh", () => _kiwiLoading, kiwiRefresh, KainosUI.Tone.Ice);
+            // Follow: VFO A, then VFO B, then off (the Kiwi tuned on its own)
             _kiwiButtons.Add("Follow", () => _kiwiFollow, () =>
             {
-                _kiwiFollow = !_kiwiFollow;
+                if (!_kiwiFollow) { _kiwiFollow = true; _kiwiFollowB = false; }
+                else if (!_kiwiFollowB) _kiwiFollowB = true;
+                else
+                {
+                    KiwiOwnMode = kiwiFollowMode; KiwiOwnKhz = kiwiFollowKhz(KiwiOwnMode);     // carry on from where it was
+                    _kiwiFollow = false; _kiwiFollowB = false;
+                }
                 _kiwiLastKhz = 0;
-                if (!_kiwiFollow) { KiwiOwnKhz = VFOAFreq * 1000; KiwiOwnMode = kiwiMode(_rx1_dsp_mode); }    // carry on from where it was
                 kiwiSave();
             }, KainosUI.Tone.Gold);
+            _kiwiButtons.LabelFor = (i, l) => l == "Follow" ? (_kiwiFollow ? (_kiwiFollowB ? "Follow B" : "Follow A") : "Follow") : l;
             _kiwiButtons.Add("Stop", () => false, kiwiStop, KainosUI.Tone.Tx);
+            _kiwiButtons.Add("Waterfall", () => _kiwiWfForm != null, KiwiShowWaterfall, KainosUI.Tone.Ice);      // consoleKainosKiwiWaterfall.cs
+            _kiwiButtons.Add("Main view", () => KiwiOnPanadapter, () => { KiwiOnPanadapter = !KiwiOnPanadapter; kiwiSave(); kiwiWfTick(); }, KainosUI.Tone.Ice);
             _kiwiVolume = new KainosUpDown(KiwiVolume, "Vol", "%", false);
             KiwiVolume.ValueChanged += (s, e) => { if (_kiwiOut != null) _kiwiOut.Volume = (float)KiwiVolume.Value / 100f; kiwiSave(); };
             _kiwiTune = new KainosKiwiTune(this);
@@ -227,6 +252,18 @@ namespace Thetis
             KiwiNearest = q.OrderBy(r => KiwiFavourites.Contains(r.Url) ? 0 : 1).Take(KainosKiwiList.Rows).ToList();
         }
 
+        // the Kiwi's frequency when following VFO A. In CW, Thetis's VFO is the signal itself, while the Kiwi listens
+        // above its frequency: so it's tuned a CW pitch below, and the signal is heard at the same pitch (issue #5)
+        private double kiwiFollowKhz(string mode)
+        {
+            return (_kiwiFollowB ? VFOBFreq : VFOAFreq) * 1000 - (mode == "cw" ? cw_pitch / 1000.0 : 0);
+        }
+
+        // following VFO B: RX2's mode with RX2 on (B is RX2's VFO), otherwise RX1's (split, without RX2)
+        private bool _kiwiFollowB;
+        internal bool KiwiFollowB { get { return _kiwiFollow && _kiwiFollowB; } }
+        private string kiwiFollowMode { get { return kiwiMode(_kiwiFollowB && RX2Enabled ? _rx2_dsp_mode : _rx1_dsp_mode); } }
+
         private static string kiwiMode(DSPMode m)
         {
             switch (m)
@@ -246,8 +283,9 @@ namespace Thetis
             _kiwi = new KiwiClient();
             _kiwi.Status += s => { try { BeginInvoke(new Action(() => _kiwiState = s + (_kiwiOn != null ? " - " + _kiwiOn.Loc : ""))); } catch { } };
             _kiwi.Audio += kiwiAudio;
-            _kiwiLastKhz = VFOAFreq * 1000;
-            _kiwiLastMode = kiwiMode(_rx1_dsp_mode);
+            _kiwiLastMode = kiwiFollowMode;
+            _kiwiLastKhz = kiwiFollowKhz(_kiwiLastMode);
+            _kiwi.CwPitch = cw_pitch;
             if (_kiwiFollow) _kiwi.Connect(r.Url, KainosMyCallsign, _kiwiLastKhz, _kiwiLastMode);
             else _kiwi.Connect(r.Url, KainosMyCallsign, KiwiOwnKhz, KiwiOwnMode);
         }
@@ -284,12 +322,12 @@ namespace Thetis
 
         private void kiwiTick()
         {
-            if (_kainosColumn == null || !_kainosColumn.IsOn("kiwi")) return;
-            if (_kiwiAll.Count == 0 && !_kiwiLoading && _kiwiState.StartsWith("Pick")) kiwiRefresh();
+            // following (VFO A or B) and the waterfall keep going with the tab closed
             if (_kiwi != null && _kiwiFollow)
             {
-                double khz = VFOAFreq * 1000;
-                string mode = kiwiMode(_rx1_dsp_mode);
+                string mode = kiwiFollowMode;
+                double khz = kiwiFollowKhz(mode);
+                _kiwi.CwPitch = cw_pitch;
                 if (Math.Abs(khz - _kiwiLastKhz) > 0.0005 || mode != _kiwiLastMode)
                 {
                     _kiwiLastKhz = khz;
@@ -297,6 +335,9 @@ namespace Thetis
                     _kiwi.Tune(khz, mode);
                 }
             }
+            kiwiWfTick();
+            if (_kainosColumn == null || !_kainosColumn.IsOn("kiwi")) return;
+            if (_kiwiAll.Count == 0 && !_kiwiLoading && _kiwiState.StartsWith("Pick")) kiwiRefresh();
             _kiwiStatus.Invalidate();
             _kiwiButtons.Invalidate();
             _kiwiTune.Invalidate();

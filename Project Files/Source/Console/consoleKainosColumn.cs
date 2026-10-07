@@ -453,16 +453,16 @@ namespace Thetis
 
         #region VFO SYNC
 
+        // laid out for the column (consoleKainosSync.cs)
         private int kainosSyncMeasure(int w)
         {
-            kainosFitPanel(grpVFOBetween, w);
-            return grpVFOBetween.Height;
+            return kainosSyncLayout(w, false);
         }
 
         private void kainosSyncArrange(Rectangle r)
         {
-            kainosFitPanel(grpVFOBetween, r.Width);
-            kainosPin(grpVFOBetween, new Rectangle(r.Left, r.Top, r.Width, grpVFOBetween.Height), false);
+            int h = kainosSyncLayout(r.Width, true);
+            kainosPin(grpVFOBetween, new Rectangle(r.Left, r.Top, r.Width, h), false);
         }
 
         #endregion
@@ -611,6 +611,7 @@ namespace Thetis
             }
             _kainosFits.Clear();
             kainosPhoneRestore();
+            kainosSyncRestore();
         }
 
         #endregion
@@ -719,6 +720,7 @@ namespace Thetis
         {
             public string Key, Title;
             public bool On, DefaultOn;
+            public int Added;                   // the order the sections were added in (Reset order)
             public Func<int, int> Measure;
             public Action<Rectangle> Arrange;
             public RectangleF TabRect;
@@ -730,6 +732,13 @@ namespace Thetis
         private int _scroll, _contentHeight;
         private Section _hoverTab;
         public readonly KainosViewport Viewport;
+        // the order the user has put the tabs in (from the saved tab state); tabs it doesn't list follow, in the
+        // order they were added. Some sections are added after the state is loaded, so it's applied again each time.
+        private List<string> _order = new List<string>();
+        // dragging a tab chip to a new place: the chip pressed, where, and where it would go (index in _sections)
+        private Section _pressed, _dragging;
+        private Point _pressAt;
+        private int _dropAt = -1;
         public event EventHandler TabsChanged;
 
         public KainosColumn(Console console)
@@ -740,11 +749,59 @@ namespace Thetis
             BackColor = KainosUI.Surface;
             Viewport = new KainosViewport(this);
             Controls.Add(Viewport);
+            _bar = new KainosScrollBar(this) { Visible = false };
+            Controls.Add(_bar);
+            Application.AddMessageFilter(new KainosWheelFilter(this));
+        }
+
+        // ---- scrolling: a scroll bar down the right-hand side when the sections don't all fit, and the mouse wheel
+        // anywhere over the column scrolls it (hold Ctrl to use the wheel on a slider or list instead; GitHub #4) ----
+        private readonly KainosScrollBar _bar;
+        internal int ScrollPos { get { return _scroll; } }
+        internal int ContentHeight { get { return _contentHeight; } }
+        internal int ViewHeight { get { return Viewport.Height; } }
+
+        internal void ScrollTo(int pos)
+        {
+            int before = _scroll;
+            _scroll = Math.Max(0, Math.Min(pos, Math.Max(0, _contentHeight - Viewport.Height)));
+            if (_scroll != before) ArrangeSections();
         }
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
         {
-            _sections.Add(new Section { Key = key, Title = title, On = defaultOn, DefaultOn = defaultOn, Measure = measure, Arrange = arrange });
+            _sections.Add(new Section { Key = key, Title = title, On = defaultOn, DefaultOn = defaultOn, Measure = measure, Arrange = arrange, Added = _sections.Count });
+            applyOrder();
+        }
+
+        private void applyOrder()
+        {
+            List<Section> sorted = _sections.OrderBy(s => { int i = _order.IndexOf(s.Key); return i < 0 ? int.MaxValue : i; }).ThenBy(s => s.Added).ToList();
+            _sections.Clear();
+            _sections.AddRange(sorted);
+        }
+
+        // moves a tab to index (in the current order), remembers the order, and lets the console save it and lay out
+        private void moveTab(Section s, int index)
+        {
+            int from = _sections.IndexOf(s);
+            if (from < 0) return;
+            index = Math.Max(0, Math.Min(_sections.Count, index));
+            if (index == from || index == from + 1) return;
+            _sections.RemoveAt(from);
+            if (index > from) index--;
+            _sections.Insert(index, s);
+            _order = _sections.Select(x => x.Key).ToList();
+            Invalidate();
+            TabsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void resetOrder()
+        {
+            _order = new List<string>();
+            applyOrder();
+            Invalidate();
+            TabsChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public bool IsOn(string key) { Section s = _sections.Find(x => x.Key == key); return s != null && s.On; }
@@ -760,8 +817,8 @@ namespace Thetis
             TabsChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        // "meters,band,-rx": tabs that are on, and "-" before the ones turned off; a tab not listed (new in this
-        // version of Kainos) starts as its section says
+        // "meters,band,-rx": tabs that are on, and "-" before the ones turned off, in the order they're shown; a tab
+        // not listed (new in this version of Kainos) starts as its section says, after the others
         public string TabState
         {
             get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key)); }
@@ -770,6 +827,8 @@ namespace Thetis
                 string[] items = (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (Section s in _sections)
                     s.On = items.Contains(s.Key) || (!items.Contains("-" + s.Key) && s.DefaultOn);
+                _order = items.Select(i => i.TrimStart('-')).ToList();
+                applyOrder();
                 Invalidate();
             }
         }
@@ -802,20 +861,32 @@ namespace Thetis
         public void ArrangeSections()
         {
             int top = tabBarHeight();
-            Viewport.SetBounds(1, top, Width - 1, Math.Max(0, Height - top));
+            int viewH = Math.Max(0, Height - top), barW = KainosUI.S(16);
             int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(10);
-            int w = Viewport.Width - pad * 2;
             // one section failing must not blank the rest of the column (issue #1): it's measured as empty and logged
             Dictionary<Section, int> heights = new Dictionary<Section, int>();
-            foreach (Section s in _sections)
+            Func<int, int> measureAll = width =>
             {
-                if (!s.On) continue;
-                int h = 0;
-                try { h = Math.Max(0, s.Measure(w)); } catch (Exception ex) { logSection(s, "measure", ex); }
-                heights[s] = h;
-            }
-            int total = 0;
-            foreach (int h in heights.Values) total += header + h + gap;
+                heights.Clear();
+                int sum = 0;
+                foreach (Section s in _sections)
+                {
+                    if (!s.On) continue;
+                    int h = 0;
+                    try { h = Math.Max(0, s.Measure(width)); } catch (Exception ex) { logSection(s, "measure", ex); }
+                    heights[s] = h;
+                    sum += header + h + gap;
+                }
+                return sum;
+            };
+            int viewW = Width - 1;
+            int total = measureAll(viewW - pad * 2);
+            bool scrolls = total > viewH;
+            if (scrolls) { viewW -= barW; total = measureAll(viewW - pad * 2); }      // room for the scroll bar
+            int w = viewW - pad * 2;
+            Viewport.SetBounds(1, top, viewW, viewH);
+            _bar.SetBounds(1 + viewW, top, Width - 1 - viewW, viewH);
+            if (_bar.Visible != scrolls) _bar.Visible = scrolls;
             _contentHeight = total;
             _scroll = Math.Max(0, Math.Min(_scroll, total - Viewport.Height));
             int y = -_scroll;
@@ -834,6 +905,7 @@ namespace Thetis
             }
             Invalidate();
             Viewport.Invalidate();
+            _bar.Invalidate();
         }
 
         private static readonly HashSet<string> _logged = new HashSet<string>();
@@ -851,9 +923,7 @@ namespace Thetis
 
         internal void ScrollBy(int delta)
         {
-            int before = _scroll;
-            _scroll = Math.Max(0, Math.Min(_scroll - Math.Sign(delta) * KainosUI.S(40), Math.Max(0, _contentHeight - Viewport.Height)));
-            if (_scroll != before) ArrangeSections();
+            ScrollTo(_scroll - Math.Sign(delta) * KainosUI.S(60));
         }
 
         internal void PaintHeaders(Graphics g)
@@ -862,12 +932,18 @@ namespace Thetis
             using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(11)), FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush b = new SolidBrush(KainosUI.Ice))
             using (Pen line = new Pen(KainosUI.Line))
+            using (Brush dim = new SolidBrush(KainosUI.Faint))
+            {
                 foreach (Section s in _sections)
                 {
                     if (!s.On || s.HeaderRect.IsEmpty) continue;
-                    g.DrawString(s.Title, f, b, s.HeaderRect.Left, s.HeaderRect.Top + KainosUI.S(5));
+                    g.DrawString(s.Title, f, s == _hDragging ? dim : b, s.HeaderRect.Left, s.HeaderRect.Top + KainosUI.S(5));
                     g.DrawLine(line, s.HeaderRect.Left, s.HeaderRect.Bottom - 3, s.HeaderRect.Right, s.HeaderRect.Bottom - 3);
                 }
+                if (_hDragging != null && _hDropAt >= 0)
+                    using (Pen p = new Pen(KainosUI.GoldHi, Math.Max(2f, KainosUI.S(2))))
+                        g.DrawLine(p, KainosUI.S(8), _hDropY, Viewport.Width - KainosUI.S(8), _hDropY);
+            }
         }
 
         protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
@@ -875,8 +951,117 @@ namespace Thetis
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
+            if (_pressed != null && e.Button == MouseButtons.Left)
+            {
+                if (_dragging == null && (Math.Abs(e.X - _pressAt.X) > KainosUI.S(6) || Math.Abs(e.Y - _pressAt.Y) > KainosUI.S(6)))
+                {
+                    _dragging = _pressed;
+                    Cursor = Cursors.SizeAll;
+                }
+                if (_dragging != null)
+                {
+                    int at = dropIndex(e.Location);
+                    if (at != _dropAt) { _dropAt = at; Invalidate(); }
+                    return;
+                }
+            }
             Section h = _sections.Find(s => s.TabRect.Contains(e.Location));
             if (h != _hoverTab) { _hoverTab = h; Cursor = h != null ? Cursors.Hand : Cursors.Default; Invalidate(); }
+        }
+
+        // where a dragged chip would go: before the chip under the pointer (after it, past its middle), or at the
+        // end of the row it's on
+        private int dropIndex(Point p)
+        {
+            float h = _sections.Count > 0 ? _sections[0].TabRect.Height : 0;
+            for (int i = 0; i < _sections.Count; i++)
+            {
+                RectangleF r = _sections[i].TabRect;
+                if (p.Y < r.Top - KainosUI.S(4) || p.Y > r.Bottom + KainosUI.S(4)) continue;
+                if (p.X < r.Left + r.Width / 2) return i;
+                bool lastOnRow = i == _sections.Count - 1 || _sections[i + 1].TabRect.Top > r.Top;
+                if (lastOnRow) return i + 1;
+            }
+            return p.Y < (_sections.Count > 0 ? _sections[0].TabRect.Top : 0) ? 0 : _sections.Count;
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            Section pressed = _pressed, dragged = _dragging;
+            int at = _dropAt;
+            _pressed = _dragging = null;
+            _dropAt = -1;
+            Cursor = Cursors.Default;
+            if (e.Button != MouseButtons.Left || pressed == null) return;
+            if (dragged != null) { if (at >= 0) moveTab(dragged, at); Invalidate(); return; }
+            if (!pressed.TabRect.Contains(e.Location)) return;
+            pressed.On = !pressed.On;                  // a click: open or close the tab
+            TabsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        // ---- dragging a section by its title in the column (the viewport passes its mouse here) ----
+        private Section _hPressed, _hDragging;
+        private Point _hPressAt;
+        private int _hDropAt = -1, _hDropY;
+
+        private Section headerAt(Point p) { return _sections.Find(s => s.On && !s.HeaderRect.IsEmpty && s.HeaderRect.Contains(p)); }
+
+        internal bool OverHeader(Point p) { return headerAt(p) != null; }
+        internal bool HeaderBusy { get { return _hPressed != null; } }
+
+        internal void HeaderDown(Point p, MouseButtons b)
+        {
+            Section s = headerAt(p);
+            if (s == null) return;
+            if (b == MouseButtons.Right) { tabMenu(s, PointToClient(Viewport.PointToScreen(p))); return; }
+            if (b != MouseButtons.Left) return;
+            _hPressed = s;
+            _hPressAt = p;
+            _hDragging = null;
+        }
+
+        internal void HeaderMove(Point p, MouseButtons b)
+        {
+            if (_hPressed == null || b != MouseButtons.Left) return;
+            if (_hDragging == null && Math.Abs(p.Y - _hPressAt.Y) + Math.Abs(p.X - _hPressAt.X) > KainosUI.S(6)) _hDragging = _hPressed;
+            if (_hDragging == null) return;
+            // before the first open section whose title is below the pointer, or after the last
+            List<Section> open = _sections.Where(s => s.On && !s.HeaderRect.IsEmpty).ToList();
+            Section before = open.FirstOrDefault(s => s.HeaderRect.Top + s.HeaderRect.Height / 2 > p.Y);
+            int at = before != null ? _sections.IndexOf(before) : _sections.Count;
+            int y = before != null ? before.HeaderRect.Top - KainosUI.S(4) : _contentHeight - _scroll - KainosUI.S(4);
+            if (at != _hDropAt || y != _hDropY) { _hDropAt = at; _hDropY = y; Viewport.Invalidate(); }
+        }
+
+        internal void HeaderUp(Point p, MouseButtons b)
+        {
+            Section dragged = _hDragging;
+            int at = _hDropAt;
+            _hPressed = _hDragging = null;
+            _hDropAt = -1;
+            Viewport.Invalidate();
+            if (dragged != null && at >= 0) moveTab(dragged, at);
+        }
+
+        private void tabMenu(Section s, Point at)
+        {
+            ContextMenuStrip menu = new ContextMenuStrip { Renderer = new KainosToolStripRenderer(), BackColor = KainosUI.Raised, ForeColor = KainosUI.Text, ShowImageMargin = false };
+            int i = _sections.IndexOf(s);
+            Action<string, bool, Action> add = (text, enabled, act) =>
+            {
+                ToolStripMenuItem item = new ToolStripMenuItem(text) { Enabled = enabled, ForeColor = KainosUI.Text };
+                item.Click += (o, a) => act();
+                menu.Items.Add(item);
+            };
+            add("Move up", i > 0, () => moveTab(s, i - 1));
+            add("Move down", i < _sections.Count - 1, () => moveTab(s, i + 2));
+            add("Move to the top", i > 0, () => moveTab(s, 0));
+            add("Move to the bottom", i < _sections.Count - 1, () => moveTab(s, _sections.Count));
+            menu.Items.Add(new ToolStripSeparator());
+            add("Reset the order", _order.Count > 0, resetOrder);
+            menu.Closed += (o, a) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(this, at);
         }
 
         protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hoverTab = null; Invalidate(); }
@@ -886,9 +1071,12 @@ namespace Thetis
             base.OnMouseDown(e);
             Focus();
             Section s = _sections.Find(x => x.TabRect.Contains(e.Location));
-            if (s == null || e.Button != MouseButtons.Left) return;
-            s.On = !s.On;
-            TabsChanged?.Invoke(this, EventArgs.Empty);
+            if (s == null) return;
+            if (e.Button == MouseButtons.Right) { tabMenu(s, e.Location); return; }
+            if (e.Button != MouseButtons.Left) return;
+            _pressed = s;                               // a click (on release) or the start of a drag
+            _pressAt = e.Location;
+            _dragging = null;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -909,10 +1097,118 @@ namespace Thetis
                         if (s.On) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillPath(b, path);
                         using (Pen p = new Pen(border)) g.DrawPath(p, path);
                     }
-                    using (Brush b = new SolidBrush(fore)) g.DrawString(s.Title, f, b, s.TabRect, sf);
+                    using (Brush b = new SolidBrush(s == _dragging ? KainosUI.Faint : fore)) g.DrawString(s.Title, f, b, s.TabRect, sf);
+                }
+                if (_dragging != null && _dropAt >= 0 && _sections.Count > 0)
+                {
+                    // after the chip before the gap when the gap ends a row, otherwise before the chip after it
+                    bool after = _dropAt > 0 && (_dropAt == _sections.Count || _sections[_dropAt].TabRect.Top > _sections[_dropAt - 1].TabRect.Top);
+                    RectangleF r = after ? _sections[_dropAt - 1].TabRect : _sections[_dropAt].TabRect;
+                    float x = after ? r.Right + KainosUI.S(2) : r.Left - KainosUI.S(2);
+                    using (Pen p = new Pen(KainosUI.GoldHi, Math.Max(2f, KainosUI.S(2)))) g.DrawLine(p, x, r.Top - 1, x, r.Bottom + 1);
                 }
             }
             using (Pen p = new Pen(KainosUI.Line)) g.DrawLine(p, 0, top - 1, Width, top - 1);
+        }
+    }
+
+    // The column's scroll bar, in the Kainos colours: drag the thumb, or click above or below it to move a page
+    internal class KainosScrollBar : Control
+    {
+        private readonly KainosColumn _column;
+        private bool _hover, _dragging;
+        private int _dragFrom, _scrollFrom;
+
+        public KainosScrollBar(KainosColumn column)
+        {
+            _column = column;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            BackColor = KainosUI.Surface;
+        }
+
+        private RectangleF thumb
+        {
+            get
+            {
+                int content = Math.Max(1, _column.ContentHeight), view = _column.ViewHeight;
+                float pad = KainosUI.S(3);
+                float track = Height - pad * 2;
+                float h = Math.Max(KainosUI.S(30), track * Math.Min(1f, view / (float)content));
+                float range = Math.Max(1, content - view);
+                float y = pad + (track - h) * Math.Min(1f, _column.ScrollPos / range);
+                return new RectangleF(pad, y, Width - pad * 2, h);
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (Brush track = new SolidBrush(KainosUI.Bg)) g.FillRectangle(track, 0, 0, Width, Height);
+            RectangleF t = thumb;
+            using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(t, t.Width / 2f))
+            using (Brush b = new SolidBrush(_dragging ? KainosUI.Gold : _hover ? KainosUI.Dim : KainosUI.Line))
+                g.FillPath(b, path);
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button != MouseButtons.Left) return;
+            RectangleF t = thumb;
+            if (e.Y >= t.Top && e.Y <= t.Bottom) { _dragging = true; _dragFrom = e.Y; _scrollFrom = _column.ScrollPos; Capture = true; }
+            else _column.ScrollTo(_column.ScrollPos + (e.Y < t.Top ? -1 : 1) * (int)(_column.ViewHeight * 0.9));
+            Invalidate();
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            if (!_dragging) return;
+            float track = Height - KainosUI.S(6) - thumb.Height;
+            if (track <= 0) return;
+            float perPixel = Math.Max(0, _column.ContentHeight - _column.ViewHeight) / track;
+            _column.ScrollTo(_scrollFrom + (int)((e.Y - _dragFrom) * perPixel));
+            Invalidate();
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            _dragging = false;
+            Capture = false;
+            Invalidate();
+        }
+    }
+
+    // The mouse wheel over the right-hand column scrolls the column, whatever is under the pointer; with Ctrl held it
+    // goes to the slider or list under the pointer as usual
+    internal class KainosWheelFilter : IMessageFilter
+    {
+        private readonly KainosColumn _column;
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr WindowFromPoint(Point p);
+
+        public KainosWheelFilter(KainosColumn column) { _column = column; }
+
+        public bool PreFilterMessage(ref Message m)
+        {
+            const int WM_MOUSEWHEEL = 0x020A;
+            if (m.Msg != WM_MOUSEWHEEL || !_column.Visible || _column.IsDisposed) return false;
+            if ((Control.ModifierKeys & Keys.Control) != 0) return false;
+            // over the column's area of the main window: the column itself, or a Thetis panel Kainos places over it
+            // (the TX tab's phone panel, the VFO SYNC panel ...), which isn't the column's child
+            Point at = Cursor.Position;
+            if (!_column.RectangleToScreen(_column.ClientRectangle).Contains(at)) return false;
+            Control c = Control.FromChildHandle(WindowFromPoint(at));
+            if (c == null || c.FindForm() != _column.FindForm()) return false;      // another window over it (a flag, a menu)
+            int delta = (short)((m.WParam.ToInt64() >> 16) & 0xffff);
+            _column.ScrollBy(delta);
+            return true;
         }
     }
 
@@ -933,6 +1229,16 @@ namespace Thetis
         {
             base.OnPaint(e);
             _column.PaintHeaders(e.Graphics);
+        }
+
+        // a section's title can be dragged to move the section (or right-clicked for the tab menu)
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); _column.HeaderDown(e.Location, e.Button); }
+        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _column.HeaderUp(e.Location, e.Button); }
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            _column.HeaderMove(e.Location, e.Button);
+            Cursor = _column.HeaderBusy ? Cursors.SizeNS : _column.OverHeader(e.Location) ? Cursors.SizeAll : Cursors.Default;
         }
 
         protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); _column.ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
@@ -1169,7 +1475,8 @@ namespace Thetis
         }
 
         // a Thetis button counts as shown unless it was hidden itself (its panel is collapsed, not hidden)
-        private bool shown(ButtonBase t) { return t.Visible && LabelFor(t).Length > 0; }
+        // the button's own Visible (Thetis's Legacy Items can hide the whole mode / filter panel; GitHub issue #6)
+        private bool shown(ButtonBase t) { return KainosUI.OwnVisible(t) && LabelFor(t).Length > 0; }
 
         private List<Cell> shownCells() { return _cells.Where(c => shown(c.Target)).ToList(); }
 

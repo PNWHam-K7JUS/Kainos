@@ -216,6 +216,25 @@ namespace Thetis
             public override Color MenuStripGradientEnd { get { return KainosUI.Surface; } }
             public override Color StatusStripGradientBegin { get { return KainosUI.Surface; } }
             public override Color StatusStripGradientEnd { get { return KainosUI.Surface; } }
+            // tool bars (a window's own, like the FreeDV Reporter's) and their buttons: Windows's near-white otherwise
+            public override Color ToolStripGradientBegin { get { return KainosUI.Surface; } }
+            public override Color ToolStripGradientMiddle { get { return KainosUI.Surface; } }
+            public override Color ToolStripGradientEnd { get { return KainosUI.Surface; } }
+            public override Color ToolStripContentPanelGradientBegin { get { return KainosUI.Surface; } }
+            public override Color ToolStripContentPanelGradientEnd { get { return KainosUI.Surface; } }
+            public override Color ButtonSelectedGradientBegin { get { return Color.FromArgb(0x1d, 0x2a, 0x33); } }
+            public override Color ButtonSelectedGradientMiddle { get { return Color.FromArgb(0x1d, 0x2a, 0x33); } }
+            public override Color ButtonSelectedGradientEnd { get { return Color.FromArgb(0x1d, 0x2a, 0x33); } }
+            public override Color ButtonPressedGradientBegin { get { return KainosUI.Selected; } }
+            public override Color ButtonPressedGradientMiddle { get { return KainosUI.Selected; } }
+            public override Color ButtonPressedGradientEnd { get { return KainosUI.Selected; } }
+            public override Color ButtonPressedBorder { get { return KainosUI.Gold; } }
+            public override Color ButtonCheckedGradientBegin { get { return KainosUI.Selected; } }
+            public override Color ButtonCheckedGradientMiddle { get { return KainosUI.Selected; } }
+            public override Color ButtonCheckedGradientEnd { get { return KainosUI.Selected; } }
+            public override Color ButtonCheckedHighlight { get { return KainosUI.Selected; } }
+            public override Color GripDark { get { return KainosUI.Line; } }
+            public override Color GripLight { get { return KainosUI.Line; } }
             public override Color ToolStripDropDownBackground { get { return KainosUI.Raised; } }
             public override Color ImageMarginGradientBegin { get { return KainosUI.Raised; } }
             public override Color ImageMarginGradientMiddle { get { return KainosUI.Raised; } }

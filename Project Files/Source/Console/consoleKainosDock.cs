@@ -52,7 +52,8 @@ namespace Thetis
                 {
                     new[] { dockItem(chkPower, KainosUI.Tone.Ice, "POWER"), dockItem(chkRX2, KainosUI.Tone.Violet, "RX2") },
                     new[] { dockItem(chkMOX, KainosUI.Tone.Tx), dockItem(chkTUN, KainosUI.Tone.Tx),
-                            dockItem(chk2TONE, KainosUI.Tone.Tx), dockItem(chkMON, KainosUI.Tone.Gold),
+                            dockItem(chk2TONE, KainosUI.Tone.Tx), dockItem(kainosSwrButton, KainosUI.Tone.Ice, "SWR"),     // the SWR sweep (consoleKainosSwr.cs)
+                            dockItem(chkMON, KainosUI.Tone.Gold),
                             dockItem(chkVOX, KainosUI.Tone.Gold), dockItem(chkRX2SR, KainosUI.Tone.Gold),
                             dockItem(chkFWCATUBypass, KainosUI.Tone.Gold), dockItem(chkExternalPA, KainosUI.Tone.Gold) },
                     new[] { dockItem(chkVFOSplit, KainosUI.Tone.Gold), dockItem(btnVFOAtoB, KainosUI.Tone.Ice), dockItem(btnVFOBtoA, KainosUI.Tone.Ice),

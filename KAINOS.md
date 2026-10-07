@@ -6,6 +6,57 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.7 (not yet released)
+
+**New: SWR sweep**
+- An **SWR** button in the left-hand column opens the sweep window. Pick a band (or your own range) and Kainos steps a low-power carrier (1 W at most) across it, plotting SWR as it goes.
+- Shows the lowest SWR and where it is, and the 2:1 bandwidth.
+- **Save** sweeps and tick earlier ones to lay them over the current one, to compare antennas or watch one change over time. **Export CSV** for a spreadsheet.
+- Before each sweep, a reminder to turn off any antenna tuner, put any amplifier in bypass or off, and connect an antenna or dummy load. The sweep stops by itself if SWR goes above 5:1 or the output above 1 W, and puts your frequency and tune settings back afterwards.
+
+**New: KiwiSDR panadapter and waterfall**
+- A **Waterfall** button in the KIWI tab opens the KiwiSDR you're listening to as a panadapter and waterfall: its live spectrum, your tuned frequency and passband, and a frequency scale.
+- Click a signal to tune to it, or use the mouse wheel; Ctrl + wheel or the Zoom buttons zoom from the whole 0-30 MHz down to a couple of kHz. The view follows your frequency.
+- **Kiwi as your radio:** with the HL2 off, the Kiwi you're listening to fills the main panadapter area, and the VFO flag, band and mode lists and the mouse wheel all tune it. Power the HL2 on and its own panadapter comes back. Turn this off with **Main view** in the KIWI tab.
+- **Follow** now steps through **Follow A**, **Follow B** and off, so the Kiwi can listen on VFO B while the HL2 is on VFO A. Following keeps working with the KIWI tab closed.
+- Tuning from the Kiwi's view tunes the VFO being followed (A or B), or the Kiwi on its own with Follow off.
+- The Kiwi's view shows DX cluster and POTA spots as call tags (click one to tune to it) and the same band plan as the main panadapter. Right-click it for the waterfall's **Contrast** and **Speed**; the zoom you choose on each band is remembered.
+
+**New: arrange the right-hand column your way**
+- Drag a section by its title in the column (RX, METERS, BAND ...), or its tab at the top of the column, to a new place. A gold marker shows where it will land.
+- Or right-click a tab for Move up, Move down, Move to the top or bottom, and Reset the order.
+- Your order is saved; tabs added in future versions go at the end.
+
+**New: safety nets**
+- **Report a bug** at the top right of the menu bar (and in the Setup menu): describe what happened and Kainos opens a new GitHub issue with diagnostics filled in (versions, Windows, screen, layout, radio, recent errors). Nothing is sent until you press Submit on GitHub; you can also copy it all to paste elsewhere.
+- **Setup > Back up settings now**: one click backs up your current settings. Restore a backup, or keep several settings profiles, in Setup > Database Manager.
+- **Update notice**: once a day Kainos checks for a new version and, if there is one, shows what's new with Download, Later and Skip this version. Setup > Check for updates checks right away.
+
+**New: light mode**
+- For slower PCs: turns the 3D panadapter off and lowers the display to 20 frames a second. In the Setup menu and Setup > Appearance > Kainos, and suggested by the setup wizard on PCs with 4 or fewer processor threads. Turning it off puts your frame rate and 3D back.
+
+**New: licence-aware band plan**
+- A band along the bottom of the panadapter shows what each part of the band is used for (CW, DIGITAL, SSB, BEACONS, AM, SATELLITE, FM, from the ARRL band plan, or IARU Region 1's outside the Americas), with small tags above it at the popular spot frequencies (FT8, FT4, WSPR, PSK31, SSTV, AM, QRP).
+- Its colour shows where you may transmit: gold all modes, ice CW and data, violet CW only, red out of privileges (labelled "OUT OF PRIVILEGES" there). It's see-through, so signals still show.
+- Uses the country and licence class from the setup wizard, or set them in Setup > Appearance > Kainos > Band plan (where it can also be turned off).
+- Full privileges are built in for the United States (Technician, General, Amateur Extra; HF and 6 m) and Canada; elsewhere the band edges are shown. It's a guide: always check your own licence.
+
+**New: easier scrolling in the right-hand column**
+- A scroll bar down the right-hand side when the open tabs don't all fit: drag it, or click above or below it.
+- The mouse wheel anywhere over the column now scrolls the column instead of changing whatever slider is under the pointer. Hold Ctrl to use the wheel on a slider or list (GitHub issue #4).
+
+**Changed: the VFO SYNC tab in the Kainos look**
+- VFO Sync, Rx Ant, VFO lock A / B, tune step, quick memory (Save / Restore) and the band stack are now in rows like the rest of the right-hand column, with Kainos's rounded buttons instead of the old scaled-down Thetis panel. The Classic layout is unchanged.
+
+**New: one-line VFO flags**
+- Click the A or B on a VFO flag to shrink it to one line (mode, frequency and TX), as in SmartSDR; click it again for the full flag. The frequency still tunes with the wheel and can be clicked to type one (GitHub issue #4).
+
+**Fixed**
+- Setup and the other windows were hard to read in places (GitHub issue #3): text is now brighter (near white, with clearer group titles), greyed-out options are a readable grey instead of dark blue, the radio list on Setup > General no longer shows light text on a light highlight, the Meters/Gadgets lists show their names in white, and any text that ends up light on a light box (like the "TX Profile modified" notice) is switched to dark.
+- The FreeDV Reporter's station list was hard to read (white rows behind light text): it's now dark like the rest of Kainos, with darker red / green / plum shades for stations transmitting, just heard, or with a new message, and its tool bar is dark too.
+- The VFO flag's MODE tab could open empty (no mode or filter buttons) when Thetis's Legacy Items "Hide mode / filter button grid" options were on (GitHub issue #6).
+- KiwiSDR in CW, following VFO A: the Kiwi was off by the CW pitch. It now hears a signal on your VFO at your own CW pitch (GitHub issue #5).
+
 ### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**
@@ -387,6 +438,55 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
 - Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
 - Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Audio (VAC 1 on or off, audio system, speakers and microphone from PortAudio's lists, as Setup's; a test tone through NAudio on the matching Windows device; the HL2 has no audio output of its own), Look (layout, UI scale, which right-hand column tabs are open: `KainosColumn.TabList` / `SetOn`), Summary (only what changes). Nothing is set until Apply, which also saves.
+
+### VFO SYNC tab
+
+- `consoleKainosSync.cs` lays out Thetis's `grpVFOBetween` for the column (as consoleKainosPhone.cs does the phone panel): rows for VFO Sync / Rx Ant, VFO lock A / B, tune step, quick memory, Save / Restore, and band stack with the quick recall pad; Thetis's labels moved away and Kainos captions in their place; the group box's frame painted over in Kainos layout; text alignment and the recorded layout put back in Classic. Its buttons are in `kainosStyledButtons`, so they're drawn rounded.
+- The console, like Setup, keeps its controls in a list keyed by name: every control Kainos adds to a Thetis panel needs a unique Name, or Kainos stops at startup ("An item with the same key has already been added").
+
+### Readable windows (issue #3)
+
+- `KainosWindowTheme`: brighter `Text` / `TextMid` / `TextDim`. `watchContrast` on labels, buttons, text boxes, panels and group boxes: text light on a light background (`effectiveBack`) becomes dark, and goes back when the background does (watched through BackColorChanged, the container's too). `paintDisabled` redraws a disabled label's, check box's or radio button's text in a readable grey (Windows draws it darker than the background), with GDI+ as Windows does so it fits as before.
+- `ucRadioList` (Thetis): a dark palette when the colour behind it is dark (the theme makes it transparent). Setup's meter and MMIO lists draw their text in the list's ForeColor rather than black.
+
+### Column scrolling and one-line flags
+
+- `KainosScrollBar` (consoleKainosColumn.cs): shown when the open sections are taller than the column; `ArrangeSections` measures at full width first and again, narrower, when the bar is needed. `KainosWheelFilter` (an application message filter) turns WM_MOUSEWHEEL over the column (found with WindowFromPoint) into column scrolling, unless Ctrl is held.
+- One-line flags: a click on the flag's letter (`BadgeClicked`) calls `KainosFlagForm.SetCompact`, which closes any open drawer; `KainosFlagView.paintCompact` draws the line. Saved per flag in `KainosFlagSettings` ("dropA;dropB;compactA;compactB").
+
+### KiwiSDR waterfall
+
+- `KiwiWaterfallClient` (KainosKiwi.cs): the Kiwi's W/F stream at the same address, path and stamp as the sound stream (`KiwiClient.WsBase` / `Prefix` / `Stamp`), so it shares that receiver slot; `SET zoom=Z start=` and `cf=` (older and newer firmware), `wf_comp=0`, `wf_speed=3`; each line is 1024 bytes after a 16-byte header, dB above -255. Zoom 0 is the receiver's whole bandwidth (from its `bandwidth` message), each step halves it.
+- `KainosKiwiWaterfall` / `KiwiSpectrumView`: spectrum (a third of the height), scale, waterfall (a 1024 x 300 bitmap, newest line on top, colours from an auto noise floor, the 3D panadapter's palette). Click tunes where the pointer is (in CW that's the signal; Thetis's VFO in CW is the signal and the Kiwi's dial sits a CW pitch below); wheel tunes the dial by a step to suit the span; Ctrl + wheel zooms.
+- Phase 3: `KiwiSpectrumView.drawBandPlan` (the console's band plan segments, uses and spot frequencies, `KainosBandPlan.ColourOf`) and `drawSpots` (`KainosSpotsBetween`, up to three rows of call tags, a click on one is `KainosTuneToSpot`); right-click `KiwiViewMenu` (contrast: the colours' dB range 80 / 60 / 40; speed: `wf_speed` 1 / 3 / 4); zoom per band (`_kiwiZoomByBand`, by the tuned frequency's band, set on zoom and applied on a band change). Saved in the Kiwi settings: `wfc`, `wfs`, `zooms`.
+- Main view: `kainosKiwiMainView`, a second `KiwiSpectrumView` laid over the panadapter area (pnlDisplay's screen rectangle in console coordinates) while Kainos layout is on, the HL2 is off and a Kiwi is being listened to (`KiwiOnPanadapter`, "Main view" in the KIWI tab); the one W/F stream feeds both views. Follow B (`_kiwiFollowB`): VFO B, with RX2's mode when RX2 is on; saved as `followb`. The KIWI tab's tick follows and runs the waterfall even with the tab closed.
+- `consoleKainosKiwiWaterfall.cs`: the window, a 300 ms tick that starts the stream when the listened-to Kiwi is ready (or changes), re-centres when the tuned frequency is beyond 40 % of the span from the centre, and titles the window. Tuning: Follow on sets VFO A; Follow off `KiwiTuneOwn`.
+- The column's wheel filter now works by the column's area of the main window, so Thetis panels placed over the column (the TX tab's phone panel, VFO SYNC) don't take the wheel.
+
+### Column tab order
+
+- `KainosColumn` keeps the user's tab order (`_order`), saved in the same tab state as which tabs are open (`KainosColumnTabs`: the keys in the order shown). It's applied again whenever a section is added (some, like KIWI and SPOTS, are added after the state loads); tabs it doesn't list follow in the order they were added (`Section.Added`, also what Reset the order goes back to).
+- A tab chip pressed and moved more than 6 px is dragged (a gold marker where it would drop, `dropIndex`); without the move, the release toggles it, as the press used to. Right-click: Move up / down / to the top / to the bottom, Reset the order. A section's title in the column (`HeaderRect`, painted on the viewport) can be dragged the same way: the viewport passes its mouse to `HeaderDown` / `HeaderMove` / `HeaderUp`, which drop before the first open section whose title is below the pointer, with a gold line there; right-clicking a title opens the same menu.
+
+### SWR sweep
+
+- `KainosSwrSweep.cs` (window, plot, saved sweeps as CSV in `%APPDATA%\OpenHPSDR\Kainos-x64\Sweeps`), `consoleKainosSwr.cs` (the sweep). The dock's SWR button presses a Button of Kainos's own (`kainosSwrButton`), which opens the window.
+- The sweep uses Thetis's TUN: split must be off with VFO A transmitting. It sets the tune power source to fixed and pulsed tune off, finds the tune power giving 0.5 to 1 W from `alex_fwd`, then steps VFO A (about 110 ms to settle, 60 ms of readings averaged), working SWR out from `alex_fwd` / `alex_rev`. It stops at SWR over 5:1 three steps running (Thetis ignores SWR protection at low tune power), output over 1.2 W, no output, or TUN going off; afterwards TUN, tune power, its source, pulsed tune and VFO A are put back. Band edges are Region 2 for the United States and Canada (or no country set), Region 1 / 3 otherwise.
+
+### Safety nets and light mode
+
+- `consoleKainosSupport.cs`: items added to the Setup menu (Back up settings now, Run setup wizard, Light mode, Check for updates, Report a bug; Database Manager's item renamed to say it holds profiles, backups and restore) and a right-aligned Report a bug on the menu bar.
+- Back up: `SaveOptions`, `DB.WriteDB` (the file, as on exit), then `DBMan.TakeBackup` with a dated description.
+- Light mode: Setup's `chkKainosLightMode` (Appearance > Kainos); on, it saves the display FPS and 3D in `txtKainosLightSaved` and sets 20 fps (at most) and 3D off; off puts them back.
+- Updates: once a day after the startup wizard check (`txtKainosUpdate`: last check date, skipped version), `version.json` on GitHub `main` against `KainosVersion.Number` (`Common.CompareVersions`); a newer one shows `KainosUpdateNotice` with `Documentation/ReleaseNotes/kainos-<version>.md` from GitHub.
+- Report a bug: `KainosBugReport` (KainosSupport.cs) builds a GitHub new-issue link (title, `bug` label, body with the diagnostics; shortened if the address would be too long) and opens it in the browser. Diagnostics read the real screen size and scaling (`GetDeviceCaps` DESKTOPHORZRES), and name Windows 11 by build number (its registry still says Windows 10).
+
+### Licence-aware band plan
+
+- `KainosBandPlan.cs` also holds what each part of each band is used for (`Use`: the ARRL plan for Region 2, a simplified IARU Region 1 plan otherwise) and the popular spot frequencies (`Spot`); the band's labels are those, its colour the privileges.
+- `KainosBandPlan.cs`: privilege segments (MHz, kind: all modes, CW and data, CW only, not yours, band edges only) by country and licence class. Built in: the United States from FCC 97.301 / 97.305 (Technician, General, Amateur Extra; 160 to 10 m and 6 m; 60 m's channels left out) and Canada by qualification (Basic: 6 m here; Basic with Honours and Advanced: every band, no mode sub-bands). Other countries: Region 1 / 3 band edges only. "Not yours" fills the rest of each band.
+- `consoleKainosBandPlan.cs` turns the segments into pixel spans with the same `HzToPixel` the slice flags use; `drawKainosBandPlanDX2D` (displayKainos.cs, called from `DrawPanadapterDX2D` after the RTTY markers) fills a 20 px see-through band along the bottom (the top has the scale, slice flags and spot tags) with a solid top edge, a divider where segments meet, and the mode written in each segment (`measureStringDX2D` picks the longest wording that fits); not while transmitting, and only in Kainos layout.
+- Setup > Appearance > Kainos > Band plan (`grpKainosBandPlan`, `chkKainosBandPlan`): the country and licence lists are kept in `txtKainosLicence`, shared with the setup wizard (each updates the other). Setup saves every named control in a list keyed by name, so every control added to Setup must have a unique Name (two unnamed ones crash Setup at startup).
 
 ### Installer
 

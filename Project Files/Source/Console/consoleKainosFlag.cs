@@ -53,6 +53,8 @@ namespace Thetis
                     f.View.DragMoved += dy => kainosFlagDrag(rx, dy);
                     f.View.DragEnded += () => KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
                     f.View.DragReset += () => { _kainosFlagDrop[rx] = 0; placeKainosFlags(); KainosSettingsChanged?.Invoke(this, EventArgs.Empty); };
+                    f.View.BadgeClicked += () => { f.SetCompact(!f.View.Compact); placeKainosFlags(); KainosSettingsChanged?.Invoke(this, EventArgs.Empty); };
+                    f.SetCompact(_kainosCompact[rx]);         // as saved
                 }
                 _kainosFlagTimer = new Timer { Interval = 80 };
                 _kainosFlagTimer.Tick += (s, e) => placeKainosFlags();
@@ -94,12 +96,21 @@ namespace Thetis
         private readonly float[] _kainosFlagDrop = new float[3];
         private readonly float[] _kainosFlagMaxDrop = { 0, float.MaxValue, float.MaxValue };
 
+        // flags shrunk to one line (a click on the letter: SmartSDR's way; GitHub #4)
+        private readonly bool[] _kainosCompact = new bool[3];
+        internal void KainosFlagCompacted(int rx, bool compact) { _kainosCompact[rx] = compact; }
+
         // how solid the flags are while the mouse isn't over them (Setup > Appearance > Kainos); solid while it is
         internal double KainosFlagOpacity = 0.75;
 
         internal string KainosFlagSettings
         {
-            get { return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0};{1:0}", _kainosFlagDrop[1], _kainosFlagDrop[2]); }
+            // "dropA;dropB;compactA;compactB"
+            get
+            {
+                return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0};{1:0};{2};{3}", _kainosFlagDrop[1], _kainosFlagDrop[2],
+                                     _kainosCompact[1] ? 1 : 0, _kainosCompact[2] ? 1 : 0);
+            }
             set
             {
                 string[] p = (value ?? "").Split(';');
@@ -107,7 +118,9 @@ namespace Thetis
                 {
                     float d;
                     _kainosFlagDrop[i + 1] = i < p.Length && float.TryParse(p[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out d) ? Math.Max(0, d) : 0;
+                    _kainosCompact[i + 1] = p.Length > i + 2 && p[i + 2] == "1";
                 }
+                if (_kainosFlagA != null) { _kainosFlagA.SetCompact(_kainosCompact[1]); _kainosFlagB.SetCompact(_kainosCompact[2]); }
                 placeKainosFlags();
             }
         }
@@ -390,6 +403,17 @@ namespace Thetis
             layoutFlag();
         }
 
+        public void SetCompact(bool compact)
+        {
+            if (View.Compact == compact) return;
+            if (compact && _drawerTab != null) toggleDrawer(_drawerTab);      // closes it
+            View.Compact = compact;
+            _console.KainosFlagCompacted(_rx, compact);
+            layoutFlag();
+            Size = PreferredSize2();
+            Invalidate(true);
+        }
+
         public Size PreferredSize2()
         {
             Size v = View.PreferredFlagSize();
@@ -482,7 +506,66 @@ namespace Thetis
         // the face: identity row, mode and frequency, S meter (the tab row comes under it)
         public static int FaceHeight { get { return KainosUI.S(86); } }
 
-        public Size PreferredFlagSize() { return new Size(KainosUI.S(250), FaceHeight + (_showTabs ? KainosUI.S(22) : 0)); }
+        public Size PreferredFlagSize()
+        {
+            if (Compact && _showTabs) return new Size(KainosUI.S(200), KainosUI.S(30));
+            return new Size(KainosUI.S(250), FaceHeight + (_showTabs ? KainosUI.S(22) : 0));
+        }
+
+        // one line: letter, mode, frequency and TX (on the panadapter; click the letter for the full flag)
+        public bool Compact;
+        public event Action BadgeClicked;
+        private RectangleF _badgeRect;
+
+        private void paintCompact(Graphics g)
+        {
+            float s = KainosUI.Scale, pad = 6 * s, badge = 18 * s, y = (Height - badge) / 2f;
+            using (Pen p = new Pen(tone, 1.5f)) g.DrawRectangle(p, 0.75f, 0.75f, Width - 1.5f, Height - 1.5f);
+            _badgeRect = new RectangleF(pad, y, badge, badge);
+            using (Brush b = new SolidBrush(tone)) g.FillEllipse(b, _badgeRect);
+            using (Font f = new Font("Segoe UI", 11 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(KainosUI.Bg))
+            using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                g.DrawString(_rx == 1 ? "A" : "B", f, b, _badgeRect, sf);
+            using (Font f = new Font("Segoe UI", 10 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(KainosUI.Ice))
+            using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
+                g.DrawString(_console.KainosModeText(_rx), f, b, new RectangleF(_badgeRect.Right + 5 * s, 0, 44 * s, Height), sf);
+
+            bool isTx = _console.KainosIsTxVfo(_rx), keyed = isTx && _console.KainosMox;
+            RectangleF tx = new RectangleF(Width - pad - 24 * s, y + 1 * s, 24 * s, badge - 2 * s);
+            _txRect = tx;
+            Color c = isTx ? KainosUI.Tx : (_hoverTx ? KainosUI.Dim : KainosUI.Line);
+            using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(tx, 3 * s))
+            {
+                if (keyed) using (Brush b = new SolidBrush(KainosUI.Tx)) g.FillPath(b, path);
+                using (Pen p = new Pen(c)) g.DrawPath(p, path);
+            }
+            using (Font f = new Font("Segoe UI", 9 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(keyed ? Color.White : isTx ? KainosUI.Tx : (_hoverTx ? KainosUI.Dim : KainosUI.Faint)))
+            using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                g.DrawString("TX", f, b, tx, sf);
+
+            string whole = _console.KainosVfoMHz(_rx).ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture);
+            string head = whole.Substring(0, whole.Length - 3), tail = whole.Substring(whole.Length - 3);
+            _digits.Clear();
+            using (Font big = new Font("Consolas", 17 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Font small = new Font("Consolas", 13 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (Brush bh = new SolidBrush(KainosUI.Text))
+            using (Brush bt = new SolidBrush(KainosUI.Dim))
+            {
+                SizeF tailSize = g.MeasureString(tail, small), headSize = g.MeasureString(head, big);
+                float right = tx.Left - 4 * s;
+                float baseY = (Height - headSize.Height) / 2;
+                PointF tailAt = new PointF(right - tailSize.Width, baseY + (headSize.Height - tailSize.Height) * 0.75f);
+                PointF headAt = new PointF(right - tailSize.Width - headSize.Width + 4 * s, baseY);
+                g.DrawString(tail, small, bt, tailAt);
+                g.DrawString(head, big, bh, headAt);
+                recordDigits(g, head, big, headAt, 1000);
+                recordDigits(g, tail, small, tailAt, 1);
+                _freqRect = new RectangleF(headAt.X, baseY, right - headAt.X, headSize.Height);
+            }
+        }
 
         private Color tone { get { return _rx == 1 ? KainosUI.Gold : KainosUI.Violet; } }
 
@@ -492,6 +575,7 @@ namespace Thetis
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            if (Compact && _showTabs) { paintCompact(g); return; }
             float s = KainosUI.Scale;
             float faceH = FaceHeight;
             using (Pen p = new Pen(tone, 1.5f)) g.DrawRectangle(p, 0.75f, 0.75f, Width - 1.5f, Height - 1.5f);
@@ -499,6 +583,7 @@ namespace Thetis
             // identity row: letter, antenna, filter, DSP ... TX
             float pad = 7 * s, y = 6 * s;
             float badge = 18 * s;
+            _badgeRect = new RectangleF(pad, y, badge, badge);
             using (Brush b = new SolidBrush(tone)) g.FillEllipse(b, pad, y, badge, badge);
             using (Font f = new Font("Segoe UI", 11 * s, FontStyle.Bold, GraphicsUnit.Pixel))
             using (Brush b = new SolidBrush(KainosUI.Bg))
@@ -714,7 +799,7 @@ namespace Thetis
         }
 
         // the face, other than the TX button and the frequency, moves the flag
-        private bool inDragArea(Point p) { return _showTabs && p.Y < FaceHeight && !_txRect.Contains(p) && !_freqRect.Contains(p); }
+        private bool inDragArea(Point p) { return _showTabs && p.Y < (Compact ? Height : FaceHeight) && !_txRect.Contains(p) && !_freqRect.Contains(p) && !_badgeRect.Contains(p); }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -739,6 +824,7 @@ namespace Thetis
         {
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
+            if (_showTabs && _badgeRect.Contains(e.Location)) { BadgeClicked?.Invoke(); return; }      // the letter: full flag or one line
             if (_txRect.Contains(e.Location)) { _console.KainosSetTxVfo(_rx); Invalidate(); return; }
             if (_freqRect.Contains(e.Location)) { beginEdit(); return; }
             if (inDragArea(e.Location)) { _dragY = Cursor.Position.Y; Capture = true; return; }
