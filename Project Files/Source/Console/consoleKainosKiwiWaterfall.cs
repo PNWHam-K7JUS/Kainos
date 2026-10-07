@@ -16,6 +16,7 @@ Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-13
 */
 
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace Thetis
@@ -30,15 +31,21 @@ namespace Thetis
         private KiwiClient _kiwiWfFor;          // the sound stream the waterfall joined
         private int _kiwiWfZoom = 9;            // about 58 kHz wide
         private Timer _kiwiWfTimer;
+        // the Kiwi on the main panadapter while the HL2 is off (Kainos layout; "Main view" in the KIWI tab)
+        internal bool KiwiOnPanadapter = true;
+        private KiwiSpectrumView _kiwiMain;
 
         internal void KiwiShowWaterfall()
         {
             if (_kiwiWfForm == null || _kiwiWfForm.IsDisposed)
             {
                 _kiwiWfForm = new KainosKiwiWaterfall(this);
-                _kiwiWfTimer = new Timer { Interval = 300 };
-                _kiwiWfTimer.Tick += (s, e) => kiwiWfTick();
-                _kiwiWfTimer.Start();
+                if (_kiwiTimer == null)         // the KIWI tab's tick runs it otherwise
+                {
+                    _kiwiWfTimer = new Timer { Interval = 300 };
+                    _kiwiWfTimer.Tick += (s, e) => kiwiWfTick();
+                    _kiwiWfTimer.Start();
+                }
             }
             if (!_kiwiWfForm.Visible) _kiwiWfForm.Show(this);
             _kiwiWfForm.Activate();
@@ -50,8 +57,8 @@ namespace Thetis
             _kiwiWfTimer?.Stop();
             _kiwiWfTimer?.Dispose();
             _kiwiWfTimer = null;
-            kiwiWfStop();
             _kiwiWfForm = null;
+            kiwiWfTick();               // the main view may still want the stream
         }
 
         private void kiwiWfStop()
@@ -65,7 +72,10 @@ namespace Thetis
         // frequency, and the window's title
         private void kiwiWfTick()
         {
-            if (_kiwiWfForm == null || _kiwiWfForm.IsDisposed) return;
+            bool window = _kiwiWfForm != null && !_kiwiWfForm.IsDisposed;
+            bool main = kiwiMainWanted;
+            kiwiMainShow(main);
+            if (!window && !main) { if (_kiwiWf != null) kiwiWfStop(); return; }
             KiwiClient k = _kiwi;
             if (k == null || !k.Connected || k.WsBase == null) { if (_kiwiWf != null) kiwiWfStop(); }
             else if (_kiwiWfFor != k)
@@ -73,11 +83,15 @@ namespace Thetis
                 kiwiWfStop();
                 _kiwiWfFor = k;
                 _kiwiWf = new KiwiWaterfallClient();
-                KainosKiwiWaterfall form = _kiwiWfForm;
                 _kiwiWf.Line += (dbm, zoom, cf) =>
                 {
                     KiwiWaterfallClient wf = _kiwiWf;
-                    if (wf != null && form != null && !form.IsDisposed) form.View.AddLine(dbm, cf, wf.FullSpanKhz / Math.Pow(2, zoom));
+                    if (wf == null) return;
+                    double span = wf.FullSpanKhz / Math.Pow(2, zoom);
+                    KainosKiwiWaterfall form = _kiwiWfForm;
+                    if (form != null && !form.IsDisposed) form.View.AddLine(dbm, cf, span);
+                    KiwiSpectrumView mv = _kiwiMain;
+                    if (mv != null && mv.Visible) mv.AddLine(dbm, cf, span);
                 };
                 _kiwiWf.View(_kiwiWfZoom, KiwiViewTunedKhz);
                 _kiwiWf.Connect(k.WsBase, k.Prefix, k.Stamp, KainosMyCallsign);
@@ -87,9 +101,37 @@ namespace Thetis
                 double tuned = KiwiViewTunedKhz;
                 if (Math.Abs(tuned - _kiwiWf.CentreKhz) > _kiwiWf.SpanKhz * 0.4) _kiwiWf.View(_kiwiWfZoom, tuned);
             }
-            string who = _kiwiOn != null ? (!string.IsNullOrEmpty(_kiwiOn.Loc) ? _kiwiOn.Loc : _kiwiOn.Name) : "No KiwiSDR";
-            _kiwiWfForm.SetTitle(who + "   " + (KiwiViewTunedKhz / 1000).ToString("0.000000") + " MHz   " + (_kiwiFollow ? "following VFO A" : "own frequency"));
-            _kiwiWfForm.View.Invalidate();
+            if (window)
+            {
+                string who = _kiwiOn != null ? (!string.IsNullOrEmpty(_kiwiOn.Loc) ? _kiwiOn.Loc : _kiwiOn.Name) : "No KiwiSDR";
+                _kiwiWfForm.SetTitle(who + "   " + (KiwiViewTunedKhz / 1000).ToString("0.000000") + " MHz   " + (!_kiwiFollow ? "own frequency" : _kiwiFollowB ? "following VFO B" : "following VFO A"));
+                _kiwiWfForm.View.Invalidate();
+            }
+            if (main) _kiwiMain.Invalidate();
+        }
+
+        // the main view: wanted in Kainos layout with the HL2 off while a Kiwi is being listened to
+        private bool kiwiMainWanted
+        {
+            get { return KiwiOnPanadapter && _kainosLayout && !PowerOn && _kiwi != null && !collapsedDisplay && pnlDisplay.Visible; }
+        }
+
+        private void kiwiMainShow(bool show)
+        {
+            if (show)
+            {
+                if (_kiwiMain == null)
+                {
+                    _kiwiMain = new KiwiSpectrumView(this) { Name = "kainosKiwiMainView" };     // the console keeps its controls by name
+                    Controls.Add(_kiwiMain);
+                }
+                // the panadapter's area in the console's coordinates (pnlDisplay sits inside panelDisplay)
+                Rectangle area = RectangleToClient(pnlDisplay.RectangleToScreen(pnlDisplay.ClientRectangle));
+                if (_kiwiMain.Bounds != area) _kiwiMain.Bounds = area;
+                if (!_kiwiMain.Visible) _kiwiMain.Visible = true;
+                _kiwiMain.BringToFront();
+            }
+            else if (_kiwiMain != null && _kiwiMain.Visible) _kiwiMain.Visible = false;
         }
 
         internal void KiwiWaterfallZoom(int step)
@@ -101,7 +143,7 @@ namespace Thetis
         internal void KiwiWaterfallCentre() { _kiwiWf?.View(_kiwiWfZoom, KiwiViewTunedKhz); }
 
         // the Kiwi's dial frequency (kHz) and mode, as it's tuned now
-        private string kiwiViewMode { get { return _kiwiFollow ? kiwiMode(_rx1_dsp_mode) : KiwiOwnMode; } }
+        private string kiwiViewMode { get { return _kiwiFollow ? kiwiFollowMode : KiwiOwnMode; } }
         internal double KiwiViewTunedKhz { get { return _kiwiFollow ? kiwiFollowKhz(kiwiViewMode) : KiwiOwnKhz; } }
 
         // the passband around the dial, in Hz (as KiwiClient asks for it)
@@ -136,7 +178,8 @@ namespace Thetis
             if (_kiwiFollow)
             {
                 double vfoKhz = fromDial ? khz + pitch : khz;       // Thetis's VFO in CW is the signal itself
-                VFOAFreq = Math.Max(0.01, vfoKhz / 1000);
+                if (_kiwiFollowB) VFOBFreq = Math.Max(0.01, vfoKhz / 1000);
+                else VFOAFreq = Math.Max(0.01, vfoKhz / 1000);
             }
             else KiwiTuneOwn(fromDial ? khz : khz - pitch, null);
             kiwiWfTick();

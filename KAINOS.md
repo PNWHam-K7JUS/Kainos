@@ -17,7 +17,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 **New: KiwiSDR panadapter and waterfall**
 - A **Waterfall** button in the KIWI tab opens the KiwiSDR you're listening to as a panadapter and waterfall: its live spectrum, your tuned frequency and passband, and a frequency scale.
 - Click a signal to tune to it, or use the mouse wheel; Ctrl + wheel or the Zoom buttons zoom from the whole 0-30 MHz down to a couple of kHz. The view follows your frequency.
-- With Follow on, tuning it tunes VFO A (and the Kiwi follows), even with the HL2 off, so a Kiwi can be used like a radio; with Follow off it tunes the Kiwi on its own.
+- **Kiwi as your radio:** with the HL2 off, the Kiwi you're listening to fills the main panadapter area, and the VFO flag, band and mode lists and the mouse wheel all tune it. Power the HL2 on and its own panadapter comes back. Turn this off with **Main view** in the KIWI tab.
+- **Follow** now steps through **Follow A**, **Follow B** and off, so the Kiwi can listen on VFO B while the HL2 is on VFO A. Following keeps working with the KIWI tab closed.
+- Tuning from the Kiwi's view tunes the VFO being followed (A or B), or the Kiwi on its own with Follow off.
 
 **New: arrange the right-hand column your way**
 - Drag a section by its title in the column (RX, METERS, BAND ...), or its tab at the top of the column, to a new place. A gold marker shows where it will land.
@@ -455,6 +457,7 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 - `KiwiWaterfallClient` (KainosKiwi.cs): the Kiwi's W/F stream at the same address, path and stamp as the sound stream (`KiwiClient.WsBase` / `Prefix` / `Stamp`), so it shares that receiver slot; `SET zoom=Z start=` and `cf=` (older and newer firmware), `wf_comp=0`, `wf_speed=3`; each line is 1024 bytes after a 16-byte header, dB above -255. Zoom 0 is the receiver's whole bandwidth (from its `bandwidth` message), each step halves it.
 - `KainosKiwiWaterfall` / `KiwiSpectrumView`: spectrum (a third of the height), scale, waterfall (a 1024 x 300 bitmap, newest line on top, colours from an auto noise floor, the 3D panadapter's palette). Click tunes where the pointer is (in CW that's the signal; Thetis's VFO in CW is the signal and the Kiwi's dial sits a CW pitch below); wheel tunes the dial by a step to suit the span; Ctrl + wheel zooms.
+- Main view: `kainosKiwiMainView`, a second `KiwiSpectrumView` laid over the panadapter area (pnlDisplay's screen rectangle in console coordinates) while Kainos layout is on, the HL2 is off and a Kiwi is being listened to (`KiwiOnPanadapter`, "Main view" in the KIWI tab); the one W/F stream feeds both views. Follow B (`_kiwiFollowB`): VFO B, with RX2's mode when RX2 is on; saved as `followb`. The KIWI tab's tick follows and runs the waterfall even with the tab closed.
 - `consoleKainosKiwiWaterfall.cs`: the window, a 300 ms tick that starts the stream when the listened-to Kiwi is ready (or changes), re-centres when the tuned frequency is beyond 40 % of the span from the centre, and titles the window. Tuning: Follow on sets VFO A; Follow off `KiwiTuneOwn`.
 - The column's wheel filter now works by the column's area of the main window, so Thetis panels placed over the column (the TX tab's phone panel, VFO SYNC) don't take the wheel.
 

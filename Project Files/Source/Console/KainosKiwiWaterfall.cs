@@ -76,7 +76,7 @@ namespace Thetis
     internal class KiwiSpectrumView : Control
     {
         private readonly Console _console;
-        private const int Bins = KiwiWaterfallClient.Bins, Rows = 300;
+        private const int Bins = KiwiWaterfallClient.Bins, Rows = 500;
         private readonly int[] _wf = new int[Bins * Rows];       // the waterfall's pixels, newest line at the top
         private Bitmap _wfBmp = new Bitmap(Bins, Rows, PixelFormat.Format32bppRgb);
         private float[] _line, _smooth;
@@ -157,7 +157,8 @@ namespace Thetis
 
             // the waterfall, stretched to the width
             g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-            g.DrawImage(_wfBmp, new Rectangle(0, top, Width, Height - top), new Rectangle(0, 0, Bins, Math.Min(Rows, Height - top)), GraphicsUnit.Pixel);
+            // (one line per pixel while it fits; a taller view stretches the lines it has)
+            g.DrawImage(_wfBmp, new Rectangle(0, top, Width, Height - top), new Rectangle(0, 0, Bins, Math.Min(Rows, Math.Max(1, Height - top))), GraphicsUnit.Pixel);
 
             // the tuned frequency's passband, and its line
             double tuned = _console.KiwiViewTunedKhz;
