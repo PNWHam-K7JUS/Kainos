@@ -748,6 +748,23 @@ namespace Thetis
             BackColor = KainosUI.Surface;
             Viewport = new KainosViewport(this);
             Controls.Add(Viewport);
+            _bar = new KainosScrollBar(this) { Visible = false };
+            Controls.Add(_bar);
+            Application.AddMessageFilter(new KainosWheelFilter(this));
+        }
+
+        // ---- scrolling: a scroll bar down the right-hand side when the sections don't all fit, and the mouse wheel
+        // anywhere over the column scrolls it (hold Ctrl to use the wheel on a slider or list instead; GitHub #4) ----
+        private readonly KainosScrollBar _bar;
+        internal int ScrollPos { get { return _scroll; } }
+        internal int ContentHeight { get { return _contentHeight; } }
+        internal int ViewHeight { get { return Viewport.Height; } }
+
+        internal void ScrollTo(int pos)
+        {
+            int before = _scroll;
+            _scroll = Math.Max(0, Math.Min(pos, Math.Max(0, _contentHeight - Viewport.Height)));
+            if (_scroll != before) ArrangeSections();
         }
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
@@ -843,20 +860,32 @@ namespace Thetis
         public void ArrangeSections()
         {
             int top = tabBarHeight();
-            Viewport.SetBounds(1, top, Width - 1, Math.Max(0, Height - top));
+            int viewH = Math.Max(0, Height - top), barW = KainosUI.S(16);
             int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(10);
-            int w = Viewport.Width - pad * 2;
             // one section failing must not blank the rest of the column (issue #1): it's measured as empty and logged
             Dictionary<Section, int> heights = new Dictionary<Section, int>();
-            foreach (Section s in _sections)
+            Func<int, int> measureAll = width =>
             {
-                if (!s.On) continue;
-                int h = 0;
-                try { h = Math.Max(0, s.Measure(w)); } catch (Exception ex) { logSection(s, "measure", ex); }
-                heights[s] = h;
-            }
-            int total = 0;
-            foreach (int h in heights.Values) total += header + h + gap;
+                heights.Clear();
+                int sum = 0;
+                foreach (Section s in _sections)
+                {
+                    if (!s.On) continue;
+                    int h = 0;
+                    try { h = Math.Max(0, s.Measure(width)); } catch (Exception ex) { logSection(s, "measure", ex); }
+                    heights[s] = h;
+                    sum += header + h + gap;
+                }
+                return sum;
+            };
+            int viewW = Width - 1;
+            int total = measureAll(viewW - pad * 2);
+            bool scrolls = total > viewH;
+            if (scrolls) { viewW -= barW; total = measureAll(viewW - pad * 2); }      // room for the scroll bar
+            int w = viewW - pad * 2;
+            Viewport.SetBounds(1, top, viewW, viewH);
+            _bar.SetBounds(1 + viewW, top, Width - 1 - viewW, viewH);
+            if (_bar.Visible != scrolls) _bar.Visible = scrolls;
             _contentHeight = total;
             _scroll = Math.Max(0, Math.Min(_scroll, total - Viewport.Height));
             int y = -_scroll;
@@ -875,6 +904,7 @@ namespace Thetis
             }
             Invalidate();
             Viewport.Invalidate();
+            _bar.Invalidate();
         }
 
         private static readonly HashSet<string> _logged = new HashSet<string>();
@@ -892,9 +922,7 @@ namespace Thetis
 
         internal void ScrollBy(int delta)
         {
-            int before = _scroll;
-            _scroll = Math.Max(0, Math.Min(_scroll - Math.Sign(delta) * KainosUI.S(40), Math.Max(0, _contentHeight - Viewport.Height)));
-            if (_scroll != before) ArrangeSections();
+            ScrollTo(_scroll - Math.Sign(delta) * KainosUI.S(60));
         }
 
         internal void PaintHeaders(Graphics g)
@@ -1080,6 +1108,106 @@ namespace Thetis
                 }
             }
             using (Pen p = new Pen(KainosUI.Line)) g.DrawLine(p, 0, top - 1, Width, top - 1);
+        }
+    }
+
+    // The column's scroll bar, in the Kainos colours: drag the thumb, or click above or below it to move a page
+    internal class KainosScrollBar : Control
+    {
+        private readonly KainosColumn _column;
+        private bool _hover, _dragging;
+        private int _dragFrom, _scrollFrom;
+
+        public KainosScrollBar(KainosColumn column)
+        {
+            _column = column;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+            BackColor = KainosUI.Surface;
+        }
+
+        private RectangleF thumb
+        {
+            get
+            {
+                int content = Math.Max(1, _column.ContentHeight), view = _column.ViewHeight;
+                float pad = KainosUI.S(3);
+                float track = Height - pad * 2;
+                float h = Math.Max(KainosUI.S(30), track * Math.Min(1f, view / (float)content));
+                float range = Math.Max(1, content - view);
+                float y = pad + (track - h) * Math.Min(1f, _column.ScrollPos / range);
+                return new RectangleF(pad, y, Width - pad * 2, h);
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (Brush track = new SolidBrush(KainosUI.Bg)) g.FillRectangle(track, 0, 0, Width, Height);
+            RectangleF t = thumb;
+            using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(t, t.Width / 2f))
+            using (Brush b = new SolidBrush(_dragging ? KainosUI.Gold : _hover ? KainosUI.Dim : KainosUI.Line))
+                g.FillPath(b, path);
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _hover = true; Invalidate(); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); _hover = false; Invalidate(); }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button != MouseButtons.Left) return;
+            RectangleF t = thumb;
+            if (e.Y >= t.Top && e.Y <= t.Bottom) { _dragging = true; _dragFrom = e.Y; _scrollFrom = _column.ScrollPos; Capture = true; }
+            else _column.ScrollTo(_column.ScrollPos + (e.Y < t.Top ? -1 : 1) * (int)(_column.ViewHeight * 0.9));
+            Invalidate();
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            if (!_dragging) return;
+            float track = Height - KainosUI.S(6) - thumb.Height;
+            if (track <= 0) return;
+            float perPixel = Math.Max(0, _column.ContentHeight - _column.ViewHeight) / track;
+            _column.ScrollTo(_scrollFrom + (int)((e.Y - _dragFrom) * perPixel));
+            Invalidate();
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            _dragging = false;
+            Capture = false;
+            Invalidate();
+        }
+    }
+
+    // The mouse wheel over the right-hand column scrolls the column, whatever is under the pointer; with Ctrl held it
+    // goes to the slider or list under the pointer as usual
+    internal class KainosWheelFilter : IMessageFilter
+    {
+        private readonly KainosColumn _column;
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr WindowFromPoint(Point p);
+
+        public KainosWheelFilter(KainosColumn column) { _column = column; }
+
+        public bool PreFilterMessage(ref Message m)
+        {
+            const int WM_MOUSEWHEEL = 0x020A;
+            if (m.Msg != WM_MOUSEWHEEL || !_column.Visible || _column.IsDisposed) return false;
+            if ((Control.ModifierKeys & Keys.Control) != 0) return false;
+            Control c = Control.FromChildHandle(WindowFromPoint(Cursor.Position));
+            for (Control x = c; x != null; x = x.Parent)
+                if (x == _column)
+                {
+                    int delta = (short)((m.WParam.ToInt64() >> 16) & 0xffff);
+                    _column.ScrollBy(delta);
+                    return true;
+                }
+            return false;
         }
     }
 

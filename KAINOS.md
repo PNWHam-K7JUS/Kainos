@@ -33,6 +33,13 @@ Newest first. Each version's section is written to be copied straight into a Git
 - Uses the country and licence class from the setup wizard, or set them in Setup > Appearance > Kainos > Band plan (where it can also be turned off).
 - Full privileges are built in for the United States (Technician, General, Amateur Extra; HF and 6 m) and Canada; elsewhere the band edges are shown. It's a guide: always check your own licence.
 
+**New: easier scrolling in the right-hand column**
+- A scroll bar down the right-hand side when the open tabs don't all fit: drag it, or click above or below it.
+- The mouse wheel anywhere over the column now scrolls the column instead of changing whatever slider is under the pointer. Hold Ctrl to use the wheel on a slider or list (GitHub issue #4).
+
+**New: one-line VFO flags**
+- Click the A or B on a VFO flag to shrink it to one line (mode, frequency and TX), as in SmartSDR; click it again for the full flag. The frequency still tunes with the wheel and can be clicked to type one (GitHub issue #4).
+
 **Fixed**
 - The VFO flag's MODE tab could open empty (no mode or filter buttons) when Thetis's Legacy Items "Hide mode / filter button grid" options were on (GitHub issue #6).
 - KiwiSDR in CW, following VFO A: the Kiwi was off by the CW pitch. It now hears a signal on your VFO at your own CW pitch (GitHub issue #5).
@@ -418,6 +425,11 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 - First run with a Thetis install and no Kainos settings: the old import prompt is now `KainosFirstRunChoice` (set up for the HL2, import the Thetis settings, or skip), before the settings load; the answer waits in `kainos_wizard_pending.txt` for the console.
 - Once the console is up: after "set up" or "import" the wizard runs; otherwise it is offered once (Welcome page, Not now) to anyone it hasn't run for, including everyone updating. Setup > Appearance > Kainos > Run setup wizard runs it again. State in the hidden `txtKainosWizard` ("", "done", "later", "skipped").
 - Pages: Station (callsign and grid square, the FreeDV RADE fields that spots and the Reporter use; country and licence class, saved in `txtKainosLicence` for the band plans), Hardware (N2ADR filter board = the N2ADR preset `chkHERCULES`, HL2 I/O board, built-in PA, Band Volts; advanced: CL1 10 MHz, CL2, TX latency, PTT hang), Audio (VAC 1 on or off, audio system, speakers and microphone from PortAudio's lists, as Setup's; a test tone through NAudio on the matching Windows device; the HL2 has no audio output of its own), Look (layout, UI scale, which right-hand column tabs are open: `KainosColumn.TabList` / `SetOn`), Summary (only what changes). Nothing is set until Apply, which also saves.
+
+### Column scrolling and one-line flags
+
+- `KainosScrollBar` (consoleKainosColumn.cs): shown when the open sections are taller than the column; `ArrangeSections` measures at full width first and again, narrower, when the bar is needed. `KainosWheelFilter` (an application message filter) turns WM_MOUSEWHEEL over the column (found with WindowFromPoint) into column scrolling, unless Ctrl is held.
+- One-line flags: a click on the flag's letter (`BadgeClicked`) calls `KainosFlagForm.SetCompact`, which closes any open drawer; `KainosFlagView.paintCompact` draws the line. Saved per flag in `KainosFlagSettings` ("dropA;dropB;compactA;compactB").
 
 ### Column tab order
 
