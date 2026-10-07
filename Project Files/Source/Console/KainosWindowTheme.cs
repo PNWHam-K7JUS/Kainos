@@ -42,9 +42,9 @@ namespace Thetis
         public static readonly Color PanelBg = Color.FromArgb(0x0b, 0x17, 0x24);
         public static readonly Color FieldBg = Color.FromArgb(0x06, 0x0e, 0x17);
         public static readonly Color Border = Color.FromArgb(0x2a, 0x3a, 0x4d);
-        public static readonly Color Text = Color.FromArgb(0xc8, 0xd8, 0xe8);
-        public static readonly Color TextMid = Color.FromArgb(0x8a, 0xa8, 0xc0);
-        public static readonly Color TextDim = Color.FromArgb(0x5a, 0x6a, 0x7a);
+        public static readonly Color Text = Color.FromArgb(0xe8, 0xef, 0xf6);        // near white: easy to read on the navy (issue #3)
+        public static readonly Color TextMid = Color.FromArgb(0xa8, 0xc4, 0xda);     // group titles and secondary text
+        public static readonly Color TextDim = Color.FromArgb(0x7a, 0x8c, 0x9e);
         public static readonly Color ButtonBg = Color.FromArgb(0x14, 0x25, 0x38);
         public static readonly Color ButtonHover = Color.FromArgb(0x1b, 0x31, 0x46);
         public static readonly Color ButtonOn = Color.FromArgb(0x2a, 0x24, 0x14);
@@ -127,6 +127,96 @@ namespace Thetis
         // ---- each kind of control ----
 
         private static void themeControl(Control c)
+        {
+            themeControlColours(c);
+            if (c is Label || c is ButtonBase || c is TextBoxBase || c is Panel || c is GroupBox) watchContrast(c);
+        }
+
+        // ---- contrast: text that ends up light on a light background (a window's own coloured box, like Thetis's
+        // orange "TX Profile modified") is made dark, and put back when the background is dark again; and disabled
+        // text, which Windows draws darker than its background (dark on the dark theme), is redrawn in a readable
+        // grey (GitHub issue #3) ----
+        private static readonly Color DarkText = Color.FromArgb(0x10, 0x18, 0x22);
+        private static readonly Color DisabledText = Color.FromArgb(0x8a, 0x9c, 0xae);
+        private static readonly HashSet<Control> _darkened = new HashSet<Control>();
+
+        private static void watchContrast(Control c)
+        {
+            c.BackColorChanged -= contrastChanged;
+            c.BackColorChanged += contrastChanged;
+            ensureContrast(c);
+            if ((c is Label || ((c is CheckBox || c is RadioButton) && ((ButtonBase)c).FlatStyle != FlatStyle.Flat && !isButtonLook(c))))
+            {
+                c.Paint -= paintDisabled;
+                c.Paint += paintDisabled;
+            }
+        }
+
+        private static bool isButtonLook(Control c)
+        {
+            return (c is CheckBox && ((CheckBox)c).Appearance == Appearance.Button) || (c is RadioButton && ((RadioButton)c).Appearance == Appearance.Button);
+        }
+
+        private static void contrastChanged(object sender, EventArgs e)
+        {
+            Control c = (Control)sender;
+            try
+            {
+                ensureContrast(c);
+                foreach (Control child in c.Controls) ensureContrast(child);      // a container's colour is its children's background
+            }
+            catch { }
+        }
+
+        private static void ensureContrast(Control c)
+        {
+            if (c.ForeColor.A != 255) return;
+            int back = lum(effectiveBack(c));
+            if (back >= 150 && lum(c.ForeColor) >= 150)
+            {
+                c.ForeColor = DarkText;
+                _darkened.Add(c);
+            }
+            else if (back < 100 && _darkened.Contains(c) && c.ForeColor == DarkText)
+            {
+                c.ForeColor = Text;
+                _darkened.Remove(c);
+            }
+        }
+
+        // disabled labels, check boxes and radio buttons: the text again in a grey that reads on the dark theme
+        private static void paintDisabled(object sender, PaintEventArgs e)
+        {
+            Control c = (Control)sender;
+            if (c.Enabled || string.IsNullOrEmpty(c.Text)) return;
+            Color back = effectiveBack(c);
+            if (lum(back) >= 100) return;                   // a light background: Windows's own grey reads fine
+            Rectangle r = c.ClientRectangle;
+            // drawn as Windows draws disabled text (GDI+, which is a little narrower than GDI: a label sized for it
+            // keeps all its text)
+            ContentAlignment align;
+            if (c is Label) align = ((Label)c).TextAlign;
+            else
+            {
+                ButtonBase b = (ButtonBase)c;
+                ContentAlignment check = c is CheckBox ? ((CheckBox)c).CheckAlign : ((RadioButton)c).CheckAlign;
+                if (check != ContentAlignment.MiddleLeft || c.RightToLeft == RightToLeft.Yes) return;      // only the usual layout
+                int glyph = (int)Math.Round(13 * c.DeviceDpi / 96.0) + 3;
+                r = new Rectangle(glyph, 0, Math.Max(0, r.Width - glyph), r.Height);
+                align = b.TextAlign;
+            }
+            using (StringFormat sf = new StringFormat { HotkeyPrefix = System.Drawing.Text.HotkeyPrefix.None })
+            {
+                int a = (int)align;
+                sf.Alignment = (a & 0x222) != 0 ? StringAlignment.Center : (a & 0x444) != 0 ? StringAlignment.Far : StringAlignment.Near;
+                sf.LineAlignment = (a & 0x070) != 0 ? StringAlignment.Center : (a & 0x700) != 0 ? StringAlignment.Far : StringAlignment.Near;
+                if (c is Label && ((Label)c).AutoSize) sf.FormatFlags |= StringFormatFlags.NoWrap;
+                using (Brush bb = new SolidBrush(back)) e.Graphics.FillRectangle(bb, r);
+                using (Brush tb = new SolidBrush(DisabledText)) e.Graphics.DrawString(c.Text, c.Font, tb, r, sf);
+            }
+        }
+
+        private static void themeControlColours(Control c)
         {
             string type = c.GetType().Name;
             if (type.StartsWith("Kainos") || type.Contains("Color") || type.Contains("Colour")) return;     // ours, colour pickers

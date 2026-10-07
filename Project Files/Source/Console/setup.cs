@@ -25919,7 +25919,7 @@ namespace Thetis
                 if ((e.State & DrawItemState.Selected) == DrawItemState.Selected)
                     sbt = new SolidBrush(Color.White);
                 else
-                    sbt = new SolidBrush(Color.Black);
+                    sbt = new SolidBrush(((ListBox)sender).ForeColor);       // Kainos: the list's own text colour (black in Classic, light on the dark theme)
                 g.DrawString(" " + ((ListBox)sender).Items[e.Index].ToString(), e.Font, sbt, e.Bounds, StringFormat.GenericDefault);
                 sbt.Dispose();
 
@@ -31720,7 +31720,7 @@ namespace Thetis
                 if ((e.State & DrawItemState.Selected) == DrawItemState.Selected)
                     sbt = new SolidBrush(Color.White);
                 else
-                    sbt = new SolidBrush(Color.Black);
+                    sbt = new SolidBrush(((ListBox)sender).ForeColor);       // Kainos: the list's own text colour (black in Classic, light on the dark theme)
 
                 clsMultiMeterIOComboboxItem mmioci = (clsMultiMeterIOComboboxItem)((ListBox)sender).Items[e.Index];
                 if (mmioci != null)
