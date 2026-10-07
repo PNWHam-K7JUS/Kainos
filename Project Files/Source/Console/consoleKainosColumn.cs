@@ -1200,15 +1200,15 @@ namespace Thetis
             const int WM_MOUSEWHEEL = 0x020A;
             if (m.Msg != WM_MOUSEWHEEL || !_column.Visible || _column.IsDisposed) return false;
             if ((Control.ModifierKeys & Keys.Control) != 0) return false;
-            Control c = Control.FromChildHandle(WindowFromPoint(Cursor.Position));
-            for (Control x = c; x != null; x = x.Parent)
-                if (x == _column)
-                {
-                    int delta = (short)((m.WParam.ToInt64() >> 16) & 0xffff);
-                    _column.ScrollBy(delta);
-                    return true;
-                }
-            return false;
+            // over the column's area of the main window: the column itself, or a Thetis panel Kainos places over it
+            // (the TX tab's phone panel, the VFO SYNC panel ...), which isn't the column's child
+            Point at = Cursor.Position;
+            if (!_column.RectangleToScreen(_column.ClientRectangle).Contains(at)) return false;
+            Control c = Control.FromChildHandle(WindowFromPoint(at));
+            if (c == null || c.FindForm() != _column.FindForm()) return false;      // another window over it (a flag, a menu)
+            int delta = (short)((m.WParam.ToInt64() >> 16) & 0xffff);
+            _column.ScrollBy(delta);
+            return true;
         }
     }
 

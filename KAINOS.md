@@ -14,6 +14,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **Save** sweeps and tick earlier ones to lay them over the current one, to compare antennas or watch one change over time. **Export CSV** for a spreadsheet.
 - Before each sweep, a reminder to turn off any antenna tuner, put any amplifier in bypass or off, and connect an antenna or dummy load. The sweep stops by itself if SWR goes above 5:1 or the output above 1 W, and puts your frequency and tune settings back afterwards.
 
+**New: KiwiSDR panadapter and waterfall**
+- A **Waterfall** button in the KIWI tab opens the KiwiSDR you're listening to as a panadapter and waterfall: its live spectrum, your tuned frequency and passband, and a frequency scale.
+- Click a signal to tune to it, or use the mouse wheel; Ctrl + wheel or the Zoom buttons zoom from the whole 0-30 MHz down to a couple of kHz. The view follows your frequency.
+- With Follow on, tuning it tunes VFO A (and the Kiwi follows), even with the HL2 off, so a Kiwi can be used like a radio; with Follow off it tunes the Kiwi on its own.
+
 **New: arrange the right-hand column your way**
 - Drag a section by its title in the column (RX, METERS, BAND ...), or its tab at the top of the column, to a new place. A gold marker shows where it will land.
 - Or right-click a tab for Move up, Move down, Move to the top or bottom, and Reset the order.
@@ -445,6 +450,13 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 - `KainosScrollBar` (consoleKainosColumn.cs): shown when the open sections are taller than the column; `ArrangeSections` measures at full width first and again, narrower, when the bar is needed. `KainosWheelFilter` (an application message filter) turns WM_MOUSEWHEEL over the column (found with WindowFromPoint) into column scrolling, unless Ctrl is held.
 - One-line flags: a click on the flag's letter (`BadgeClicked`) calls `KainosFlagForm.SetCompact`, which closes any open drawer; `KainosFlagView.paintCompact` draws the line. Saved per flag in `KainosFlagSettings` ("dropA;dropB;compactA;compactB").
+
+### KiwiSDR waterfall
+
+- `KiwiWaterfallClient` (KainosKiwi.cs): the Kiwi's W/F stream at the same address, path and stamp as the sound stream (`KiwiClient.WsBase` / `Prefix` / `Stamp`), so it shares that receiver slot; `SET zoom=Z start=` and `cf=` (older and newer firmware), `wf_comp=0`, `wf_speed=3`; each line is 1024 bytes after a 16-byte header, dB above -255. Zoom 0 is the receiver's whole bandwidth (from its `bandwidth` message), each step halves it.
+- `KainosKiwiWaterfall` / `KiwiSpectrumView`: spectrum (a third of the height), scale, waterfall (a 1024 x 300 bitmap, newest line on top, colours from an auto noise floor, the 3D panadapter's palette). Click tunes where the pointer is (in CW that's the signal; Thetis's VFO in CW is the signal and the Kiwi's dial sits a CW pitch below); wheel tunes the dial by a step to suit the span; Ctrl + wheel zooms.
+- `consoleKainosKiwiWaterfall.cs`: the window, a 300 ms tick that starts the stream when the listened-to Kiwi is ready (or changes), re-centres when the tuned frequency is beyond 40 % of the span from the centre, and titles the window. Tuning: Follow on sets VFO A; Follow off `KiwiTuneOwn`.
+- The column's wheel filter now works by the column's area of the main window, so Thetis panels placed over the column (the TX tab's phone panel, VFO SYNC) don't take the wheel.
 
 ### Column tab order
 

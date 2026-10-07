@@ -146,6 +146,7 @@ namespace Thetis
                 kiwiSave();
             }, KainosUI.Tone.Gold);
             _kiwiButtons.Add("Stop", () => false, kiwiStop, KainosUI.Tone.Tx);
+            _kiwiButtons.Add("Waterfall", () => _kiwiWfForm != null, KiwiShowWaterfall, KainosUI.Tone.Ice);      // consoleKainosKiwiWaterfall.cs
             _kiwiVolume = new KainosUpDown(KiwiVolume, "Vol", "%", false);
             KiwiVolume.ValueChanged += (s, e) => { if (_kiwiOut != null) _kiwiOut.Volume = (float)KiwiVolume.Value / 100f; kiwiSave(); };
             _kiwiTune = new KainosKiwiTune(this);
