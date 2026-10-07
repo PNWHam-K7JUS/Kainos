@@ -5,7 +5,7 @@ Kainos is a Software Defined Radio (SDR) application for Windows, maintained by 
 Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on the Hermes Lite 2 edition of Thetis by Reid Campbell, MI0BOT ([OpenHPSDR-Thetis](https://github.com/mi0bot/OpenHPSDR-Thetis)). Nearly everything Kainos can do comes from the many years of work by the Thetis and OpenHPSDR community. See [Credits](#credits) below.
 
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
-- Current version: 1.0.6 (based on Thetis 2.10.3.15)
+- Current version: 1.0.7 (based on Thetis 2.10.3.15)
 
 ![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
 
@@ -21,7 +21,12 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - **RTTY**: built-in RTTY (45.45 baud, 170 Hz shift and others) with no extra programs or virtual audio cables. Open **RTTY** in the menu bar: the terminal opens under the panadapter (or in its own window) with received text, type-ahead sending, macros and a tuning indicator. Use DIGL or LSB.
 - **CW**: a built-in CW decoder and sender. Open **CW** in the menu bar: the terminal (laid out like RTTY's) decodes the receiver at your CW pitch and follows the sender's speed, and what you type or send from the macros goes out through Thetis's CWX keyer at your chosen speed. Use CWL or CWU and zero-beat the signal.
 - **Built-in spotting**: DX cluster and POTA spots on the panadapter (callsign tags with flags; click to tune) and in a SPOTS tab, with no other program. It logs in to the cluster with your callsign automatically (the one in Setup > DSP > FreeDV (RADE)).
-- **KiwiSDR**: the KIWI tab lists the nearest public KiwiSDRs; click one to listen, following VFO A or tuned on its own, with favourites, search and a choice of output device.
+- **KiwiSDR**: the KIWI tab lists the nearest public KiwiSDRs; click one to listen, following VFO A, VFO B or tuned on its own, with favourites, search and a choice of output device. **Waterfall** opens the Kiwi's own panadapter and waterfall (click to tune, spots and the band plan on it), and with the HL2 off the Kiwi fills the main panadapter, so it works like a radio.
+- **Licence-aware band plan**: a band along the bottom of the panadapter shows what each part of the band is used for (CW, digital, SSB ...) and, by colour, where your licence lets you transmit (United States and Canada built in), with tags at FT8, FT4, WSPR and other popular frequencies.
+- **SWR sweep**: the SWR button sweeps a band at 1 W or less and plots your antenna's SWR, with the 2:1 bandwidth; save sweeps to compare, or export them as CSV.
+- **Setup wizard**: callsign, HL2 boards (N2ADR, I/O board), PC audio and look in a few steps, offered on first run and in the Setup menu.
+- **Safety nets**: one-click settings backup, an update notice with the release notes, and **Report a bug** (top right), which opens a GitHub issue with diagnostics filled in. **Light mode** for slower PCs.
+- **Make it yours**: drag the right-hand column's sections into your own order, shrink a VFO flag to one line, and see-through, draggable flags so spots behind them show.
 - **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from **Kainos Audio** in the menu bar. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
   - **Receive**, on every receiver: parametric EQ, gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
   - **Transmit**: gate, parametric EQ, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.
