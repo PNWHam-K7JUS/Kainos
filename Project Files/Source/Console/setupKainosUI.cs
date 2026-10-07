@@ -217,7 +217,7 @@ namespace Thetis
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
             console.KainosPanColours = chkKainosPanColours.Checked;
-            kainosBandPlanApply();          // setupKainosWizard.cs
+            kainosLicenceToCombos();        // setupKainosWizard.cs: the band plan lists from the saved licence, and the band plan to the console
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);
             console.KainosLayout = comboKainosLayout.SelectedIndex == 1;

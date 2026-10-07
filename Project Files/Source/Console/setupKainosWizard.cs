@@ -102,12 +102,14 @@ namespace Thetis
 
         private void kainosLicenceFromCombos()
         {
-            if (_kainosLicenceSync) return;
+            // while the settings load, the lists (saved too) mustn't overwrite the licence: it's the one that counts,
+            // and the lists are set from it afterwards (applyKainosUI)
+            if (_kainosLicenceSync || initializing) return;
             string v = comboKainosCountry.Text + "|" + (comboKainosLicence.Items.Count > 0 ? comboKainosLicence.Text : "");
             if (txtKainosLicence.Text != v) txtKainosLicence.Text = v;      // its TextChanged applies it
         }
 
-        private void kainosLicenceToCombos()
+        internal void kainosLicenceToCombos()
         {
             _kainosLicenceSync = true;
             try
