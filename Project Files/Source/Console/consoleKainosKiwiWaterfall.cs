@@ -34,6 +34,47 @@ namespace Thetis
         // the Kiwi on the main panadapter while the HL2 is off (Kainos layout; "Main view" in the KIWI tab)
         internal bool KiwiOnPanadapter = true;
         private KiwiSpectrumView _kiwiMain;
+        // the waterfall's contrast (0 low, 1 normal, 2 high) and speed (1 slow .. 4 fast), and the zoom chosen on each band
+        internal int KiwiWfContrast = 1, KiwiWfSpeed = 3;
+        private readonly System.Collections.Generic.Dictionary<string, int> _kiwiZoomByBand = new System.Collections.Generic.Dictionary<string, int>();
+        private string _kiwiWfBand = "";
+
+        private static string kiwiBandOf(double khz)
+        {
+            string[] names = { "160", "80", "60", "40", "30", "20", "17", "15", "12", "10", "6" };
+            double[,] edges = { { 1800, 2000 }, { 3500, 4000 }, { 5250, 5450 }, { 7000, 7300 }, { 10100, 10150 }, { 14000, 14350 }, { 18068, 18168 }, { 21000, 21450 }, { 24890, 24990 }, { 28000, 29700 }, { 50000, 54000 } };
+            for (int i = 0; i < names.Length; i++) if (khz >= edges[i, 0] && khz <= edges[i, 1]) return names[i];
+            return "";
+        }
+
+        // right-click on a Kiwi view: contrast and speed
+        internal void KiwiViewMenu(Control on, Point at)
+        {
+            ContextMenuStrip menu = new ContextMenuStrip { Renderer = new KainosToolStripRenderer(), BackColor = KainosUI.Raised, ForeColor = KainosUI.Text };
+            ToolStripMenuItem contrast = new ToolStripMenuItem("Contrast") { ForeColor = KainosUI.Text };
+            string[] cs = { "Low", "Normal", "High" };
+            for (int i = 0; i < cs.Length; i++)
+            {
+                int v = i;
+                ToolStripMenuItem it = new ToolStripMenuItem(cs[i]) { Checked = KiwiWfContrast == v, ForeColor = KainosUI.Text };
+                it.Click += (s, e) => { KiwiWfContrast = v; kiwiSave(); };
+                contrast.DropDownItems.Add(it);
+            }
+            ToolStripMenuItem speed = new ToolStripMenuItem("Speed") { ForeColor = KainosUI.Text };
+            string[] ss = { "Slow", "Normal", "Fast" };
+            int[] sv = { 1, 3, 4 };
+            for (int i = 0; i < ss.Length; i++)
+            {
+                int v = sv[i];
+                ToolStripMenuItem it = new ToolStripMenuItem(ss[i]) { Checked = KiwiWfSpeed == v, ForeColor = KainosUI.Text };
+                it.Click += (s, e) => { KiwiWfSpeed = v; if (_kiwiWf != null) _kiwiWf.Speed = v; kiwiSave(); };
+                speed.DropDownItems.Add(it);
+            }
+            menu.Items.Add(contrast);
+            menu.Items.Add(speed);
+            menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(on, at);
+        }
 
         internal void KiwiShowWaterfall()
         {
@@ -93,12 +134,24 @@ namespace Thetis
                     KiwiSpectrumView mv = _kiwiMain;
                     if (mv != null && mv.Visible) mv.AddLine(dbm, cf, span);
                 };
+                _kiwiWfBand = kiwiBandOf(KiwiViewTunedKhz);
+                int bz;
+                if (_kiwiWfBand != "" && _kiwiZoomByBand.TryGetValue(_kiwiWfBand, out bz)) _kiwiWfZoom = bz;
+                _kiwiWf.Speed = KiwiWfSpeed;
                 _kiwiWf.View(_kiwiWfZoom, KiwiViewTunedKhz);
                 _kiwiWf.Connect(k.WsBase, k.Prefix, k.Stamp, KainosMyCallsign);
             }
             else
             {
                 double tuned = KiwiViewTunedKhz;
+                // a new band: the zoom last used there
+                string band = kiwiBandOf(tuned);
+                int bz;
+                if (band != _kiwiWfBand)
+                {
+                    _kiwiWfBand = band;
+                    if (band != "" && _kiwiZoomByBand.TryGetValue(band, out bz) && bz != _kiwiWfZoom) { _kiwiWfZoom = bz; _kiwiWf.View(_kiwiWfZoom, tuned); }
+                }
                 if (Math.Abs(tuned - _kiwiWf.CentreKhz) > _kiwiWf.SpanKhz * 0.4) _kiwiWf.View(_kiwiWfZoom, tuned);
             }
             if (window)
@@ -138,6 +191,8 @@ namespace Thetis
         {
             _kiwiWfZoom = Math.Max(0, Math.Min(14, _kiwiWfZoom + step));
             _kiwiWf?.View(_kiwiWfZoom, KiwiViewTunedKhz);
+            string band = kiwiBandOf(KiwiViewTunedKhz);
+            if (band != "") { _kiwiZoomByBand[band] = _kiwiWfZoom; kiwiSave(); }       // remembered for this band
         }
 
         internal void KiwiWaterfallCentre() { _kiwiWf?.View(_kiwiWfZoom, KiwiViewTunedKhz); }

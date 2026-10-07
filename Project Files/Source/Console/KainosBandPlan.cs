@@ -29,6 +29,18 @@ namespace Thetis
     {
         internal enum Kind { CwOnly, CwData, AllModes, NotYours, BandOnly }
 
+        public static System.Drawing.Color ColourOf(Kind k)
+        {
+            switch (k)
+            {
+                case Kind.AllModes: return System.Drawing.Color.FromArgb(0xd4, 0xad, 0x6a);     // Kainos gold
+                case Kind.CwData: return System.Drawing.Color.FromArgb(0x7f, 0xb0, 0xcc);       // Kainos ice
+                case Kind.CwOnly: return System.Drawing.Color.FromArgb(0x9a, 0x86, 0xd8);       // Kainos violet
+                case Kind.NotYours: return System.Drawing.Color.FromArgb(0xc0, 0x40, 0x40);
+                default: return System.Drawing.Color.FromArgb(0x60, 0x70, 0x80);
+            }
+        }
+
         internal struct Seg
         {
             public double Lo, Hi;       // MHz

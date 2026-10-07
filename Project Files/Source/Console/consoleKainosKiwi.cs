@@ -81,6 +81,17 @@ namespace Thetis
                     case "follow": _kiwiFollow = v != "0"; break;
                     case "followb": _kiwiFollowB = v == "1"; break;
                     case "main": KiwiOnPanadapter = v != "0"; break;
+                    case "wfc": if (int.TryParse(v, out n)) KiwiWfContrast = Math.Max(0, Math.Min(2, n)); break;
+                    case "wfs": if (int.TryParse(v, out n)) KiwiWfSpeed = Math.Max(1, Math.Min(4, n)); break;
+                    case "zooms":
+                        _kiwiZoomByBand.Clear();
+                        foreach (string bz in v.Split('|'))
+                        {
+                            string[] p = bz.Split(':');
+                            int z;
+                            if (p.Length == 2 && int.TryParse(p[1], out z)) _kiwiZoomByBand[p[0]] = Math.Max(0, Math.Min(14, z));
+                        }
+                        break;
                     case "vol": if (int.TryParse(v, out n)) KiwiVolume.Value = Math.Max(0, Math.Min(100, n)); break;
                 }
             }
@@ -90,6 +101,8 @@ namespace Thetis
         {
             KainosKiwiSettings = "fav=" + string.Join("|", KiwiFavourites.Select(Uri.EscapeDataString)) + ";dev=" + _kiwiDevice
                                  + ";follow=" + (_kiwiFollow ? 1 : 0) + ";followb=" + (_kiwiFollowB ? 1 : 0) + ";main=" + (KiwiOnPanadapter ? 1 : 0)
+                                 + ";wfc=" + KiwiWfContrast + ";wfs=" + KiwiWfSpeed
+                                 + ";zooms=" + string.Join("|", _kiwiZoomByBand.Select(kv => kv.Key + ":" + kv.Value))
                                  + ";vol=" + (int)KiwiVolume.Value;
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }

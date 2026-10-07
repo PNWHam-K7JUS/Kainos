@@ -56,6 +56,11 @@ namespace Thetis
             return spans;
         }
 
+        // for the Kiwi view (its own frequency span): the segments, uses and spot frequencies; null when it's off
+        internal List<KainosBandPlan.Seg> KainosBandPlanSegments { get { return KainosBandPlanOn ? _kainosBandPlan : null; } }
+        internal KainosBandPlan.Use[] KainosBandUses { get { return KainosBandPlanOn ? _kainosBandUse : null; } }
+        internal KainosBandPlan.Spot[] KainosBandSpotFreqs { get { return KainosBandPlanOn ? _kainosBandSpots : null; } }
+
         private float kainosBandX(double mhz, int rx)
         {
             double centre = rx == 1 ? CentreFrequency : CentreRX2Frequency;

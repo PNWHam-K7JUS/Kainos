@@ -178,6 +178,14 @@ namespace Thetis
 
         public double SpanKhz { get { return FullSpanKhz / Math.Pow(2, Zoom); } }
 
+        // lines a second: 1 slow .. 4 fast
+        private int _speed = 3;
+        public int Speed
+        {
+            get { return _speed; }
+            set { _speed = Math.Max(1, Math.Min(4, value)); if (_ready) send("SET wf_speed=" + _speed); }
+        }
+
         public void Connect(string wsBase, string prefix, long stamp, string callsign)
         {
             Disconnect();
@@ -236,7 +244,7 @@ namespace Thetis
                 string ident = string.IsNullOrWhiteSpace(callsign) ? "Kainos" : callsign.Trim().ToUpperInvariant() + " (Kainos)";
                 send("SET ident_user=" + Uri.EscapeDataString(ident));
                 send("SET maxdb=0 mindb=-120");
-                send("SET wf_speed=3");
+                send("SET wf_speed=" + _speed);
                 send("SET wf_comp=0");
                 send("SET interp=13");
                 _ready = true;
