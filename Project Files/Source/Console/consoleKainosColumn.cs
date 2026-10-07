@@ -1346,7 +1346,8 @@ namespace Thetis
         }
 
         // a Thetis button counts as shown unless it was hidden itself (its panel is collapsed, not hidden)
-        private bool shown(ButtonBase t) { return t.Visible && LabelFor(t).Length > 0; }
+        // the button's own Visible (Thetis's Legacy Items can hide the whole mode / filter panel; GitHub issue #6)
+        private bool shown(ButtonBase t) { return KainosUI.OwnVisible(t) && LabelFor(t).Length > 0; }
 
         private List<Cell> shownCells() { return _cells.Where(c => shown(c.Target)).ToList(); }
 

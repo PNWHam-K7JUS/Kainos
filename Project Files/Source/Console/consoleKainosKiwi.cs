@@ -142,7 +142,7 @@ namespace Thetis
             {
                 _kiwiFollow = !_kiwiFollow;
                 _kiwiLastKhz = 0;
-                if (!_kiwiFollow) { KiwiOwnKhz = VFOAFreq * 1000; KiwiOwnMode = kiwiMode(_rx1_dsp_mode); }    // carry on from where it was
+                if (!_kiwiFollow) { KiwiOwnMode = kiwiMode(_rx1_dsp_mode); KiwiOwnKhz = kiwiFollowKhz(KiwiOwnMode); }    // carry on from where it was
                 kiwiSave();
             }, KainosUI.Tone.Gold);
             _kiwiButtons.Add("Stop", () => false, kiwiStop, KainosUI.Tone.Tx);
@@ -227,6 +227,13 @@ namespace Thetis
             KiwiNearest = q.OrderBy(r => KiwiFavourites.Contains(r.Url) ? 0 : 1).Take(KainosKiwiList.Rows).ToList();
         }
 
+        // the Kiwi's frequency when following VFO A. In CW, Thetis's VFO is the signal itself, while the Kiwi listens
+        // above its frequency: so it's tuned a CW pitch below, and the signal is heard at the same pitch (issue #5)
+        private double kiwiFollowKhz(string mode)
+        {
+            return VFOAFreq * 1000 - (mode == "cw" ? cw_pitch / 1000.0 : 0);
+        }
+
         private static string kiwiMode(DSPMode m)
         {
             switch (m)
@@ -246,8 +253,9 @@ namespace Thetis
             _kiwi = new KiwiClient();
             _kiwi.Status += s => { try { BeginInvoke(new Action(() => _kiwiState = s + (_kiwiOn != null ? " - " + _kiwiOn.Loc : ""))); } catch { } };
             _kiwi.Audio += kiwiAudio;
-            _kiwiLastKhz = VFOAFreq * 1000;
             _kiwiLastMode = kiwiMode(_rx1_dsp_mode);
+            _kiwiLastKhz = kiwiFollowKhz(_kiwiLastMode);
+            _kiwi.CwPitch = cw_pitch;
             if (_kiwiFollow) _kiwi.Connect(r.Url, KainosMyCallsign, _kiwiLastKhz, _kiwiLastMode);
             else _kiwi.Connect(r.Url, KainosMyCallsign, KiwiOwnKhz, KiwiOwnMode);
         }
@@ -288,8 +296,9 @@ namespace Thetis
             if (_kiwiAll.Count == 0 && !_kiwiLoading && _kiwiState.StartsWith("Pick")) kiwiRefresh();
             if (_kiwi != null && _kiwiFollow)
             {
-                double khz = VFOAFreq * 1000;
                 string mode = kiwiMode(_rx1_dsp_mode);
+                double khz = kiwiFollowKhz(mode);
+                _kiwi.CwPitch = cw_pitch;
                 if (Math.Abs(khz - _kiwiLastKhz) > 0.0005 || mode != _kiwiLastMode)
                 {
                     _kiwiLastKhz = khz;

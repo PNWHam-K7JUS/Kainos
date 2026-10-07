@@ -33,6 +33,10 @@ Newest first. Each version's section is written to be copied straight into a Git
 - Uses the country and licence class from the setup wizard, or set them in Setup > Appearance > Kainos > Band plan (where it can also be turned off).
 - Full privileges are built in for the United States (Technician, General, Amateur Extra; HF and 6 m) and Canada; elsewhere the band edges are shown. It's a guide: always check your own licence.
 
+**Fixed**
+- The VFO flag's MODE tab could open empty (no mode or filter buttons) when Thetis's Legacy Items "Hide mode / filter button grid" options were on (GitHub issue #6).
+- KiwiSDR in CW, following VFO A: the Kiwi was off by the CW pitch. It now hears a signal on your VFO at your own CW pitch (GitHub issue #5).
+
 ### Kainos 1.0.6
 
 **New: setup wizard for the Hermes Lite 2**

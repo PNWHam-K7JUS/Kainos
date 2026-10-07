@@ -198,6 +198,9 @@ namespace Thetis
         public void Dispose() { Disconnect(); }
 
         // tune (kHz, the dial frequency) and the mode ("usb", "lsb", "cw", "am", "nbfm")
+        // CW: the pitch the signal is heard at (Hz); the CW passband is centred on it
+        public int CwPitch = 500;
+
         public void Tune(double khz, string mode)
         {
             _khz = khz;
@@ -211,7 +214,7 @@ namespace Thetis
             switch (_mode)
             {
                 case "lsb": _lowCut = -2700; _highCut = -300; break;
-                case "cw": _lowCut = 300; _highCut = 700; break;
+                case "cw": _lowCut = Math.Max(50, CwPitch - 250); _highCut = CwPitch + 250; break;
                 case "am": _lowCut = -4900; _highCut = 4900; break;
                 case "nbfm": _lowCut = -6000; _highCut = 6000; break;
                 default: _mode = "usb"; _lowCut = 300; _highCut = 2700; break;
