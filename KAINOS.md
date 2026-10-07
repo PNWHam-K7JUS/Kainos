@@ -45,6 +45,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 **Fixed**
 - Setup and the other windows were hard to read in places (GitHub issue #3): text is now brighter (near white, with clearer group titles), greyed-out options are a readable grey instead of dark blue, the radio list on Setup > General no longer shows light text on a light highlight, the Meters/Gadgets lists show their names in white, and any text that ends up light on a light box (like the "TX Profile modified" notice) is switched to dark.
+- The FreeDV Reporter's station list was hard to read (white rows behind light text): it's now dark like the rest of Kainos, with darker red / green / plum shades for stations transmitting, just heard, or with a new message, and its tool bar is dark too.
 - The VFO flag's MODE tab could open empty (no mode or filter buttons) when Thetis's Legacy Items "Hide mode / filter button grid" options were on (GitHub issue #6).
 - KiwiSDR in CW, following VFO A: the Kiwi was off by the CW pitch. It now hears a signal on your VFO at your own CW pitch (GitHub issue #5).
 

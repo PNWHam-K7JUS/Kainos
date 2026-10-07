@@ -687,6 +687,18 @@ namespace Thetis.FreeDVReporter
             };
         }
 
+        // Kainos: the list is on the dark window theme (its cells' background is dark)
+        private static readonly Color KainosSelection = Color.FromArgb(0x1d, 0x3a, 0x55);
+        private bool kainosDark
+        {
+            get
+            {
+                Color c = grid.DefaultCellStyle.BackColor;
+                if (c.IsEmpty || c.A < 255) c = grid.BackgroundColor;
+                return (c.R * 299 + c.G * 587 + c.B * 114) / 1000 < 100;
+            }
+        }
+
         private void BuildColumns()
         {
             int[] widths = { 90, 70, 60, 50, 90, 90, 60, 70, 220, 80, 80, 70, 50, 80 };
@@ -924,8 +936,8 @@ namespace Thetis.FreeDVReporter
                          * the row they picked for Request QSY.  Unselected
                          * rows still get their TX/RX/MSG shading from the
                          * shade-update block below. */
-                        row.DefaultCellStyle.SelectionBackColor = SystemColors.Highlight;
-                        row.DefaultCellStyle.SelectionForeColor = SystemColors.HighlightText;
+                        row.DefaultCellStyle.SelectionBackColor = kainosDark ? KainosSelection : SystemColors.Highlight;     // Kainos: readable on the dark theme
+                        row.DefaultCellStyle.SelectionForeColor = kainosDark ? Color.White : SystemColors.HighlightText;
                     }
 
                     bool inFilter;
@@ -996,7 +1008,10 @@ namespace Thetis.FreeDVReporter
                      *   Recently transmitting -> LightCoral (5 s tail after TX stops)
                      *   Recently received     -> LimeGreen  (5 s tail after rx_report)
                      *   Otherwise             -> default                                 */
-                    Color want = SystemColors.Window;
+                    // Kainos: on the dark window theme the list's own background (Empty: the default and alternating rows'),
+                    // and darker shades, so the light text stays readable (a Facebook report)
+                    bool dark = kainosDark;
+                    Color want = dark ? Color.Empty : SystemColors.Window;
                     bool recentMsg = st.LastMessageChangeUtc.HasValue &&
                                      (nowUtc - st.LastMessageChangeUtc.Value).TotalSeconds < 5.0;
                     bool recentTx  = st.Transmitting ||
@@ -1004,9 +1019,9 @@ namespace Thetis.FreeDVReporter
                                       (nowUtc - st.LastTxActiveUtc.Value).TotalSeconds < 5.0);
                     bool recentRx  = st.LastRxUtc.HasValue &&
                                      (nowUtc - st.LastRxUtc.Value).TotalSeconds < 5.0;
-                    if      (recentMsg) want = Color.Plum;
-                    else if (recentTx)  want = Color.LightCoral;
-                    else if (recentRx)  want = Color.LimeGreen;
+                    if      (recentMsg) want = dark ? Color.FromArgb(0x4e, 0x2e, 0x5c) : Color.Plum;
+                    else if (recentTx)  want = dark ? Color.FromArgb(0x5c, 0x26, 0x26) : Color.LightCoral;
+                    else if (recentRx)  want = dark ? Color.FromArgb(0x1f, 0x4d, 0x2c) : Color.LimeGreen;
                     if (row.DefaultCellStyle.BackColor != want)
                     {
                         row.DefaultCellStyle.BackColor = want;
@@ -1014,8 +1029,8 @@ namespace Thetis.FreeDVReporter
                          * selected row regardless of TX/RX/MSG shade -- this
                          * is what makes the picked row visible for the
                          * Request QSY button. */
-                        row.DefaultCellStyle.SelectionBackColor = SystemColors.Highlight;
-                        row.DefaultCellStyle.SelectionForeColor = SystemColors.HighlightText;
+                        row.DefaultCellStyle.SelectionBackColor = kainosDark ? KainosSelection : SystemColors.Highlight;     // Kainos: readable on the dark theme
+                        row.DefaultCellStyle.SelectionForeColor = kainosDark ? Color.White : SystemColors.HighlightText;
                     }
                 }
 
