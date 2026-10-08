@@ -11,6 +11,10 @@ Newest first. Each version's section is written to be copied straight into a Git
 **New: hear VFO B in split**
 - In split, the VFO B flag (and VFO B in the right-hand column's VFO tab) has a **LISTEN** button: click it to hear VFO B along with VFO A, for example to hear the DX's pileup while you listen to the DX. It uses Thetis's second receiver inside RX1's span (the SubRX button), so the **MAIN** and **SUB** sliders under the panadapter set which side you hear each one on. VFO B starts at VFO A's volume; set its own level with **LISTEN AF** in VFO B's AUDIO drawer. If VFO B is too far from VFO A for it to reach, the button says **TOO FAR** (GitHub issue #4).
 
+**Fixes**
+- The squelch level in FM (and RX2's) went back to 100 at every start. It now keeps the level you set (GitHub issue #10). This came from Thetis: at start-up it stored the squelch slider's default as the level before the saved one was put on it; Kainos now puts the saved level on the slider first (`kainosSquelchSlidersFromSaved`).
+- **Report a bug** showed "Screen: (InvalidOperationException)" instead of the screen size and scaling.
+
 ### Kainos 1.0.7
 
 **New: SWR sweep**
