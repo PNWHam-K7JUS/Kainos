@@ -186,6 +186,13 @@ namespace Thetis
             catch { return ""; }
         }
 
+        // Hear VFO B in split (GitHub #4): Thetis's MultiRX (the SubRX button) puts a second receiver inside RX1's span
+        // on VFO B, heard with RX1 (the MAIN / SUB pan sliders under the panadapter set each one's side)
+        internal bool KainosListenB { get { return chkEnableMultiRX.Checked; } }
+        internal void KainosToggleListenB() { chkEnableMultiRX.Checked = !chkEnableMultiRX.Checked; }
+        // the sub-receiver only reaches inside RX1's span (its sample rate around the centre, less a margin)
+        internal bool KainosListenBInReach { get { return Math.Abs(VFOBFreq - CentreFrequency) * 1e6 < SampleRateRX1 * 0.45; } }
+
         // VFO B as split's transmit frequency (split or quick split on, RX2 off): it has no receiver of its own
         internal bool KainosSplitB { get { return chkVFOSplit.Checked && !RX2Enabled; } }
 
@@ -483,7 +490,8 @@ namespace Thetis
         private readonly List<KeyValuePair<RectangleF, long>> _digits = new List<KeyValuePair<RectangleF, long>>();
         private readonly RectangleF[] _tabRects = new RectangleF[Tabs.Length];
         private int _hoverTab = -1;
-        private RectangleF _txRect, _freqRect;
+        private RectangleF _txRect, _freqRect, _listenRect;
+        private bool _hoverListen;
         private bool _hoverTx;
         public string OpenTab;
         public event Action<string> TabClicked;
@@ -597,6 +605,24 @@ namespace Thetis
             }
             using (Font f = new Font("Segoe UI", 10 * s, FontStyle.Regular, GraphicsUnit.Pixel))
                 drawItem(g, f, _console.KainosDspText(_rx), KainosUI.Faint, x, y, badge);
+
+            // VFO B in split: LISTEN, to hear it with VFO A (gold while on)
+            _listenRect = RectangleF.Empty;
+            if (_rx == 2 && _console.KainosSplitB)
+            {
+                RectangleF lr = new RectangleF(Width - pad - 26 * s - 6 * s - 50 * s, y + 1 * s, 50 * s, badge - 2 * s);
+                _listenRect = lr;
+                bool on = _console.KainosListenB, far = on && !_console.KainosListenBInReach;      // too far from VFO A to hear
+                using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(lr, 3 * s))
+                {
+                    if (on) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillPath(b, path);
+                    using (Pen p = new Pen(far ? KainosUI.Tx : on ? KainosUI.Gold : _hoverListen ? KainosUI.Dim : KainosUI.Line)) g.DrawPath(p, path);
+                }
+                using (Font f = new Font("Segoe UI", 9 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush b = new SolidBrush(far ? KainosUI.Tx : on ? KainosUI.GoldHi : _hoverListen ? KainosUI.Dim : KainosUI.Faint))
+                using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    g.DrawString(far ? "TOO FAR" : "LISTEN", f, b, lr, sf);
+            }
 
             // TX: outlined red on the transmit VFO (filled while transmitting); dim on the other, where a click makes
             // it the transmit VFO (Thetis's TX buttons on its VFO boxes)
@@ -814,6 +840,9 @@ namespace Thetis
             if (_showTabs) for (int i = 0; i < Tabs.Length; i++) if (_tabRects[i].Contains(e.Location)) h = i;
             bool overDigit = _digits.Any(d => d.Key.Contains(e.Location));
             bool overTx = _txRect.Contains(e.Location) && !_console.KainosIsTxVfo(_rx);
+            bool overListen = _listenRect.Contains(e.Location);
+            if (overListen != _hoverListen) { _hoverListen = overListen; Invalidate(); }
+            if (overListen) { Cursor = Cursors.Hand; return; }
             Cursor = h >= 0 || overTx ? Cursors.Hand : overDigit ? Cursors.IBeam : inDragArea(e.Location) ? Cursors.SizeNS : Cursors.Default;
             if (h != _hoverTab || overTx != _hoverTx) { _hoverTab = h; _hoverTx = overTx; Invalidate(); }
         }
@@ -825,6 +854,7 @@ namespace Thetis
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
             if (_showTabs && _badgeRect.Contains(e.Location)) { BadgeClicked?.Invoke(); return; }      // the letter: full flag or one line
+            if (_listenRect.Contains(e.Location)) { _console.KainosToggleListenB(); Invalidate(); return; }      // hear VFO B in split
             if (_txRect.Contains(e.Location)) { _console.KainosSetTxVfo(_rx); Invalidate(); return; }
             if (_freqRect.Contains(e.Location)) { beginEdit(); return; }
             if (inDragArea(e.Location)) { _dragY = Cursor.Position.Y; Capture = true; return; }

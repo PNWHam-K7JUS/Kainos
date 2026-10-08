@@ -6,6 +6,11 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.8 (not yet released)
+
+**New: hear VFO B in split**
+- In split, the VFO B flag (and VFO B in the right-hand column's VFO tab) has a **LISTEN** button: click it to hear VFO B along with VFO A, for example to hear the DX's pileup while you listen to the DX. It uses Thetis's second receiver inside RX1's span (the SubRX button), so the **MAIN** and **SUB** sliders under the panadapter set which side you hear each one on. If VFO B is too far from VFO A for it to reach, the button says **TOO FAR** (GitHub issue #4).
+
 ### Kainos 1.0.7
 
 **New: SWR sweep**
@@ -448,6 +453,10 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 - `KainosWindowTheme`: brighter `Text` / `TextMid` / `TextDim`. `watchContrast` on labels, buttons, text boxes, panels and group boxes: text light on a light background (`effectiveBack`) becomes dark, and goes back when the background does (watched through BackColorChanged, the container's too). `paintDisabled` redraws a disabled label's, check box's or radio button's text in a readable grey (Windows draws it darker than the background), with GDI+ as Windows does so it fits as before.
 - `ucRadioList` (Thetis): a dark palette when the colour behind it is dark (the theme makes it transparent). Setup's meter and MMIO lists draw their text in the list's ForeColor rather than black.
+
+### Hearing VFO B in split
+
+- `KainosListenB` / `KainosToggleListenB` (consoleKainosFlag.cs) are Thetis's MultiRX (`chkEnableMultiRX`, SubRX in the bar): with RX2 off its sub-receiver is on VFO B, inside RX1's span. The flag view draws a LISTEN pill on VFO B's identity row while `KainosSplitB` (on the panadapter flag and the VFO tab's face), red TOO FAR when VFO B is more than 45 % of `SampleRateRX1` from `CentreFrequency`.
 
 ### Column scrolling and one-line flags
 
