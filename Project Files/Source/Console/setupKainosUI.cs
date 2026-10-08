@@ -121,11 +121,13 @@ namespace Thetis
             grpPan.Controls.Add(comboKainosBackdropLogo);
             // the slice flags: how much shows through them while the mouse isn't over them (GitHub issue #2)
             comboKainosFlagOpacity = new ComboBoxTS { Name = "comboKainosFlagOpacity", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 108), Size = new Size(140, 21) };
-            comboKainosFlagOpacity.Items.AddRange(new object[] { "Solid", "90%", "75%", "60%", "45%" });
+            comboKainosFlagOpacity.Items.AddRange(new object[] { "Solid", "90%", "75%", "60%", "45%", "Off (VFO tab only)" });
             comboKainosFlagOpacity.SelectedIndex = 2;
             toolTip1.SetToolTip(comboKainosFlagOpacity, "How solid the slice flags on the panadapter are while the mouse isn't over them, so spots and\r\n" +
                 "markers behind them show through. A flag is solid while the mouse is over it.\r\n" +
-                "Drag a flag by its face to move it down the panadapter; double-click its face to put it back.");
+                "Drag a flag by its face to move it down the panadapter, or sideways to pin it anywhere on it (it then\r\n" +
+                "stays put instead of following its VFO); click its pin, or double-click its face, to put it back.\r\n" +
+                "Off: no flags on the panadapter; the right-hand column's VFO tab has them.");
             comboKainosFlagOpacity.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             grpPan.Controls.Add(avLabel("Slice flags", 14, 111));
             grpPan.Controls.Add(comboKainosFlagOpacity);
@@ -217,7 +219,7 @@ namespace Thetis
             console.KainosScopeSettings = txtKainosScope.Text;
             console.KainosScopeLoad();
             console.KainosFlagSettings = txtKainosFlags.Text;
-            console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
+            console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;

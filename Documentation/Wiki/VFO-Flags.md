@@ -16,7 +16,9 @@ Each receiver has a **flag** on the panadapter, SmartSDR style: the antenna, fil
 ## Keeping the flags out of the way
 
 - **See-through:** flags are see-through until you point at them, so spots and markers behind them show. Set how see-through in **Setup > Appearance > Kainos > Slice flags**.
-- **Drag** a flag by its face to move it down the panadapter; **double-click** the face to put it back at the top.
+- **Drag** a flag by its face to move it down the panadapter; it still follows its VFO.
+- **Pin** a flag anywhere: drag it **sideways** and it stays where you drop it instead of following its VFO, with a gold **pin** on it. Drag it again to move it. Click the pin, or **double-click** the face, to put it back on its VFO.
+- **Flags off:** set **Setup > Appearance > Kainos > Slice flags** to **Off (VFO tab only)** for no flags on the panadapter, just the VFO line. The right-hand column's **VFO** tab then has the flags' tab row too, and each tab's drawer (AUDIO, DSP, MODE, RIT/XIT, VAC, FREEDV) opens in the column.
 - **One line:** click the **A** or **B** on a flag to shrink it to one line (mode, frequency and TX). Click it again for the full flag.
 
 ## Split

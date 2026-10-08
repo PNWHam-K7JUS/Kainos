@@ -17,6 +17,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 - The right-click menu also has a fixed scale (0 to -50 dBFS full scale) in place of the automatic one, the trigger on or off, left, right or both channels, smoothing, peak hold and an **AF waterfall** under the spectrum (its colours follow the noise floor, so signals stand out). Your choices are kept. See the [Audio Scope](https://github.com/PNWHam-K7JUS/Kainos/wiki/Audio-Scope) wiki page.
 - Technical: it reads ChannelMaster's scope tap, the one Thetis's Scope display uses (`KainosScopeTap`, fed from `DoScope.xscope` in `cmaster.cs`). `CMSetScopeRun` keeps the tap running while either Thetis's display or the tab wants it, and Thetis's scope arrays are only filled when its display does.
 
+**New: pin the VFO flags anywhere, or turn them off**
+- Drag a VFO flag **sideways** and it stays where you drop it on the panadapter, instead of following its VFO, marked with a gold pin. Drag it again to move it; click the pin, or double-click its face, to put it back on its VFO. Dragging straight down still moves it down its VFO line as before (GitHub issue #11).
+- **Setup > Appearance > Kainos > Slice flags** has a new choice, **Off (VFO tab only)**: no flags on the panadapter, just the VFO line. The right-hand column's VFO tab then gets the flags' tab row, and AUDIO, DSP, MODE, RIT/XIT, VAC and FREEDV open in the column.
+- Technical: pinned places are saved as fractions of the panadapter's free room (`KainosFlagSettings`, now "dropA;dropB;compactA;compactB;pinA;pinB"); flag opacity 0 is "off" (`KainosFlagOpacity`), and `KainosBuildDrawer` takes a width for the column.
+
 **Fixes**
 - The squelch level in FM (and RX2's) went back to 100 at every start. It now keeps the level you set (GitHub issue #10). This came from Thetis: at start-up it stored the squelch slider's default as the level before the saved one was put on it; Kainos now puts the saved level on the slider first (`kainosSquelchSlidersFromSaved`).
 - **Report a bug** showed "Screen: (InvalidOperationException)" instead of the screen size and scaling.
