@@ -121,6 +121,7 @@ namespace Thetis
         private int[] _wfPixels = new int[0];
         private int _wfW, _wfH;
         private Bitmap _wfBitmap;
+        private float _wfFloor = float.NaN;             // the noise floor the colours start from, dBFS
         private static readonly int[] _wfPalette = wfPalette();
 
         public KainosScopeView()
@@ -284,10 +285,16 @@ namespace Thetis
                 _wfBitmap = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
             }
             Array.Copy(_wfPixels, 0, _wfPixels, w, w * (h - 1));          // down a row (Array.Copy handles the overlap)
-            float top = FullScale == 1 ? _afTop : FullScale, range = 60;   // a little tighter than the spectrum, for contrast
+            // colours from just under the noise floor (the quietest fifth of the span, followed slowly) to 45 dB above
+            // it, whatever the spectrum's scale, so noise stays dark and signals stand out
+            float[] sorted = (float[])_af.Clone();
+            Array.Sort(sorted);
+            float floor = sorted[sorted.Length / 5];
+            _wfFloor = float.IsNaN(_wfFloor) ? floor : _wfFloor * 0.9f + floor * 0.1f;
+            float low = _wfFloor - 3, range = 45;
             for (int c = 0; c < w; c++)
             {
-                float n = (_af[c] - (top - range)) / range;
+                float n = (_af[c] - low) / range;
                 _wfPixels[c] = _wfPalette[Math.Max(0, Math.Min(255, (int)(n * 255)))];
             }
             System.Drawing.Imaging.BitmapData d = _wfBitmap.LockBits(new Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.WriteOnly, _wfBitmap.PixelFormat);
