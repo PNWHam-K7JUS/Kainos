@@ -189,7 +189,14 @@ namespace Thetis
         // Hear VFO B in split (GitHub #4): Thetis's MultiRX (the SubRX button) puts a second receiver inside RX1's span
         // on VFO B, heard with RX1 (the MAIN / SUB pan sliders under the panadapter set each one's side)
         internal bool KainosListenB { get { return chkEnableMultiRX.Checked; } }
-        internal void KainosToggleListenB() { chkEnableMultiRX.Checked = !chkEnableMultiRX.Checked; }
+        // the sub-receiver's volume (RX1Gain) starts at 100 against RX1's usual 10-30, so B came in loud enough to clip:
+        // turning LISTEN on starts B at A's level, and VFO B's AUDIO drawer sets it from there
+        internal void KainosToggleListenB()
+        {
+            bool on = !chkEnableMultiRX.Checked;
+            if (on) RX1Gain = RX0Gain;
+            chkEnableMultiRX.Checked = on;
+        }
         // the sub-receiver only reaches inside RX1's span (its sample rate around the centre, less a margin)
         internal bool KainosListenBInReach { get { return Math.Abs(VFOBFreq - CentreFrequency) * 1e6 < SampleRateRX1 * 0.45; } }
 
@@ -288,7 +295,8 @@ namespace Thetis
                         KainosActionGrid g = new KainosActionGrid(1);
                         CheckBox mute = rx == 1 ? (CheckBox)chkMUT : chkRX2Mute;
                         g.Add("MUTE", () => mute.Checked, () => kainosClick(mute), KainosUI.Tone.Tx);
-                        rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
+                        if (rx == 2 && KainosSplitB) rows.Add(new KainosSlider(ptbRX1Gain, "LISTEN AF"));    // B heard through RX1's sub-receiver
+                        else rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
                         rows.Add(g);
                         break;
                     }
