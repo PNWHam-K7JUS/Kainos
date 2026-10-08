@@ -1132,8 +1132,16 @@ namespace Thetis
 
         public static void CMSetScopeRun(int id, bool run)
         {
+            if (id == 0) { _displayScope = run; Scope.dscope[0].Display = run; run = run || KainosScopeTap.Wanted; }    // Kainos: the AUDIO SCOPE tab shares the tap
             Scope.SetScopeRun(id, run ? 1 : 0); //[2.10.3.4]MW0LGE run on/off
             Scope.dscope[id].Run = run;
+        }
+
+        // Kainos: the AUDIO SCOPE tab turned on or off (KainosScopeTap.Wanted); the display's own choice is kept
+        private static bool _displayScope;
+        public static void KainosScopeRefresh()
+        {
+            if (Scope.dscope[0] != null) CMSetScopeRun(0, _displayScope);
         }
 
         public static void CMSetTXOutputLevelRun()
@@ -2329,6 +2337,8 @@ namespace Thetis
         
         int busy = 0;
 
+        public bool Display = false;     // Kainos: Thetis's Scope display wants the data (Run may be on for the AUDIO SCOPE tab alone)
+
         private bool run = false;
         public bool Run
         {
@@ -2356,8 +2366,12 @@ namespace Thetis
                         fixed (float* pright = &right[0])
                         {
                             deswizzle(size, data, pleft, pright);
-                            Audio.DoScope(pleft, size);
-                            Audio.DoScope2(pright, size);
+                            if (Display)
+                            {
+                                Audio.DoScope(pleft, size);
+                                Audio.DoScope2(pright, size);
+                            }
+                            KainosScopeTap.Feed(pleft, pright, size, state);     // Kainos: the AUDIO SCOPE tab
                         }
                         //System.Threading.Interlocked.Exchange(ref busy, 0);
                     }
