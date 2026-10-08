@@ -22,6 +22,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **Setup > Appearance > Kainos > Slice flags** has a new choice, **Off (VFO tab only)**: no flags on the panadapter, just the VFO line. The right-hand column's VFO tab then gets the flags' tab row, and AUDIO, DSP, MODE, RIT/XIT, VAC and FREEDV open in the column.
 - Technical: pinned places are saved as fractions of the panadapter's free room (`KainosFlagSettings`, now "dropA;dropB;compactA;compactB;pinA;pinB"); flag opacity 0 is "off" (`KainosFlagOpacity`), and `KainosBuildDrawer` takes a width for the column.
 
+**New: choose what the mouse wheel does over the right-hand column**
+- **Setup > Appearance > Kainos > Mouse wheel**: **Scrolls the column** (as now; hold Ctrl to change a slider) or **Adjusts the control under it**, where the wheel changes the slider, list, drop-down or number under the pointer and scrolls the column anywhere else, and Ctrl+wheel always scrolls the column (GitHub issue #4).
+
 **Fixes**
 - The squelch level in FM (and RX2's) went back to 100 at every start. It now keeps the level you set (GitHub issue #10). This came from Thetis: at start-up it stored the squelch slider's default as the level before the saved one was put on it; Kainos now puts the saved level on the slider first (`kainosSquelchSlidersFromSaved`).
 - **Report a bug** showed "Screen: (InvalidOperationException)" instead of the screen size and scaling.

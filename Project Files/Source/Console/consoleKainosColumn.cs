@@ -1186,9 +1186,12 @@ namespace Thetis
     }
 
     // The mouse wheel over the right-hand column scrolls the column, whatever is under the pointer; with Ctrl held it
-    // goes to the slider or list under the pointer as usual
-    internal class KainosWheelFilter : IMessageFilter
+    // goes to the slider or list under the pointer as usual (GitHub #4). Or the other way round (Setup > Appearance >
+    // Kainos > Mouse wheel; genmce on #4): the wheel goes to a slider, list, drop-down or number under the pointer and
+    // scrolls the column anywhere else, and Ctrl+wheel always scrolls the column.
+    internal partial class KainosWheelFilter : IMessageFilter
     {
+        public static bool AdjustFirst;
         private readonly KainosColumn _column;
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr WindowFromPoint(Point p);
@@ -1199,16 +1202,32 @@ namespace Thetis
         {
             const int WM_MOUSEWHEEL = 0x020A;
             if (m.Msg != WM_MOUSEWHEEL || !_column.Visible || _column.IsDisposed) return false;
-            if ((Control.ModifierKeys & Keys.Control) != 0) return false;
+            bool ctrl = (Control.ModifierKeys & Keys.Control) != 0;
+            if (ctrl && !AdjustFirst) return false;
             // over the column's area of the main window: the column itself, or a Thetis panel Kainos places over it
             // (the TX tab's phone panel, the VFO SYNC panel ...), which isn't the column's child
             Point at = Cursor.Position;
             if (!_column.RectangleToScreen(_column.ClientRectangle).Contains(at)) return false;
             Control c = Control.FromChildHandle(WindowFromPoint(at));
             if (c == null || c.FindForm() != _column.FindForm()) return false;      // another window over it (a flag, a menu)
+            if (AdjustFirst && !ctrl && usesWheel(c)) return false;
             int delta = (short)((m.WParam.ToInt64() >> 16) & 0xffff);
             _column.ScrollBy(delta);
             return true;
+        }
+    }
+
+    partial class KainosWheelFilter
+    {
+        // a control (or the control it's part of, like a number box's text) that does something with the wheel
+        private static bool usesWheel(Control c)
+        {
+            for (; c != null; c = c.Parent)
+                if (c is PrettyTrackBar || c is TrackBar || c is KainosSlider || c is KainosUpDown || c is UpDownBase || c is ComboBox
+                    || c is ListBox || c is KainosKiwiList || c is KainosSpotList || c is KainosMemoryList || c is KainosFlagView)
+                    return true;
+                else if (c is KainosColumn) return false;
+            return false;
         }
     }
 

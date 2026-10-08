@@ -51,7 +51,7 @@ namespace Thetis
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
         private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private ComboBoxTS comboKainosFlagOpacity;
+        private ComboBoxTS comboKainosFlagOpacity, comboKainosWheel;
         private TextBoxTS txtKainosFlags;
         private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope;
         private bool _kainosSettingsHooked;
@@ -94,11 +94,21 @@ namespace Thetis
             comboKainosUIScale.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             grp.Controls.Add(avLabel("UI scale", 250, 27));
             grp.Controls.Add(comboKainosUIScale);
-            LabelTS note = avLabel("Kainos: the console in the Kainos colours, with the left-hand column of buttons, the " +
-                "right-hand column of tabs, the slice flags on the panadapter and the bar under it. Right-click a button " +
-                "for the same settings shortcut as in Classic. Classic: Thetis's console exactly as your skin draws it.", 14, 60);
+            // the mouse wheel over the right-hand column (GitHub #4)
+            comboKainosWheel = new ComboBoxTS { Name = "comboKainosWheel", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 54), Size = new Size(310, 21) };
+            comboKainosWheel.Items.AddRange(new object[] { "Scrolls the column (Ctrl+wheel adjusts)", "Adjusts the control under it (Ctrl+wheel scrolls)" });
+            comboKainosWheel.SelectedIndex = 0;
+            toolTip1.SetToolTip(comboKainosWheel, "The mouse wheel over the right-hand column.\r\n" +
+                "Scrolls the column: the wheel always scrolls the column; hold Ctrl to change the slider or list under the pointer.\r\n" +
+                "Adjusts the control: the wheel changes a slider, list, drop-down or number under the pointer and scrolls the\r\n" +
+                "column anywhere else; hold Ctrl to scroll the column wherever the pointer is.");
+            comboKainosWheel.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            grp.Controls.Add(avLabel("Mouse wheel", 14, 57));
+            grp.Controls.Add(comboKainosWheel);
+            LabelTS note = avLabel("Kainos: the Kainos colours, with the left-hand column of buttons, the right-hand column of " +
+                "tabs, the slice flags and the bar under the panadapter. Classic: Thetis's console exactly as your skin draws it.", 14, 88);
             note.AutoSize = false;
-            note.Size = new Size(404, 82);
+            note.Size = new Size(404, 56);
             grp.Controls.Add(note);
             tpAppearanceKainos.Controls.Add(grp);
 
@@ -220,6 +230,7 @@ namespace Thetis
             console.KainosScopeLoad();
             console.KainosFlagSettings = txtKainosFlags.Text;
             console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
+            KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
