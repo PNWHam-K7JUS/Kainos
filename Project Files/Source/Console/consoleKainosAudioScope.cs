@@ -34,7 +34,7 @@ namespace Thetis
         private KainosScopeView _scopeView;
         private Timer _scopeTimer;
 
-        // saved with the options (hidden Setup box txtKainosScope): "tb=10;show=0;fs=1;trig=1;ch=0;pk=1;sm=1"
+        // saved with the options (hidden Setup box txtKainosScope): "tb=10;show=0;fs=1;trig=1;ch=0;pk=1;sm=1;wf=0"
         public string KainosScopeSettings = "";
 
         private void kainosAddScopeSection()
@@ -73,7 +73,14 @@ namespace Thetis
         }
 
         private bool scopeButtonsShown { get { return _scopeView.Show != KainosScopeView.Shows.Af; } }
-        private int scopeViewHeight { get { return KainosUI.S(_scopeView.Show == KainosScopeView.Shows.Both ? 250 : 150); } }
+        private int scopeViewHeight
+        {
+            get
+            {
+                bool both = _scopeView.Show == KainosScopeView.Shows.Both, wf = _scopeView.Waterfall && _scopeView.Show != KainosScopeView.Shows.Scope;
+                return KainosUI.S((both ? 250 : 150) + (wf ? 110 : 0));
+            }
+        }
 
         private void scopeCheckRunning()
         {
@@ -159,6 +166,7 @@ namespace Thetis
             menu.Items.Add(item("AF peak hold", v.PeakHold, () => { v.PeakHold = !v.PeakHold; v.ClearPeak(); }));
             menu.Items.Add(item("AF smoothing", v.Smooth, () => v.Smooth = !v.Smooth));
             menu.Items.Add(item("Clear peak", false, v.ClearPeak));
+            menu.Items.Add(item("AF waterfall", v.Waterfall, () => { v.Waterfall = !v.Waterfall; if (_kainosLayout) positionKainosColumn(); }));
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(item("Hold", v.Hold, () => v.Hold = !v.Hold));
 
@@ -183,6 +191,7 @@ namespace Thetis
                     case "ch": if (n >= 0 && n <= 2) v.Channel = (KainosScopeView.Channels)n; break;
                     case "pk": v.PeakHold = n != 0; break;
                     case "sm": v.Smooth = n != 0; break;
+                    case "wf": v.Waterfall = n != 0; break;
                 }
             }
             _scopeButtons.Invalidate();
@@ -193,7 +202,7 @@ namespace Thetis
         {
             KainosScopeView v = _scopeView;
             KainosScopeSettings = "tb=" + v.Timebase + ";show=" + (int)v.Show + ";fs=" + v.FullScale + ";trig=" + (v.Trigger ? 1 : 0)
-                                  + ";ch=" + (int)v.Channel + ";pk=" + (v.PeakHold ? 1 : 0) + ";sm=" + (v.Smooth ? 1 : 0);
+                                  + ";ch=" + (int)v.Channel + ";pk=" + (v.PeakHold ? 1 : 0) + ";sm=" + (v.Smooth ? 1 : 0) + ";wf=" + (v.Waterfall ? 1 : 0);
             _scopeButtons.Invalidate();
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }

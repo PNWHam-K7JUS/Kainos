@@ -102,7 +102,7 @@ namespace Thetis
         // the options (saved by the console)
         public Shows Show = Shows.Scope;
         public Channels Channel = Channels.Both;
-        public bool Trigger = true, PeakHold = true, Smooth = true, Hold;
+        public bool Trigger = true, PeakHold = true, Smooth = true, Waterfall, Hold;
         public int FullScale = 1;                       // 1: auto; otherwise dBFS (0, -10 ...)
         private int _timebase = 10;
 
@@ -117,6 +117,12 @@ namespace Thetis
         private KainosAfInfo _afShown = new KainosAfInfo { Lo = 0, Hi = 3000, Pitch = float.NaN };
         private float _afTop = -20, _strongestHz, _strongestDb = -200;
 
+        // the AF waterfall under the spectrum: newest row at the top, a pixel a column
+        private int[] _wfPixels = new int[0];
+        private int _wfW, _wfH;
+        private Bitmap _wfBitmap;
+        private static readonly int[] _wfPalette = wfPalette();
+
         public KainosScopeView()
         {
             Name = "kainosScopeView";
@@ -127,7 +133,7 @@ namespace Thetis
             _frame.Tick += (s, e) => { if (!Hold) { capture(); Invalidate(); } };
         }
 
-        protected override void Dispose(bool disposing) { if (disposing) _frame.Dispose(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { if (disposing) { _frame.Dispose(); _wfBitmap?.Dispose(); } base.Dispose(disposing); }
 
         public int Timebase
         {
@@ -216,6 +222,7 @@ namespace Thetis
                 _af = new float[cols];
                 _afPeak = new float[cols];
                 for (int i = 0; i < cols; i++) { _af[i] = -200; _afPeak[i] = -200; }
+                _wfW = -1;          // a new span: a fresh waterfall
             }
             _afShown = info;
 
@@ -257,6 +264,55 @@ namespace Thetis
             // the auto top: 10 dB steps above the strongest, moving down slowly
             float want = Math.Min(0, (float)Math.Ceiling((best + 6) / 10) * 10);
             _afTop = want > _afTop ? want : Math.Max(want, _afTop - 0.2f);
+            if (Waterfall) addWfRow();
+        }
+
+        // the spectrum (smoothed) and the waterfall below it, when the waterfall is on
+        private RectangleF spectrumRect(RectangleF af) { return Waterfall ? new RectangleF(af.Left, af.Top, af.Width, (int)(af.Height * 0.55f)) : af; }
+        private RectangleF wfRect(RectangleF af) { RectangleF s = spectrumRect(af); return new RectangleF(af.Left, s.Bottom, af.Width, af.Bottom - s.Bottom); }
+
+        private void addWfRow()
+        {
+            RectangleF r = wfRect(afRect);
+            int w = _af.Length, h = Math.Max(1, (int)r.Height);
+            if (w != _wfW || h != _wfH)
+            {
+                _wfW = w; _wfH = h;
+                _wfPixels = new int[w * h];
+                for (int i = 0; i < _wfPixels.Length; i++) _wfPixels[i] = _wfPalette[0];
+                _wfBitmap?.Dispose();
+                _wfBitmap = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
+            }
+            Array.Copy(_wfPixels, 0, _wfPixels, w, w * (h - 1));          // down a row (Array.Copy handles the overlap)
+            float top = FullScale == 1 ? _afTop : FullScale, range = 60;   // a little tighter than the spectrum, for contrast
+            for (int c = 0; c < w; c++)
+            {
+                float n = (_af[c] - (top - range)) / range;
+                _wfPixels[c] = _wfPalette[Math.Max(0, Math.Min(255, (int)(n * 255)))];
+            }
+            System.Drawing.Imaging.BitmapData d = _wfBitmap.LockBits(new Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.WriteOnly, _wfBitmap.PixelFormat);
+            try
+            {
+                for (int y = 0; y < h; y++)
+                    System.Runtime.InteropServices.Marshal.Copy(_wfPixels, y * w, d.Scan0 + y * d.Stride, w);
+            }
+            finally { _wfBitmap.UnlockBits(d); }
+        }
+
+        // background navy through the Kainos ice blue to gold and white
+        private static int[] wfPalette()
+        {
+            Color[] stops = { KainosUI.Bg, Color.FromArgb(0x10, 0x2c, 0x48), KainosUI.Ice, KainosUI.IceHi, KainosUI.Gold, Color.White };
+            int[] p = new int[256];
+            for (int i = 0; i < 256; i++)
+            {
+                float t = i / 255f * (stops.Length - 1);
+                int a = Math.Min(stops.Length - 2, (int)t);
+                float f = t - a;
+                Color c0 = stops[a], c1 = stops[a + 1];
+                p[i] = Color.FromArgb((int)(c0.R + (c1.R - c0.R) * f), (int)(c0.G + (c1.G - c0.G) * f), (int)(c0.B + (c1.B - c0.B) * f)).ToArgb();
+            }
+            return p;
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -273,7 +329,11 @@ namespace Thetis
             using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel))
             {
                 if (Show != Shows.Af) paintScope(g, scopeRect, f);
-                if (Show != Shows.Scope) paintAf(g, afRect, f);
+                if (Show != Shows.Scope)
+                {
+                    paintAf(g, spectrumRect(afRect), f);
+                    if (Waterfall) paintWf(g, wfRect(afRect));
+                }
                 if (Hold)
                     using (Brush b = new SolidBrush(KainosUI.GoldHi))
                         g.DrawString("HOLD", f, b, KainosUI.S(4), Height - KainosUI.S(4) - f.Height);
@@ -403,6 +463,19 @@ namespace Thetis
             using (Brush b = new SolidBrush(KainosUI.Dim))
             using (StringFormat far = new StringFormat { Alignment = StringAlignment.Far })
                 g.DrawString(strongest, f, b, new RectangleF(r.Left, r.Top + pad, r.Width - pad, f.Height + 2), far);
+            using (Pen border = new Pen(KainosUI.Line)) g.DrawRectangle(border, r.Left, r.Top, r.Width - 1, r.Height - 1);
+        }
+
+        private void paintWf(Graphics g, RectangleF r)
+        {
+            if (_wfBitmap != null && _wfW > 0)
+            {
+                g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                g.PixelOffsetMode = PixelOffsetMode.Half;
+                g.DrawImage(_wfBitmap, r.Left, r.Top, r.Width, r.Height);
+                g.PixelOffsetMode = PixelOffsetMode.Default;
+            }
+            else using (Brush b = new SolidBrush(KainosUI.Bg)) g.FillRectangle(b, r);
             using (Pen border = new Pen(KainosUI.Line)) g.DrawRectangle(border, r.Left, r.Top, r.Width - 1, r.Height - 1);
         }
 

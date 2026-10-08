@@ -10,6 +10,7 @@ Everything you know from Thetis is still there. Kainos adds a modern layout and 
 - **A guided setup** for the HL2: callsign, boards, audio and look in a few steps. See [[Getting Started]].
 - **Kainos Audio:** EQ, compressor, AetherVoice and more on receive and transmit. See [[Kainos Audio]].
 - **FreeDV RADE** digital voice, with the FreeDV Reporter. See [[FreeDV RADE]].
+- **Audio scope:** a waveform and audio spectrum of what you hear and send. See [[Audio Scope]].
 - **RTTY and CW** decode and send, with macros. See [[RTTY and CW]].
 - **DX cluster and POTA spots** on the panadapter. See [[Spots]].
 - **KiwiSDR:** listen to receivers around the world, with their own panadapter and waterfall, even with the HL2 off. See [[KiwiSDR]].

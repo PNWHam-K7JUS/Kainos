@@ -9,6 +9,7 @@
 
 **Features**
 - [[Kainos Audio]]
+- [[Audio Scope]]
 - [[FreeDV RADE]]
 - [[RTTY and CW]]
 - [[Spots]]

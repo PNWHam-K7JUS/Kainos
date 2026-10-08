@@ -19,6 +19,7 @@ Click a tab at the top of the column to open or close its section:
 | **MEMORY** | Your memories. |
 | **SPOTS** | The latest spots. See [[Spots]]. |
 | **KIWI** | KiwiSDR receivers. See [[KiwiSDR]]. |
+| **AUDIO SCOPE** | A waveform and audio spectrum of RX1's audio, or your transmit signal. See [[Audio Scope]]. |
 
 ## Arrange it your way
 
