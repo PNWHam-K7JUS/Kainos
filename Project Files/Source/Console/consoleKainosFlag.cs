@@ -50,9 +50,10 @@ namespace Thetis
                 foreach (KainosFlagForm f in new[] { _kainosFlagA, _kainosFlagB })
                 {
                     int rx = f == _kainosFlagA ? 1 : 2;
-                    f.View.DragMoved += dy => kainosFlagDrag(rx, dy);
-                    f.View.DragEnded += () => KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
-                    f.View.DragReset += () => { _kainosFlagDrop[rx] = 0; placeKainosFlags(); KainosSettingsChanged?.Invoke(this, EventArgs.Empty); };
+                    f.View.DragMoved += (dx, dy) => kainosFlagDrag(rx, dx, dy);
+                    f.View.DragEnded += () => { _kainosFlagSideways[rx] = 0; KainosSettingsChanged?.Invoke(this, EventArgs.Empty); };
+                    f.View.DragReset += () => { _kainosFlagDrop[rx] = 0; kainosUnpin(rx); };
+                    f.View.PinClicked += () => kainosUnpin(rx);
                     f.View.BadgeClicked += () => { f.SetCompact(!f.View.Compact); placeKainosFlags(); KainosSettingsChanged?.Invoke(this, EventArgs.Empty); };
                     f.SetCompact(_kainosCompact[rx]);         // as saved
                 }
@@ -87,6 +88,7 @@ namespace Thetis
             else
                 placeKainosFlag(_kainosFlagB, 2, layout && split, () => HzToPixel((float)((VFOBFreq - CentreRX2Frequency) * 1e6), 2), pnlDisplay.Height / 2, panH);
             if (_kainosVfoA != null) { _kainosVfoA.Invalidate(); _kainosVfoB.Invalidate(); }
+            foreach (Control d in _kainosVfoDrawer) if (d != null) d.Invalidate(true);
             kainosProfileDropCheck();
         }
 
@@ -96,20 +98,46 @@ namespace Thetis
         private readonly float[] _kainosFlagDrop = new float[3];
         private readonly float[] _kainosFlagMaxDrop = { 0, float.MaxValue, float.MaxValue };
 
+        // Pinned flags (GitHub #11): dragged sideways, a flag stays where it's dropped instead of following its VFO, at
+        // (x, y) as fractions of the room on its panadapter (NaN: not pinned, it follows its VFO). The pin mark on the
+        // flag, or a double-click on its face, puts it back on its VFO.
+        private readonly PointF[] _kainosFlagPin = { new PointF(float.NaN, 0), new PointF(float.NaN, 0), new PointF(float.NaN, 0) };
+        private readonly int[] _kainosFlagSideways = new int[3];        // sideways movement in this drag, before it pins
+        internal bool KainosFlagPinned(int rx) { return !float.IsNaN(_kainosFlagPin[rx].X); }
+
+        private void kainosUnpin(int rx)
+        {
+            _kainosFlagPin[rx] = new PointF(float.NaN, 0);
+            placeKainosFlags();
+            KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         // flags shrunk to one line (a click on the letter: SmartSDR's way; GitHub #4)
         private readonly bool[] _kainosCompact = new bool[3];
         internal void KainosFlagCompacted(int rx, bool compact) { _kainosCompact[rx] = compact; }
 
-        // how solid the flags are while the mouse isn't over them (Setup > Appearance > Kainos); solid while it is
-        internal double KainosFlagOpacity = 0.75;
+        // how solid the flags are while the mouse isn't over them (Setup > Appearance > Kainos); solid while it is.
+        // 0: the flags are off, the right column's VFO tab has them instead, with their tabs and drawers (Pierre's request)
+        private double _kainosFlagOpacity = 0.75;
+        internal double KainosFlagOpacity
+        {
+            get { return _kainosFlagOpacity; }
+            set
+            {
+                bool wasOff = _kainosFlagOpacity <= 0;
+                _kainosFlagOpacity = value;
+                if (wasOff != (value <= 0)) kainosVfoTabsChanged();
+            }
+        }
 
         internal string KainosFlagSettings
         {
-            // "dropA;dropB;compactA;compactB"
+            // "dropA;dropB;compactA;compactB;pinA;pinB" (pin: "x,y" fractions, or empty)
             get
             {
-                return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0};{1:0};{2};{3}", _kainosFlagDrop[1], _kainosFlagDrop[2],
-                                     _kainosCompact[1] ? 1 : 0, _kainosCompact[2] ? 1 : 0);
+                Func<int, string> pin = rx => KainosFlagPinned(rx) ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.0000},{1:0.0000}", _kainosFlagPin[rx].X, _kainosFlagPin[rx].Y) : "";
+                return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0};{1:0};{2};{3};{4};{5}", _kainosFlagDrop[1], _kainosFlagDrop[2],
+                                     _kainosCompact[1] ? 1 : 0, _kainosCompact[2] ? 1 : 0, pin(1), pin(2));
             }
             set
             {
@@ -119,25 +147,61 @@ namespace Thetis
                     float d;
                     _kainosFlagDrop[i + 1] = i < p.Length && float.TryParse(p[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out d) ? Math.Max(0, d) : 0;
                     _kainosCompact[i + 1] = p.Length > i + 2 && p[i + 2] == "1";
+                    _kainosFlagPin[i + 1] = new PointF(float.NaN, 0);
+                    string[] xy = p.Length > i + 4 ? p[i + 4].Split(',') : new string[0];
+                    float px, py;
+                    if (xy.Length == 2 && float.TryParse(xy[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out px)
+                        && float.TryParse(xy[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out py))
+                        _kainosFlagPin[i + 1] = new PointF(Math.Max(0, Math.Min(1, px)), Math.Max(0, Math.Min(1, py)));
                 }
                 if (_kainosFlagA != null) { _kainosFlagA.SetCompact(_kainosCompact[1]); _kainosFlagB.SetCompact(_kainosCompact[2]); }
                 placeKainosFlags();
             }
         }
 
-        private void kainosFlagDrag(int rx, int dy)
+        // the room a flag has on its panadapter (screen pixels), for the pinned fractions
+        private readonly SizeF[] _kainosFlagRoom = new SizeF[3];
+        private readonly Point[] _kainosFlagAt = new Point[3];          // its last place, in pnlDisplay's pixels from the room's corner
+
+        private void kainosFlagDrag(int rx, int dx, int dy)
         {
-            _kainosFlagDrop[rx] = Math.Max(0, Math.Min(_kainosFlagMaxDrop[rx], _kainosFlagDrop[rx] + dy / KainosUI.Scale));
+            if (!KainosFlagPinned(rx))
+            {
+                // up and down follows the VFO as before; a sideways pull (beyond a little wobble) pins it where it is
+                _kainosFlagSideways[rx] += dx;
+                if (Math.Abs(_kainosFlagSideways[rx]) > KainosUI.S(16))
+                {
+                    SizeF room = _kainosFlagRoom[rx];
+                    Point at = _kainosFlagAt[rx];
+                    _kainosFlagPin[rx] = new PointF(room.Width > 0 ? Math.Max(0, Math.Min(1, (at.X + _kainosFlagSideways[rx]) / room.Width)) : 0,
+                                                    room.Height > 0 ? Math.Max(0, Math.Min(1, at.Y / room.Height)) : 0);
+                }
+                else
+                {
+                    _kainosFlagDrop[rx] = Math.Max(0, Math.Min(_kainosFlagMaxDrop[rx], _kainosFlagDrop[rx] + dy / KainosUI.Scale));
+                    placeKainosFlags();
+                    return;
+                }
+            }
+            else
+            {
+                SizeF room = _kainosFlagRoom[rx];
+                PointF p = _kainosFlagPin[rx];
+                _kainosFlagPin[rx] = new PointF(room.Width > 0 ? Math.Max(0, Math.Min(1, p.X + dx / room.Width)) : 0,
+                                                room.Height > 0 ? Math.Max(0, Math.Min(1, p.Y + dy / room.Height)) : 0);
+            }
             placeKainosFlags();
         }
 
         private void placeKainosFlag(KainosFlagForm flag, int rx, bool show, Func<int> vfoX, int panTop, int panH)
         {
             int x = 0;
+            bool pinned = KainosFlagPinned(rx);
+            if (KainosFlagOpacity <= 0) show = false;                 // flags off: the VFO tab has them
             if (show)
             {
                 try { x = vfoX(); } catch { show = false; }
-                if (x < 0 || x > pnlDisplay.Width) show = false;      // the VFO is off its panadapter
+                if (!pinned && (x < 0 || x > pnlDisplay.Width)) show = false;      // the VFO is off its panadapter (a pinned flag stays)
             }
             if (!show)
             {
@@ -155,6 +219,15 @@ namespace Thetis
             int maxDrop = Math.Max(0, panH - KainosUI.S(26) - size.Height - 2);
             _kainosFlagMaxDrop[rx] = maxDrop / KainosUI.Scale;
             top += Math.Min(maxDrop, KainosUI.S((int)_kainosFlagDrop[rx]));      // dragged down by the user
+            int roomW = Math.Max(0, pnlDisplay.Width - size.Width - 4);
+            _kainosFlagRoom[rx] = new SizeF(roomW, maxDrop);
+            if (pinned)
+            {
+                left = 2 + (int)Math.Round(_kainosFlagPin[rx].X * roomW);
+                top = panTop + KainosUI.S(26) + (int)Math.Round(_kainosFlagPin[rx].Y * maxDrop);
+            }
+            _kainosFlagAt[rx] = new Point(left - 2, top - panTop - KainosUI.S(26));
+            flag.View.Pinned = pinned;
             Point screen = pnlDisplay.PointToScreen(new Point(left, top));
             Rectangle want = new Rectangle(screen, size);
             if (flag.Bounds != want) flag.Bounds = want;
@@ -185,6 +258,20 @@ namespace Thetis
             }
             catch { return ""; }
         }
+
+        // Hear VFO B in split (GitHub #4): Thetis's MultiRX (the SubRX button) puts a second receiver inside RX1's span
+        // on VFO B, heard with RX1 (the MAIN / SUB pan sliders under the panadapter set each one's side)
+        internal bool KainosListenB { get { return chkEnableMultiRX.Checked; } }
+        // the sub-receiver's volume (RX1Gain) starts at 100 against RX1's usual 10-30, so B came in loud enough to clip:
+        // turning LISTEN on starts B at A's level, and VFO B's AUDIO drawer sets it from there
+        internal void KainosToggleListenB()
+        {
+            bool on = !chkEnableMultiRX.Checked;
+            if (on) RX1Gain = RX0Gain;
+            chkEnableMultiRX.Checked = on;
+        }
+        // the sub-receiver only reaches inside RX1's span (its sample rate around the centre, less a margin)
+        internal bool KainosListenBInReach { get { return Math.Abs(VFOBFreq - CentreFrequency) * 1e6 < SampleRateRX1 * 0.45; } }
 
         // VFO B as split's transmit frequency (split or quick split on, RX2 off): it has no receiver of its own
         internal bool KainosSplitB { get { return chkVFOSplit.Checked && !RX2Enabled; } }
@@ -269,8 +356,9 @@ namespace Thetis
 
         // ---- the drawers ----
 
-        internal Control KainosBuildDrawer(int rx, string tab, Action changed)
+        internal Control KainosBuildDrawer(int rx, string tab, Action changed, int width = 0)
         {
+            if (width <= 0) width = KainosUI.S(250);
             KainosUI.Tone tone = rx == 1 ? KainosUI.Tone.Gold : KainosUI.Tone.Violet;
             Panel p = new Panel { BackColor = Color.FromArgb(0x06, 0x0e, 0x17) };
             List<Control> rows = new List<Control>();
@@ -278,10 +366,18 @@ namespace Thetis
             {
                 case "AUDIO":
                     {
-                        KainosActionGrid g = new KainosActionGrid(1);
+                        bool rx2 = rx == 2 && !KainosSplitB;        // RX2 itself: its strip under the panadapter is collapsed
+                        KainosActionGrid g = new KainosActionGrid(rx2 ? 2 : 1);
                         CheckBox mute = rx == 1 ? (CheckBox)chkMUT : chkRX2Mute;
                         g.Add("MUTE", () => mute.Checked, () => kainosClick(mute), KainosUI.Tone.Tx);
-                        rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
+                        if (rx2) g.Add("SQL", () => chkRX2Squelch.CheckState != CheckState.Unchecked, () => kainosClick(chkRX2Squelch), tone);
+                        if (rx == 2 && KainosSplitB) rows.Add(new KainosSlider(ptbRX1Gain, "LISTEN AF"));    // B heard through RX1's sub-receiver
+                        else rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
+                        if (rx2)
+                        {
+                            rows.Add(new KainosSlider(ptbRX2Pan, "RX2 PAN"));
+                            rows.Add(new KainosSlider(ptbRX2Squelch, "RX2 SQUELCH"));
+                        }
                         rows.Add(g);
                         break;
                     }
@@ -293,6 +389,12 @@ namespace Thetis
                         g.SetTargets(panel.Controls.OfType<ButtonBase>().Where(c => c != chkMUT && c != chkRX2Mute)
                                          .OrderBy(c => c.Top).ThenBy(c => c.Left));
                         rows.Add(g);
+                        if (rx == 2 && !KainosSplitB)
+                        {
+                            // RX2's AGC and AGC gain (the column's RX tab has RX1's)
+                            rows.Add(new KainosDropDown(() => comboRX2AGC, "RX2 AGC"));
+                            rows.Add(new KainosSlider(ptbRX2RF, "RX2 AGC GAIN"));
+                        }
                         break;
                     }
                 case "MODE":
@@ -344,17 +446,18 @@ namespace Thetis
             }
 
             // stack the rows
-            int pad = KainosUI.S(8), gap = KainosUI.S(6), w = KainosUI.S(250) - pad * 2, y = pad;
+            int pad = KainosUI.S(8), gap = KainosUI.S(6), w = width - pad * 2, y = pad;
             foreach (Control c in rows)
             {
                 int h = c is KainosButtonGrid ? ((KainosButtonGrid)c).PreferredHeight(w)
                       : c is KainosActionGrid ? ((KainosActionGrid)c).PreferredHeight(w)
-                      : c is KainosSlider ? KainosUI.S(40) : c is KainosUpDown ? KainosUI.S(26) : KainosUI.S(20);
+                      : c is KainosSlider ? KainosUI.S(40) : c is KainosUpDown ? KainosUI.S(26)
+                      : c is KainosDropDown ? KainosDropDown.PreferredHeight : KainosUI.S(20);
                 c.SetBounds(pad, y, w, h);
                 p.Controls.Add(c);
                 y += h + gap;
             }
-            p.Size = new Size(KainosUI.S(250), y - gap + pad);
+            p.Size = new Size(width, y - gap + pad);
             return p;
         }
 
@@ -362,17 +465,83 @@ namespace Thetis
 
         private KainosFlagView _kainosVfoA, _kainosVfoB;
 
+        // with the flags off (Setup > Appearance > Kainos > Slice flags: Off), the faces here get the flags' tab row,
+        // and a tab's drawer opens under its face in the column
+        private readonly Control[] _kainosVfoDrawer = new Control[3];
+        private readonly string[] _kainosVfoDrawerTab = new string[3];
+        private int kainosVfoTabRow { get { return KainosFlagOpacity <= 0 ? KainosUI.S(22) : 0; } }
+
+        private int kainosVfoFaceHeight(int rx, bool shown)
+        {
+            if (!shown) return 0;
+            return KainosFlagView.FaceHeight + kainosVfoTabRow + (_kainosVfoDrawer[rx] != null ? _kainosVfoDrawer[rx].Height : 0);
+        }
+
+        private void kainosVfoTabsChanged()
+        {
+            if (_kainosVfoA == null) return;
+            for (int rx = 1; rx <= 2; rx++) kainosColumnDrawer(rx, null);
+            _kainosVfoA.ColumnTabs = _kainosVfoB.ColumnTabs = KainosFlagOpacity <= 0;
+            if (_kainosLayout) positionKainosColumn();
+            placeKainosFlags();
+        }
+
+        // open (or close, the same tab again or null) a face's drawer in the column
+        private void kainosColumnDrawer(int rx, string tab)
+        {
+            KainosFlagView view = rx == 1 ? _kainosVfoA : _kainosVfoB;
+            if (_kainosVfoDrawer[rx] != null)
+            {
+                _kainosColumn.Viewport.Controls.Remove(_kainosVfoDrawer[rx]);
+                _kainosVfoDrawer[rx].Dispose();
+                _kainosVfoDrawer[rx] = null;
+            }
+            _kainosVfoDrawerTab[rx] = tab == null || _kainosVfoDrawerTab[rx] == tab ? null : tab;
+            view.OpenTab = _kainosVfoDrawerTab[rx];
+            if (_kainosVfoDrawerTab[rx] != null)
+            {
+                Control d = KainosBuildDrawer(rx, _kainosVfoDrawerTab[rx], () => { }, Math.Max(KainosUI.S(250), view.Width));
+                d.Name = "kainosVfoDrawer" + rx;
+                _kainosVfoDrawer[rx] = d;
+                _kainosColumn.Viewport.Controls.Add(d);
+            }
+            view.Invalidate();
+            if (_kainosLayout) positionKainosColumn();
+        }
+
         private void kainosAddVfoSection()
         {
             _kainosVfoA = new KainosFlagView(this, 1, false);
             _kainosVfoB = new KainosFlagView(this, 2, false);
+            _kainosVfoA.ColumnTabs = _kainosVfoB.ColumnTabs = KainosFlagOpacity <= 0;
+            _kainosVfoA.TabClicked += tab => kainosColumnDrawer(1, tab);
+            _kainosVfoB.TabClicked += tab => kainosColumnDrawer(2, tab);
             _kainosColumn.Viewport.Controls.Add(_kainosVfoA);
             _kainosColumn.Viewport.Controls.Add(_kainosVfoB);
-            _kainosColumn.AddSection("vfo", "VFO", w => KainosFlagView.FaceHeight + (RX2Enabled || KainosSplitB ? KainosUI.S(6) + KainosFlagView.FaceHeight : 0), r =>
+            _kainosColumn.AddSection("vfo", "VFO", w =>
             {
-                _kainosVfoA.SetBounds(r.Left, r.Top, r.Width, KainosFlagView.FaceHeight);
-                if (RX2Enabled || KainosSplitB) _kainosVfoB.SetBounds(r.Left, r.Top + KainosFlagView.FaceHeight + KainosUI.S(6), r.Width, KainosFlagView.FaceHeight);
-                else _kainosVfoB.Top = -30000;
+                bool b = RX2Enabled || KainosSplitB;
+                return kainosVfoFaceHeight(1, true) + (b ? KainosUI.S(6) + kainosVfoFaceHeight(2, true) : 0);
+            }, r =>
+            {
+                int faceH = KainosFlagView.FaceHeight + kainosVfoTabRow, y = r.Top;
+                _kainosVfoA.SetBounds(r.Left, y, r.Width, faceH);
+                y += faceH;
+                if (_kainosVfoDrawer[1] != null) { _kainosVfoDrawer[1].SetBounds(r.Left, y, r.Width, _kainosVfoDrawer[1].Height); y += _kainosVfoDrawer[1].Height; }
+                if (RX2Enabled || KainosSplitB)
+                {
+                    y += KainosUI.S(6);
+                    _kainosVfoB.SetBounds(r.Left, y, r.Width, faceH);
+                    y += faceH;
+                    if (_kainosVfoDrawer[2] != null) _kainosVfoDrawer[2].SetBounds(r.Left, y, r.Width, _kainosVfoDrawer[2].Height);
+                }
+                else
+                {
+                    _kainosVfoB.Top = -30000;
+                    if (_kainosVfoDrawer[2] != null) _kainosVfoDrawer[2].Top = -30000;
+                }
+                if (r.Height == 0)          // the tab is off
+                    foreach (Control d in _kainosVfoDrawer) if (d != null) d.Top = -30000;
             });
             RX2EnabledChangedHandlers += enabled => { if (_kainosLayout) positionKainosColumn(); };
             chkVFOSplit.CheckedChanged += (s, e) => { if (_kainosLayout) positionKainosColumn(); };      // split shows VFO B
@@ -480,18 +649,25 @@ namespace Thetis
         private readonly Console _console;
         private readonly int _rx;
         private readonly bool _showTabs;
+        // the column's face with the flags off: the tab row too (but no dragging, pin or one-line flag)
+        public bool ColumnTabs;
+        private bool tabRow { get { return _showTabs || ColumnTabs; } }
         private readonly List<KeyValuePair<RectangleF, long>> _digits = new List<KeyValuePair<RectangleF, long>>();
         private readonly RectangleF[] _tabRects = new RectangleF[Tabs.Length];
         private int _hoverTab = -1;
-        private RectangleF _txRect, _freqRect;
+        private RectangleF _txRect, _freqRect, _listenRect;
+        private bool _hoverListen;
         private bool _hoverTx;
         public string OpenTab;
         public event Action<string> TabClicked;
         // dragging the flag up and down by its face (on the panadapter): the move in screen pixels, the end, and a
         // double-click to put it back at the top
-        public event Action<int> DragMoved;
-        public event Action DragEnded, DragReset;
-        private int _dragY = int.MinValue;
+        public event Action<int, int> DragMoved;
+        public event Action DragEnded, DragReset, PinClicked;
+        private int _dragY = int.MinValue, _dragX;
+        // pinned where the user dropped it (GitHub #11): a pin mark on the face, a click on it puts the flag back on its VFO
+        public bool Pinned;
+        private RectangleF _pinRect;
         public bool Dragging { get { return _dragY != int.MinValue; } }
 
         public KainosFlagView(Console console, int rx, bool showTabs)
@@ -531,6 +707,8 @@ namespace Thetis
             using (Brush b = new SolidBrush(KainosUI.Ice))
             using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
                 g.DrawString(_console.KainosModeText(_rx), f, b, new RectangleF(_badgeRect.Right + 5 * s, 0, 44 * s, Height), sf);
+            _pinRect = RectangleF.Empty;
+            if (Pinned) drawPin(g, _badgeRect.Right + 50 * s, y + 2 * s, 14 * s);
 
             bool isTx = _console.KainosIsTxVfo(_rx), keyed = isTx && _console.KainosMox;
             RectangleF tx = new RectangleF(Width - pad - 24 * s, y + 1 * s, 24 * s, badge - 2 * s);
@@ -598,6 +776,32 @@ namespace Thetis
             using (Font f = new Font("Segoe UI", 10 * s, FontStyle.Regular, GraphicsUnit.Pixel))
                 drawItem(g, f, _console.KainosDspText(_rx), KainosUI.Faint, x, y, badge);
 
+            // pinned: the pin mark, left of LISTEN / TX
+            _pinRect = RectangleF.Empty;
+            if (Pinned && _showTabs)
+            {
+                float right = Width - pad - 26 * s - 6 * s - (_rx == 2 && _console.KainosSplitB ? 56 * s : 0);
+                drawPin(g, right - 16 * s, y + 1 * s, 16 * s);
+            }
+
+            // VFO B in split: LISTEN, to hear it with VFO A (gold while on)
+            _listenRect = RectangleF.Empty;
+            if (_rx == 2 && _console.KainosSplitB)
+            {
+                RectangleF lr = new RectangleF(Width - pad - 26 * s - 6 * s - 50 * s, y + 1 * s, 50 * s, badge - 2 * s);
+                _listenRect = lr;
+                bool on = _console.KainosListenB, far = on && !_console.KainosListenBInReach;      // too far from VFO A to hear
+                using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(lr, 3 * s))
+                {
+                    if (on) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillPath(b, path);
+                    using (Pen p = new Pen(far ? KainosUI.Tx : on ? KainosUI.Gold : _hoverListen ? KainosUI.Dim : KainosUI.Line)) g.DrawPath(p, path);
+                }
+                using (Font f = new Font("Segoe UI", 9 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush b = new SolidBrush(far ? KainosUI.Tx : on ? KainosUI.GoldHi : _hoverListen ? KainosUI.Dim : KainosUI.Faint))
+                using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    g.DrawString(far ? "TOO FAR" : "LISTEN", f, b, lr, sf);
+            }
+
             // TX: outlined red on the transmit VFO (filled while transmitting); dim on the other, where a click makes
             // it the transmit VFO (Thetis's TX buttons on its VFO boxes)
             {
@@ -648,7 +852,7 @@ namespace Thetis
             drawSMeter(g, s, pad, fy + fh + 1 * s);
 
             // tab row
-            if (_showTabs)
+            if (tabRow)
             {
                 float ty = faceH, tw = (Width - 2) / (float)Tabs.Length, th = KainosUI.S(22);
                 using (Pen line = new Pen(KainosUI.Line)) g.DrawLine(line, 1, ty, Width - 1, ty);
@@ -799,22 +1003,35 @@ namespace Thetis
         }
 
         // the face, other than the TX button and the frequency, moves the flag
-        private bool inDragArea(Point p) { return _showTabs && p.Y < (Compact ? Height : FaceHeight) && !_txRect.Contains(p) && !_freqRect.Contains(p) && !_badgeRect.Contains(p); }
+        private bool inDragArea(Point p) { return _showTabs && p.Y < (Compact ? Height : FaceHeight) && !_txRect.Contains(p) && !_freqRect.Contains(p) && !_badgeRect.Contains(p) && !_pinRect.Contains(p); }
+
+        // the pin mark (a pinned flag on the panadapter): a gold map pin, its head at the top
+        private void drawPin(Graphics g, float x, float y, float size)
+        {
+            _pinRect = new RectangleF(x, y, size, size);
+            float s = size, r = s * 0.28f, cx = x + s / 2f;
+            using (Pen needle = new Pen(KainosUI.Gold, Math.Max(1.2f, s * 0.1f)))
+                g.DrawLine(needle, cx, y + r * 1.6f, cx, y + s);
+            using (Brush b = new SolidBrush(KainosUI.Gold)) g.FillEllipse(b, cx - r, y + s * 0.05f, r * 2, r * 2);
+        }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
             if (Dragging)
             {
-                int dy = Cursor.Position.Y - _dragY;
-                if (dy != 0) { _dragY += dy; DragMoved?.Invoke(dy); }
+                int dy = Cursor.Position.Y - _dragY, dx = Cursor.Position.X - _dragX;
+                if (dy != 0 || dx != 0) { _dragY += dy; _dragX += dx; DragMoved?.Invoke(dx, dy); }
                 return;
             }
             int h = -1;
-            if (_showTabs) for (int i = 0; i < Tabs.Length; i++) if (_tabRects[i].Contains(e.Location)) h = i;
+            if (tabRow) for (int i = 0; i < Tabs.Length; i++) if (_tabRects[i].Contains(e.Location)) h = i;
             bool overDigit = _digits.Any(d => d.Key.Contains(e.Location));
             bool overTx = _txRect.Contains(e.Location) && !_console.KainosIsTxVfo(_rx);
-            Cursor = h >= 0 || overTx ? Cursors.Hand : overDigit ? Cursors.IBeam : inDragArea(e.Location) ? Cursors.SizeNS : Cursors.Default;
+            bool overListen = _listenRect.Contains(e.Location);
+            if (overListen != _hoverListen) { _hoverListen = overListen; Invalidate(); }
+            if (overListen) { Cursor = Cursors.Hand; return; }
+            Cursor = h >= 0 || overTx || _pinRect.Contains(e.Location) ? Cursors.Hand : overDigit ? Cursors.IBeam : inDragArea(e.Location) ? Cursors.SizeAll : Cursors.Default;
             if (h != _hoverTab || overTx != _hoverTx) { _hoverTab = h; _hoverTx = overTx; Invalidate(); }
         }
 
@@ -825,10 +1042,12 @@ namespace Thetis
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
             if (_showTabs && _badgeRect.Contains(e.Location)) { BadgeClicked?.Invoke(); return; }      // the letter: full flag or one line
+            if (_listenRect.Contains(e.Location)) { _console.KainosToggleListenB(); Invalidate(); return; }      // hear VFO B in split
+            if (_pinRect.Contains(e.Location)) { PinClicked?.Invoke(); return; }                               // back on its VFO
             if (_txRect.Contains(e.Location)) { _console.KainosSetTxVfo(_rx); Invalidate(); return; }
             if (_freqRect.Contains(e.Location)) { beginEdit(); return; }
-            if (inDragArea(e.Location)) { _dragY = Cursor.Position.Y; Capture = true; return; }
-            if (!_showTabs) return;
+            if (inDragArea(e.Location)) { _dragY = Cursor.Position.Y; _dragX = Cursor.Position.X; Capture = true; return; }
+            if (!tabRow) return;
             for (int i = 0; i < Tabs.Length; i++)
                 if (_tabRects[i].Contains(e.Location)) { TabClicked?.Invoke(Tabs[i]); return; }
         }

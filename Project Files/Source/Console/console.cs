@@ -2201,6 +2201,7 @@ namespace Thetis
             ptbPWR_Scroll(this, EventArgs.Empty);
             ptbTune_Scroll(this, EventArgs.Empty);
             ptbAF_Scroll(this, EventArgs.Empty);
+            kainosSquelchSlidersFromSaved();    // Kainos: the Scroll calls below store the sliders' values (GitHub #10)
             ptbSquelch_Scroll(this, EventArgs.Empty);
             ptbMic_Scroll(this, EventArgs.Empty);
             ptbCPDR_Scroll(this, EventArgs.Empty);

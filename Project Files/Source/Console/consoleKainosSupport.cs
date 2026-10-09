@@ -162,6 +162,21 @@ namespace Thetis
             }
         }
 
+        // ---- squelch kept over a restart (GitHub #10) ----
+
+        // InitConsole calls ptbSquelch_Scroll / ptbRX2Squelch_Scroll, which store the slider's value as the threshold for
+        // the current mode, before anything has put the saved threshold on the slider: in FM the saved level was replaced
+        // by the slider's default (SQL 100) at every start. Put the saved threshold on each slider first, so the Scroll
+        // stores what was saved.
+        private void kainosSquelchSlidersFromSaved()
+        {
+            Func<PrettyTrackBar, int, int> clamp = (t, v) => Math.Max(t.Minimum, Math.Min(t.Maximum, v));
+            ptbSquelch.Value = clamp(ptbSquelch, chkSquelch.CheckState == CheckState.Indeterminate ? rx1_voice_squelch_threshold_scroll :
+                                     _rx1_dsp_mode == DSPMode.FM ? rx1_fm_squelch_threshold_scroll : rx1_squelch_threshold_scroll);
+            ptbRX2Squelch.Value = clamp(ptbRX2Squelch, chkRX2Squelch.CheckState == CheckState.Indeterminate ? rx2_voice_squelch_threshold_scroll :
+                                        _rx2_dsp_mode == DSPMode.FM ? rx2_fm_squelch_threshold_scroll : rx2_squelch_threshold_scroll);
+        }
+
         // ---- report a bug ----
 
         internal void KainosReportBug()
@@ -202,12 +217,13 @@ namespace Thetis
             {
                 using (System.Drawing.Graphics g = CreateGraphics())
                 {
+                    float dpi = g.DpiX;     // before GetHdc: the Graphics can't be used while its HDC is out
                     IntPtr hdc = g.GetHdc();
                     try
                     {
                         int real = kainosGetDeviceCaps(hdc, 118), seen = kainosGetDeviceCaps(hdc, 8), realH = kainosGetDeviceCaps(hdc, 117);   // DESKTOPHORZRES, HORZRES, DESKTOPVERTRES
                         double scale = seen > 0 ? (double)real / seen : 1.0;
-                        return real + "x" + realH + ", scaling " + Math.Round(scale * g.DpiX / 96.0 * 100) + "%, " + Screen.AllScreens.Length + " screen(s)";
+                        return real + "x" + realH + ", scaling " + Math.Round(scale * dpi / 96.0 * 100) + "%, " + Screen.AllScreens.Length + " screen(s)";
                     }
                     finally { g.ReleaseHdc(hdc); }
                 }

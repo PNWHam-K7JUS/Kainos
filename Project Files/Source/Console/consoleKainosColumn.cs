@@ -63,9 +63,13 @@ namespace Thetis
             get
             {
                 // the panels under the panadapter: DSP (the flags' DSP tab), VFO (split / copy / swap / zero beat / IF in
-                // the dock, RIT / XIT on the flags, VAC in the dock), display and multi-RX (the panadapter's bar)
+                // the dock, RIT / XIT on the flags, VAC in the dock), display and multi-RX (the panadapter's bar). And
+                // RX2's strip, shown with RX2 on: its mode, filter and DSP are on flag B's tabs, its S meter on the flag,
+                // and its pan, squelch, AGC and AGC gain in flag B's AUDIO and DSP drawers
                 return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls,
-                                       grpVFOA, grpVFOB, panelDSP, panelVFO, panelDisplay2, panelMultiRX };
+                                       grpVFOA, grpVFOB, panelDSP, panelVFO, panelDisplay2, panelMultiRX,
+                                       panelRX2RF, panelRX2DSP, panelRX2Filter, panelRX2Mode, panelRX2Display, panelRX2Mixer, panelRX2Power, grpRX2Meter,
+                                       chkRX2Squelch, ptbRX2Squelch, picRX2Squelch };
             }
         }
 
@@ -173,7 +177,8 @@ namespace Thetis
             kainosMoveIn(kainosFilterExtras);
             kainosMoveIn(kainosRxRows.SelectMany(r => r));
             kainosMoveIn(kainosTxRows.SelectMany(r => r));
-            foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
+            // a bare check box (RX2's SQL) keeps 1 x 1: Thetis's skin sizes its button images from it, and can't at 0 x 0
+            foreach (Control c in kainosCollapseTargets) kainosCollapse(c, c is CheckBox ? (Func<Size, Size>)(full => new Size(1, 1)) : null);
             kainosBarOn();          // the panadapter's bar: consoleKainosBar.cs
             lblPAProfile.Visible = false;       // the PA PROFILE tab: consoleKainosTabs.cs
             _kainosColumn.Visible = true;
@@ -1186,9 +1191,12 @@ namespace Thetis
     }
 
     // The mouse wheel over the right-hand column scrolls the column, whatever is under the pointer; with Ctrl held it
-    // goes to the slider or list under the pointer as usual
-    internal class KainosWheelFilter : IMessageFilter
+    // goes to the slider or list under the pointer as usual (GitHub #4). Or the other way round (Setup > Appearance >
+    // Kainos > Mouse wheel; genmce on #4): the wheel goes to a slider, list, drop-down or number under the pointer and
+    // scrolls the column anywhere else, and Ctrl+wheel always scrolls the column.
+    internal partial class KainosWheelFilter : IMessageFilter
     {
+        public static bool AdjustFirst;
         private readonly KainosColumn _column;
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr WindowFromPoint(Point p);
@@ -1199,16 +1207,32 @@ namespace Thetis
         {
             const int WM_MOUSEWHEEL = 0x020A;
             if (m.Msg != WM_MOUSEWHEEL || !_column.Visible || _column.IsDisposed) return false;
-            if ((Control.ModifierKeys & Keys.Control) != 0) return false;
+            bool ctrl = (Control.ModifierKeys & Keys.Control) != 0;
+            if (ctrl && !AdjustFirst) return false;
             // over the column's area of the main window: the column itself, or a Thetis panel Kainos places over it
             // (the TX tab's phone panel, the VFO SYNC panel ...), which isn't the column's child
             Point at = Cursor.Position;
             if (!_column.RectangleToScreen(_column.ClientRectangle).Contains(at)) return false;
             Control c = Control.FromChildHandle(WindowFromPoint(at));
             if (c == null || c.FindForm() != _column.FindForm()) return false;      // another window over it (a flag, a menu)
+            if (AdjustFirst && !ctrl && usesWheel(c)) return false;
             int delta = (short)((m.WParam.ToInt64() >> 16) & 0xffff);
             _column.ScrollBy(delta);
             return true;
+        }
+    }
+
+    partial class KainosWheelFilter
+    {
+        // a control (or the control it's part of, like a number box's text) that does something with the wheel
+        private static bool usesWheel(Control c)
+        {
+            for (; c != null; c = c.Parent)
+                if (c is PrettyTrackBar || c is TrackBar || c is KainosSlider || c is KainosUpDown || c is UpDownBase || c is ComboBox
+                    || c is ListBox || c is KainosKiwiList || c is KainosSpotList || c is KainosMemoryList || c is KainosFlagView)
+                    return true;
+                else if (c is KainosColumn) return false;
+            return false;
         }
     }
 

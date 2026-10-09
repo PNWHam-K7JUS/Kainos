@@ -51,9 +51,9 @@ namespace Thetis
         private ComboBoxTS comboKainosLayout, comboKainosUIScale, comboKainosBackdropLogo;
         private CheckBoxTS chkKainosBackdrop, chkKainosPanColours;
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
-        private ComboBoxTS comboKainosFlagOpacity;
+        private ComboBoxTS comboKainosFlagOpacity, comboKainosWheel;
         private TextBoxTS txtKainosFlags;
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -94,11 +94,21 @@ namespace Thetis
             comboKainosUIScale.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             grp.Controls.Add(avLabel("UI scale", 250, 27));
             grp.Controls.Add(comboKainosUIScale);
-            LabelTS note = avLabel("Kainos: the console in the Kainos colours, with the left-hand column of buttons, the " +
-                "right-hand column of tabs, the slice flags on the panadapter and the bar under it. Right-click a button " +
-                "for the same settings shortcut as in Classic. Classic: Thetis's console exactly as your skin draws it.", 14, 60);
+            // the mouse wheel over the right-hand column (GitHub #4)
+            comboKainosWheel = new ComboBoxTS { Name = "comboKainosWheel", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 54), Size = new Size(310, 21) };
+            comboKainosWheel.Items.AddRange(new object[] { "Scrolls the column (Ctrl+wheel adjusts)", "Adjusts the control under it (Ctrl+wheel scrolls)" });
+            comboKainosWheel.SelectedIndex = 0;
+            toolTip1.SetToolTip(comboKainosWheel, "The mouse wheel over the right-hand column.\r\n" +
+                "Scrolls the column: the wheel always scrolls the column; hold Ctrl to change the slider or list under the pointer.\r\n" +
+                "Adjusts the control: the wheel changes a slider, list, drop-down or number under the pointer and scrolls the\r\n" +
+                "column anywhere else; hold Ctrl to scroll the column wherever the pointer is.");
+            comboKainosWheel.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            grp.Controls.Add(avLabel("Mouse wheel", 14, 57));
+            grp.Controls.Add(comboKainosWheel);
+            LabelTS note = avLabel("Kainos: the Kainos colours, with the left-hand column of buttons, the right-hand column of " +
+                "tabs, the slice flags and the bar under the panadapter. Classic: Thetis's console exactly as your skin draws it.", 14, 88);
             note.AutoSize = false;
-            note.Size = new Size(404, 82);
+            note.Size = new Size(404, 56);
             grp.Controls.Add(note);
             tpAppearanceKainos.Controls.Add(grp);
 
@@ -121,11 +131,13 @@ namespace Thetis
             grpPan.Controls.Add(comboKainosBackdropLogo);
             // the slice flags: how much shows through them while the mouse isn't over them (GitHub issue #2)
             comboKainosFlagOpacity = new ComboBoxTS { Name = "comboKainosFlagOpacity", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 108), Size = new Size(140, 21) };
-            comboKainosFlagOpacity.Items.AddRange(new object[] { "Solid", "90%", "75%", "60%", "45%" });
+            comboKainosFlagOpacity.Items.AddRange(new object[] { "Solid", "90%", "75%", "60%", "45%", "Off (VFO tab only)" });
             comboKainosFlagOpacity.SelectedIndex = 2;
             toolTip1.SetToolTip(comboKainosFlagOpacity, "How solid the slice flags on the panadapter are while the mouse isn't over them, so spots and\r\n" +
                 "markers behind them show through. A flag is solid while the mouse is over it.\r\n" +
-                "Drag a flag by its face to move it down the panadapter; double-click its face to put it back.");
+                "Drag a flag by its face to move it down the panadapter, or sideways to pin it anywhere on it (it then\r\n" +
+                "stays put instead of following its VFO); click its pin, or double-click its face, to put it back.\r\n" +
+                "Off: no flags on the panadapter; the right-hand column's VFO tab has them.");
             comboKainosFlagOpacity.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             grpPan.Controls.Add(avLabel("Slice flags", 14, 111));
             grpPan.Controls.Add(comboKainosFlagOpacity);
@@ -158,6 +170,8 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosSpots);
             txtKainosKiwi = new TextBoxTS { Name = "txtKainosKiwi", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosKiwi);
+            txtKainosScope = new TextBoxTS { Name = "txtKainosScope", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosScope);
             addKainosWizardControls(tpAppearanceKainos);       // setupKainosWizard.cs
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
@@ -190,6 +204,7 @@ namespace Thetis
                     txtKainos3D.Text = console.Kainos3DSettings;
                     txtKainosSpots.Text = console.KainosSpotSettings;
                     txtKainosKiwi.Text = console.KainosKiwiSettings;
+                    txtKainosScope.Text = console.KainosScopeSettings;
                     txtKainosFlags.Text = console.KainosFlagSettings;
                 };
             }
@@ -211,8 +226,11 @@ namespace Thetis
             console.KainosSpotsLoad();
             console.KainosKiwiSettings = txtKainosKiwi.Text;
             console.KiwiLoadSettings();
+            console.KainosScopeSettings = txtKainosScope.Text;
+            console.KainosScopeLoad();
             console.KainosFlagSettings = txtKainosFlags.Text;
-            console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
+            console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
+            KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;

@@ -19,6 +19,7 @@ Click a tab at the top of the column to open or close its section:
 | **MEMORY** | Your memories. |
 | **SPOTS** | The latest spots. See [[Spots]]. |
 | **KIWI** | KiwiSDR receivers. See [[KiwiSDR]]. |
+| **AUDIO SCOPE** | A waveform and audio spectrum of RX1's audio, or your transmit signal. See [[Audio Scope]]. |
 
 ## Arrange it your way
 
@@ -30,3 +31,5 @@ Your order is saved. New tabs in future versions are added at the end.
 ## Scrolling
 
 When the open tabs don't all fit, a scroll bar appears on the right: drag it, or click above or below it. The **mouse wheel** anywhere over the column scrolls it. **Hold Ctrl** to use the wheel on a slider or list instead, so you never change a setting by accident while scrolling.
+
+Prefer it the other way round? Set **Setup > Appearance > Kainos > Mouse wheel** to **Adjusts the control under it**: the wheel then changes the slider, list, drop-down or number under the pointer (and scrolls the column anywhere else), and **Ctrl+wheel** scrolls the column.
