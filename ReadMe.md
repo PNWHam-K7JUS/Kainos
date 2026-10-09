@@ -5,7 +5,7 @@ Kainos is a Software Defined Radio (SDR) application for Windows, maintained by 
 Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on the Hermes Lite 2 edition of Thetis by Reid Campbell, MI0BOT ([OpenHPSDR-Thetis](https://github.com/mi0bot/OpenHPSDR-Thetis)). Nearly everything Kainos can do comes from the many years of work by the Thetis and OpenHPSDR community. See [Credits](#credits) below.
 
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
-- Current version: 1.0.7 (based on Thetis 2.10.3.15)
+- Current version: 1.0.8 (based on Thetis 2.10.3.15)
 
 ![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
 
@@ -26,7 +26,9 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - **SWR sweep**: the SWR button sweeps a band at 1 W or less and plots your antenna's SWR, with the 2:1 bandwidth; save sweeps to compare, or export them as CSV.
 - **Setup wizard**: callsign, HL2 boards (N2ADR, I/O board), PC audio and look in a few steps, offered on first run and in the Setup menu.
 - **Safety nets**: one-click settings backup, an update notice with the release notes, and **Report a bug** (top right), which opens a GitHub issue with diagnostics filled in. **Light mode** for slower PCs.
-- **Make it yours**: drag the right-hand column's sections into your own order, shrink a VFO flag to one line, and see-through, draggable flags so spots behind them show.
+- **Make it yours**: drag the right-hand column's sections into your own order, shrink a VFO flag to one line, see-through flags you can pin anywhere on the panadapter (or turn off and use the VFO tab), and choose what the mouse wheel does over the column.
+- **Audio scope**: an AUDIO SCOPE tab with a waveform, audio spectrum and waterfall of what you hear, and of your own signal while you transmit.
+- **Hear VFO B in split**: LISTEN on VFO B's flag puts a second receiver on it inside RX1's span, so you hear the pileup and the DX together.
 - **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from **Kainos Audio** in the menu bar. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
   - **Receive**, on every receiver: parametric EQ, gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
   - **Transmit**: gate, parametric EQ, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.

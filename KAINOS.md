@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.8 (not yet released)
+### Kainos 1.0.8
 
 **New: hear VFO B in split**
 - In split, the VFO B flag (and VFO B in the right-hand column's VFO tab) has a **LISTEN** button: click it to hear VFO B along with VFO A, for example to hear the DX's pileup while you listen to the DX. It uses Thetis's second receiver inside RX1's span (the SubRX button), so the **MAIN** and **SUB** sliders under the panadapter set which side you hear each one on. VFO B starts at VFO A's volume; set its own level with **LISTEN AF** in VFO B's AUDIO drawer. If VFO B is too far from VFO A for it to reach, the button says **TOO FAR** (GitHub issue #4).
