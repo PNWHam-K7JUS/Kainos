@@ -177,7 +177,8 @@ namespace Thetis
             kainosMoveIn(kainosFilterExtras);
             kainosMoveIn(kainosRxRows.SelectMany(r => r));
             kainosMoveIn(kainosTxRows.SelectMany(r => r));
-            foreach (Control c in kainosCollapseTargets) kainosCollapse(c);
+            // a bare check box (RX2's SQL) keeps 1 x 1: Thetis's skin sizes its button images from it, and can't at 0 x 0
+            foreach (Control c in kainosCollapseTargets) kainosCollapse(c, c is CheckBox ? (Func<Size, Size>)(full => new Size(1, 1)) : null);
             kainosBarOn();          // the panadapter's bar: consoleKainosBar.cs
             lblPAProfile.Visible = false;       // the PA PROFILE tab: consoleKainosTabs.cs
             _kainosColumn.Visible = true;
