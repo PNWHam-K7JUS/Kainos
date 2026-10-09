@@ -63,9 +63,13 @@ namespace Thetis
             get
             {
                 // the panels under the panadapter: DSP (the flags' DSP tab), VFO (split / copy / swap / zero beat / IF in
-                // the dock, RIT / XIT on the flags, VAC in the dock), display and multi-RX (the panadapter's bar)
+                // the dock, RIT / XIT on the flags, VAC in the dock), display and multi-RX (the panadapter's bar). And
+                // RX2's strip, shown with RX2 on: its mode, filter and DSP are on flag B's tabs, its S meter on the flag,
+                // and its pan, squelch, AGC and AGC gain in flag B's AUDIO and DSP drawers
                 return new Control[] { panelBandHF, panelBandGEN, panelBandVHF, panelMode, panelFilter, grpMultimeter, grpMultimeterMenus, panelSoundControls,
-                                       grpVFOA, grpVFOB, panelDSP, panelVFO, panelDisplay2, panelMultiRX };
+                                       grpVFOA, grpVFOB, panelDSP, panelVFO, panelDisplay2, panelMultiRX,
+                                       panelRX2RF, panelRX2DSP, panelRX2Filter, panelRX2Mode, panelRX2Display, panelRX2Mixer, panelRX2Power, grpRX2Meter,
+                                       chkRX2Squelch, ptbRX2Squelch, picRX2Squelch };
             }
         }
 

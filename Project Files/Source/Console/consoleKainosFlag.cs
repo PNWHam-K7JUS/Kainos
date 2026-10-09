@@ -366,11 +366,18 @@ namespace Thetis
             {
                 case "AUDIO":
                     {
-                        KainosActionGrid g = new KainosActionGrid(1);
+                        bool rx2 = rx == 2 && !KainosSplitB;        // RX2 itself: its strip under the panadapter is collapsed
+                        KainosActionGrid g = new KainosActionGrid(rx2 ? 2 : 1);
                         CheckBox mute = rx == 1 ? (CheckBox)chkMUT : chkRX2Mute;
                         g.Add("MUTE", () => mute.Checked, () => kainosClick(mute), KainosUI.Tone.Tx);
+                        if (rx2) g.Add("SQL", () => chkRX2Squelch.CheckState != CheckState.Unchecked, () => kainosClick(chkRX2Squelch), tone);
                         if (rx == 2 && KainosSplitB) rows.Add(new KainosSlider(ptbRX1Gain, "LISTEN AF"));    // B heard through RX1's sub-receiver
                         else rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
+                        if (rx2)
+                        {
+                            rows.Add(new KainosSlider(ptbRX2Pan, "RX2 PAN"));
+                            rows.Add(new KainosSlider(ptbRX2Squelch, "RX2 SQUELCH"));
+                        }
                         rows.Add(g);
                         break;
                     }
@@ -382,6 +389,12 @@ namespace Thetis
                         g.SetTargets(panel.Controls.OfType<ButtonBase>().Where(c => c != chkMUT && c != chkRX2Mute)
                                          .OrderBy(c => c.Top).ThenBy(c => c.Left));
                         rows.Add(g);
+                        if (rx == 2 && !KainosSplitB)
+                        {
+                            // RX2's AGC and AGC gain (the column's RX tab has RX1's)
+                            rows.Add(new KainosDropDown(() => comboRX2AGC, "RX2 AGC"));
+                            rows.Add(new KainosSlider(ptbRX2RF, "RX2 AGC GAIN"));
+                        }
                         break;
                     }
                 case "MODE":
@@ -438,7 +451,8 @@ namespace Thetis
             {
                 int h = c is KainosButtonGrid ? ((KainosButtonGrid)c).PreferredHeight(w)
                       : c is KainosActionGrid ? ((KainosActionGrid)c).PreferredHeight(w)
-                      : c is KainosSlider ? KainosUI.S(40) : c is KainosUpDown ? KainosUI.S(26) : KainosUI.S(20);
+                      : c is KainosSlider ? KainosUI.S(40) : c is KainosUpDown ? KainosUI.S(26)
+                      : c is KainosDropDown ? KainosDropDown.PreferredHeight : KainosUI.S(20);
                 c.SetBounds(pad, y, w, h);
                 p.Controls.Add(c);
                 y += h + gap;
