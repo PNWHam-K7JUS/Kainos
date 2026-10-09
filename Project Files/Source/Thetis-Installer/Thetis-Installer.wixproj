@@ -97,6 +97,14 @@
     <KainosVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\..\Console\KainosVersion.cs')), '(?&lt;=Number = ")[0-9.]+'))</KainosVersion>
     <DefineConstants>$(DefineConstants);KainosVersion=$(KainosVersion)</DefineConstants>
   </PropertyGroup>
+  <!-- candle only recompiles a .wxs that changed, not when the version passed in did: the installers for 1.0.1 to
+       1.0.8 all carried version 1.0.1. Always recompile, so the installer's version is the one in KainosVersion.cs -->
+  <Target Name="BeforeBuild">
+    <ItemGroup>
+      <KainosStaleWixObj Include="$(IntermediateOutputPath)*.wixobj" />
+    </ItemGroup>
+    <Delete Files="@(KainosStaleWixObj)" />
+  </Target>
   <!-- rename the output msi with the Kainos version -->
   <Target Name="AfterBuild">
     <Move SourceFiles="..\..\bin\Installers\$(OutputName).msi" DestinationFiles="..\..\bin\Installers\Kainos-$(KainosVersion)-$(Platform).msi" />

@@ -28,6 +28,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 **Fixes**
 - The squelch level in FM (and RX2's) went back to 100 at every start. It now keeps the level you set (GitHub issue #10). This came from Thetis: at start-up it stored the squelch slider's default as the level before the saved one was put on it; Kainos now puts the saved level on the slider first (`kainosSquelchSlidersFromSaved`).
 - **Report a bug** showed "Screen: (InvalidOperationException)" instead of the screen size and scaling.
+- Windows's Installed apps list showed Kainos as version 1.0.1 whatever version was installed: the installer kept its version from the 1.0.1 build. It now shows the real version.
 - With RX2 on, Thetis's RX2 controls appeared in a strip under the panadapters. They're now hidden in the Kainos layout, giving the panadapters the room: RX2's mode, filter and DSP are on VFO B's flag, and its pan, squelch, AGC and AGC gain are now in flag B's **AUDIO** and **DSP** drawers.
 
 ### Kainos 1.0.7
