@@ -14,6 +14,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 - Technical: `consoleKainosCompact.cs`. The panadapter is drawn by DirectX, which covers controls placed over it, so the dock and the column slide in as owned windows (`KainosEdgeForm`), taking the column's pinned Thetis panels (mode panel, VFO SYNC, meter) with them; `CollapseToolStripMenuItem_Click` hands the menu item to `KainosCompactMenu` in the Kainos layout.
 
 **Fixes**
+- The right-hand column scrolls smoothly: the mouse wheel glides it instead of jumping, a touchpad scrolls in proportion (it used to jump a whole step for every small movement), and the column is drawn once per step instead of control by control.
 - Menus in the Kainos layout could show light for a moment before turning dark. Their windows now start dark, and they no longer lay themselves out again each time they open. Windows's own menus (a text box's right-click Cut / Copy / Paste) are dark too, on Windows 10 1903 and later.
 
 ### Kainos 1.0.8

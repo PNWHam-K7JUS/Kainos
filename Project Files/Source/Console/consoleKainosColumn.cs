@@ -774,11 +774,42 @@ namespace Thetis
         internal int ContentHeight { get { return _contentHeight; } }
         internal int ViewHeight { get { return Viewport.Height; } }
 
+        // the scroll bar: straight there
         internal void ScrollTo(int pos)
         {
+            if (_glide != null) _glide.Stop();
             int before = _scroll;
             _scroll = Math.Max(0, Math.Min(pos, Math.Max(0, _contentHeight - Viewport.Height)));
-            if (_scroll != before) ArrangeSections();
+            _glideTo = _scroll;
+            if (_scroll != before) arrange(false);
+        }
+
+        // the mouse wheel glides there: each notch (or a touchpad's smaller steps, in proportion) moves the target,
+        // and the column eases toward it about 60 times a second, moving the sections without measuring them again
+        private Timer _glide;
+        private int _glideTo;
+
+        internal void ScrollBy(int delta)
+        {
+            int from = _glide != null && _glide.Enabled ? _glideTo : _scroll;
+            int max = Math.Max(0, _contentHeight - Viewport.Height);
+            _glideTo = Math.Max(0, Math.Min(max, from - (int)Math.Round(delta / 120.0 * KainosUI.S(80))));
+            if (_glideTo == _scroll) return;
+            if (_glide == null)
+            {
+                _glide = new Timer { Interval = 15 };
+                _glide.Tick += (s, e) =>
+                {
+                    int diff = _glideTo - _scroll;
+                    if (diff == 0) { _glide.Stop(); return; }
+                    int step = (int)Math.Round(diff * 0.35);
+                    if (step == 0) step = Math.Sign(diff);
+                    _scroll += step;
+                    arrange(false);
+                    if (_scroll == _glideTo) _glide.Stop();
+                };
+            }
+            _glide.Start();
         }
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
@@ -871,8 +902,42 @@ namespace Thetis
         private static Font tabFont() { return new Font("Segoe UI", Math.Max(8f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel); }
 
         // lays out the panels of the tabs that are on (called by the console after it places the column)
-        public void ArrangeSections()
+        // the sections' heights from the last full layout, for moving them while scrolling
+        private readonly Dictionary<Section, int> _heights = new Dictionary<Section, int>();
+        private Size _heightsFor = Size.Empty;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        public void ArrangeSections() { arrange(true); }
+
+        private void arrange(bool remeasure)
         {
+            // scrolling: the same sections at the same sizes, moved; drawn once when they're all in place
+            if (!remeasure && _heightsFor == Size && _sections.All(x => !x.On || _heights.ContainsKey(x)) && Viewport.IsHandleCreated)
+            {
+                int pad0 = KainosUI.S(8), header0 = KainosUI.S(24), gap0 = KainosUI.S(10);
+                int w0 = Viewport.Width - pad0 * 2;
+                _scroll = Math.Max(0, Math.Min(_scroll, _contentHeight - Viewport.Height));
+                SendMessage(Viewport.Handle, 0x000B, IntPtr.Zero, IntPtr.Zero);         // WM_SETREDRAW off
+                try
+                {
+                    int y0 = -_scroll;
+                    foreach (Section x in _sections)
+                    {
+                        if (!x.On) continue;
+                        int h = _heights[x];
+                        x.HeaderRect = new Rectangle(pad0, y0, w0, header0);
+                        try { x.Arrange(new Rectangle(pad0, y0 + header0, w0, h)); } catch (Exception ex) { logSection(x, "arrange", ex); }
+                        y0 += header0 + h + gap0;
+                    }
+                }
+                finally { SendMessage(Viewport.Handle, 0x000B, (IntPtr)1, IntPtr.Zero); }
+                Viewport.Refresh();
+                _bar.Refresh();
+                return;
+            }
+
             int top = tabBarHeight();
             int viewH = Math.Max(0, Height - top), barW = KainosUI.S(16);
             int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(10);
@@ -902,6 +967,9 @@ namespace Thetis
             if (_bar.Visible != scrolls) _bar.Visible = scrolls;
             _contentHeight = total;
             _scroll = Math.Max(0, Math.Min(_scroll, total - Viewport.Height));
+            _heights.Clear();
+            foreach (KeyValuePair<Section, int> kv in heights) _heights[kv.Key] = kv.Value;
+            _heightsFor = Size;
             int y = -_scroll;
             foreach (Section s in _sections)
             {
@@ -934,10 +1002,6 @@ namespace Thetis
             catch { }
         }
 
-        internal void ScrollBy(int delta)
-        {
-            ScrollTo(_scroll - Math.Sign(delta) * KainosUI.S(60));
-        }
 
         internal void PaintHeaders(Graphics g)
         {
