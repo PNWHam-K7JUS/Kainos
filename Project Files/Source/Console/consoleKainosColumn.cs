@@ -296,11 +296,13 @@ namespace Thetis
                 // Thetis's collapsed display has its own layout: step aside, and come back when it's expanded
                 if (collapsedDisplay)
                 {
+                    if (_kainosCompactOn) { _kainosPlacing = false; SetKainosCompact(false); _kainosPlacing = true; }
                     if (_kainosPartsOn) kainosPartsOff();
                     if (_kainosDock != null) _kainosDock.Visible = false;
                     return;
                 }
                 if (!_kainosPartsOn) { kainosPartsOn(); positionKainosDock(); }
+                if (_kainosCompactOn) { kainosHideThetisMeters(); kainosCompactPlace(); return; }    // consoleKainosCompact.cs
 
                 int width = KainosUI.S(312);
                 int x = ClientSize.Width - width - 4;
@@ -336,7 +338,12 @@ namespace Thetis
         private void kainosFitDisplay(int right)
         {
             if (_kainosDisplayLocation.X < 0) _kainosDisplayLocation = panelDisplay.Location;
-            if (_kainosDock != null && _kainosDock.Visible)
+            if (_kainosCompactOn)
+            {
+                int left = KainosUI.S(6) + 2;       // beside the compact view's edge strip
+                if (panelDisplay.Left != left) panelDisplay.Left = left;
+            }
+            else if (_kainosDock != null && _kainosDock.Visible)
             {
                 int left = _kainosDock.Right + 6;
                 if (panelDisplay.Left != left) panelDisplay.Left = left;
@@ -366,6 +373,7 @@ namespace Thetis
         // whatever Thetis still shows under it (RX2's panels when RX2 is on)
         private int kainosDisplayBottom()
         {
+            if (_kainosCompactOn) return _kainosCompactBar.Top - 4;        // down to the compact view's bar
             int thetis = gr_display_basis.Y + gr_display_size_basis.Height + v_delta;
             int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
             foreach (Control c in Controls)

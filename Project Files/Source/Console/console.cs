@@ -41683,6 +41683,7 @@ namespace Thetis
 
         private void CollapseToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            if (KainosCompactMenu()) return;        // Kainos: the Kainos layout's compact view (consoleKainosCompact.cs)
             if (this.collapsedDisplay)
             {
                 this.ExpandDisplay(true);

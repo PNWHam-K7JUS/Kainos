@@ -106,6 +106,7 @@ namespace Thetis
         private void positionKainosDock()
         {
             if (_kainosDock == null || !_kainosLayout) return;
+            if (_kainosCompactOn) { positionKainosColumn(); return; }      // in its edge window: consoleKainosCompact.cs
             bool show = (panelPower.Visible || panelOptions.Visible) && !collapsedDisplay;
             if (show)
             {

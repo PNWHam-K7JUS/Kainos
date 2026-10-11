@@ -6,6 +6,13 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.9 (not yet released)
+
+**New: compact view**
+- In the Kainos layout, **Collapse** in the menu bar is now **Compact**: the left dock and the right-hand column tuck away at the window's edges, the panadapter fills the window (full screen or a small window), and the VFO flags stay. Point at the left or right edge and the dock or the column slides in over the panadapter; move away and it slides back. **Expand** puts everything back. Thetis's own collapsed layout is still there in Classic.
+- A bar along the bottom has the controls you use most, in groups: **Radio** (POWER, MOX, TUN, VOX, RX2), **Band and mode** (band, mode and filter lists), **VFO** (SPLT, A > B, A <> B, RIT), **Audio** (AF, MUTE, SQL), **DSP** (NR, NB, ANF, AGC) and **Transmit** (drive, MIC, COMP). Right-click the bar to choose which groups show. In a narrow window the groups wrap onto a second row. Kainos remembers whether you were in the compact view and which groups you chose.
+- Technical: `consoleKainosCompact.cs`. The panadapter is drawn by DirectX, which covers controls placed over it, so the dock and the column slide in as owned windows (`KainosEdgeForm`), taking the column's pinned Thetis panels (mode panel, VFO SYNC, meter) with them; `CollapseToolStripMenuItem_Click` hands the menu item to `KainosCompactMenu` in the Kainos layout.
+
 ### Kainos 1.0.8
 
 **New: hear VFO B in split**

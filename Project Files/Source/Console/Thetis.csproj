@@ -752,6 +752,10 @@
     </Compile>
     <Compile Include="KainosKiwi.cs" />
     <Compile Include="KainosAudioScope.cs" />
+    <Compile Include="consoleKainosCompact.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosAudioScope.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>

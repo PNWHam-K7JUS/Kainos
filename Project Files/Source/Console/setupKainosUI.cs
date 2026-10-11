@@ -53,7 +53,7 @@ namespace Thetis
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
         private ComboBoxTS comboKainosFlagOpacity, comboKainosWheel;
         private TextBoxTS txtKainosFlags;
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -172,6 +172,8 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosKiwi);
             txtKainosScope = new TextBoxTS { Name = "txtKainosScope", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosScope);
+            txtKainosCompact = new TextBoxTS { Name = "txtKainosCompact", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosCompact);
             addKainosWizardControls(tpAppearanceKainos);       // setupKainosWizard.cs
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
@@ -205,6 +207,7 @@ namespace Thetis
                     txtKainosSpots.Text = console.KainosSpotSettings;
                     txtKainosKiwi.Text = console.KainosKiwiSettings;
                     txtKainosScope.Text = console.KainosScopeSettings;
+                    txtKainosCompact.Text = console.KainosCompactSettings;
                     txtKainosFlags.Text = console.KainosFlagSettings;
                 };
             }
@@ -228,6 +231,8 @@ namespace Thetis
             console.KiwiLoadSettings();
             console.KainosScopeSettings = txtKainosScope.Text;
             console.KainosScopeLoad();
+            console.KainosCompactSettings = txtKainosCompact.Text;
+            console.KainosCompactLoad();
             console.KainosFlagSettings = txtKainosFlags.Text;
             console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;

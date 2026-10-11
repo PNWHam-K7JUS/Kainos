@@ -103,6 +103,7 @@ namespace Thetis
             kainosSlidersOn();          // Kainos sliders and menus: consoleKainosSliders.cs
             kainosButtonsOn();
             kainosMenusOn();
+            kainosCompactMenuText();    // Collapse is Kainos's compact view here: consoleKainosCompact.cs
             if (!_kpcShownHooked)
             {
                 // Setup's start-up applies the user's display colours too; put Kainos's back once the console is up
@@ -118,6 +119,8 @@ namespace Thetis
 
         private void restoreClassicTheme()
         {
+            SetKainosCompact(false);
+            kainosCompactMenuText();
             kainosPanColoursOff();
             kainosMenusOff();
             kainosSlidersOff();
