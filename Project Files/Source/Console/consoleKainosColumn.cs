@@ -373,7 +373,7 @@ namespace Thetis
         // whatever Thetis still shows under it (RX2's panels when RX2 is on)
         private int kainosDisplayBottom()
         {
-            if (_kainosCompactOn) return _kainosCompactBar.Top - 4;        // down to the compact view's bar
+            if (_kainosCompactOn) return (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;     // the compact view: down to the status bar
             int thetis = gr_display_basis.Y + gr_display_size_basis.Height + v_delta;
             int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
             foreach (Control c in Controls)
