@@ -24,11 +24,12 @@ using System.Windows.Forms;
 
 namespace Thetis
 {
-    // The Kainos layout's Audio menu: everything about audio in one place on the menu bar, in place of the separate
-    // Equalizer and Kainos Audio items (Classic keeps Thetis's menu bar as it was)
+    // The Kainos layout's menu bar, grouped: Audio (in place of Equalizer and Kainos Audio), Modes (FreeDV, RTTY, CW,
+    // CWX) and Tools (XVTRs, Linearity, RA, Finder). The grouped items' own menu entries are hidden while it's on; the
+    // new entries do what they did. Classic keeps Thetis's menu bar as it was.
     public partial class Console
     {
-        private ToolStripMenuItem _kainosAudioMenu;
+        private ToolStripMenuItem _kainosAudioMenu, _kainosModesMenu, _kainosToolsMenu;
 
         private void kainosAudioMenuCreate()
         {
@@ -53,15 +54,50 @@ namespace Thetis
                 item("CFC Settings...", "Thetis's continuous frequency compressor (Setup > DSP).", () => SetupForm.ShowSetupTab(Setup.SetupTab.CFC_Tab)),
             });
             menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(equalizerToolStripMenuItem), _kainosAudioMenu);
+
+            // Modes: the operating modes Kainos adds windows for (RTTY and CW ticked while their terminal is open)
+            _kainosModesMenu = new ToolStripMenuItem("Modes") { Name = "kainosModesMenu", Visible = false };
+            ToolStripMenuItem rtty = item("RTTY", "The RTTY terminal (open / close).", () => { if (_rttyOpen) RttyClose(); else RttyOpen(); });
+            ToolStripMenuItem cw = item("CW", "The CW terminal (open / close).", () => { if (_cwOpen) CwClose(); else CwOpen(); });
+            _kainosModesMenu.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                item("FreeDV...", "FreeDV RADE digital voice, and the FreeDV Reporter.", ShowFreeDV),
+                rtty,
+                cw,
+                item("CWX...", "Thetis's CW keyboard and memories.", () => cWXToolStripMenuItem_Click(this, EventArgs.Empty)),
+            });
+            _kainosModesMenu.DropDownOpening += (s, e) => { rtty.Checked = _rttyOpen; cw.Checked = _cwOpen; };
+            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(_kainosAudioMenu) + 1, _kainosModesMenu);
+
+            // Tools: Thetis's other windows
+            _kainosToolsMenu = new ToolStripMenuItem("Tools") { Name = "kainosToolsMenu", Visible = false };
+            _kainosToolsMenu.DropDownItems.AddRange(new ToolStripItem[]
+            {
+                item("XVTRs...", "Transverters.", () => xVTRsToolStripMenuItem_Click(this, EventArgs.Empty)),
+                item("Linearity...", "PureSignal linearity correction.", () => linearityToolStripMenuItem_Click(this, EventArgs.Empty)),
+                item("Radio Astronomy (RA)...", "Thetis's radio astronomy tool: logs RX1 and RX2 signal strength over time to a file.", () => RAtoolStripMenuItem_Click(this, EventArgs.Empty)),
+                item("Finder...", "Find any setting in Kainos by name.", () => finderMenuItem_Click(this, EventArgs.Empty)),
+            });
+            menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(_kainosModesMenu) + 1, _kainosToolsMenu);
+        }
+
+        // the items the grouped menus take over
+        private ToolStripItem[] kainosGroupedItems
+        {
+            get
+            {
+                return new ToolStripItem[] { equalizerToolStripMenuItem, kainosAudioToolStripMenuItem, freeDVToolStripMenuItem, rttyToolStripMenuItem,
+                                             cwToolStripMenuItem, cWXToolStripMenuItem, xVTRsToolStripMenuItem, linearityToolStripMenuItem,
+                                             RAtoolStripMenuItem, finderMenuItem };
+            }
         }
 
         // the Kainos layout: Audio in place of Equalizer and Kainos Audio; Classic: as Thetis had it
         private void kainosAudioMenuOn(bool on)
         {
             kainosAudioMenuCreate();
-            _kainosAudioMenu.Visible = on;
-            equalizerToolStripMenuItem.Visible = !on;
-            if (kainosAudioToolStripMenuItem != null) kainosAudioToolStripMenuItem.Visible = !on;
+            _kainosAudioMenu.Visible = _kainosModesMenu.Visible = _kainosToolsMenu.Visible = on;
+            foreach (ToolStripItem i in kainosGroupedItems) if (i != null) i.Visible = !on;
         }
 
         private void kainosOpenPluginPage()

@@ -186,7 +186,7 @@ namespace Thetis
         {
             Color c = setupToolStripMenuItem.ForeColor;
             if (kainosAudioToolStripMenuItem != null) kainosAudioToolStripMenuItem.ForeColor = c;
-            if (_kainosAudioMenu != null) _kainosAudioMenu.ForeColor = c;
+            if (_kainosAudioMenu != null) _kainosAudioMenu.ForeColor = _kainosModesMenu.ForeColor = _kainosToolsMenu.ForeColor = c;
             if (freeDVToolStripMenuItem != null) freeDVToolStripMenuItem.ForeColor = c;
             if (rttyToolStripMenuItem != null) rttyToolStripMenuItem.ForeColor = c;
             if (cwToolStripMenuItem != null) cwToolStripMenuItem.ForeColor = c;
