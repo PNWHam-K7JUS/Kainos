@@ -56,8 +56,18 @@ namespace Thetis
             return true;
         }
 
+        private bool _kainosCollapseTextHooked;
         private void kainosCompactMenuText()
         {
+            if (!_kainosCollapseTextHooked)
+            {
+                // Thetis names it Collapse again as it starts up (ExpandDisplay): keep Kainos's name in the Kainos layout
+                _kainosCollapseTextHooked = true;
+                collapseToolStripMenuItem.TextChanged += (s, e) =>
+                {
+                    if (_kainosLayout && !collapsedDisplay && collapseToolStripMenuItem.Text == "Collapse") kainosCompactMenuText();
+                };
+            }
             if (collapsedDisplay) return;          // Thetis's own collapsed layout names it
             collapseToolStripMenuItem.Text = !_kainosLayout ? "Collapse" : _kainosCompactOn ? "Expand" : "Compact";
         }

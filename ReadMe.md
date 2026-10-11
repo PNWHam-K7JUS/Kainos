@@ -29,7 +29,7 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - **Make it yours**: drag the right-hand column's sections into your own order, shrink a VFO flag to one line, see-through flags you can pin anywhere on the panadapter (or turn off and use the VFO tab), and choose what the mouse wheel does over the column.
 - **Audio scope**: an AUDIO SCOPE tab with a waveform, audio spectrum and waterfall of what you hear, and of your own signal while you transmit.
 - **Hear VFO B in split**: LISTEN on VFO B's flag puts a second receiver on it inside RX1's span, so you hear the pileup and the DX together.
-- **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from **Kainos Audio** in the menu bar. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
+- **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from the **Audio** menu. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
   - **Receive**, on every receiver: parametric EQ, gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
   - **Transmit**: gate, parametric EQ, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.
   - **AetherVoice** adds low-end body and high-end clarity to voice. It can also be switched on with the **AV** button on the console (right-click it for a small AetherVoice window) or set in Setup > DSP > AetherVoice.

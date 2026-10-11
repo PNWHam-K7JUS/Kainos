@@ -17,7 +17,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 - Kainos Audio's transmit chain has a **Plugin** stage: choose a VST3 plugin installed on your PC (or browse for a `.vst3`), open its own window, and drag the stage anywhere in the chain like the others. It runs in voice modes only (never in digital modes or CW), Kainos Audio's BYPASS takes it out too, and Thetis's leveler, compressor and ALC still come after it. Your plugin and its settings are remembered.
 - Technical: `KainosVst.dll` (`Source/KainosVst`), a host built on Steinberg's VST3 SDK 3.8.1 (MIT licence, the `Source/vst3sdk` submodule), built with CMake by the console project. WDSP's strip has a plugin slot (`AS_PLUGIN`): `xaetherstrip` calls the host's `kv_process` on the chain's float audio, in place, and `SetTXAStripPlugin` swaps it under the DSP lock. `RadioDSPTX.SetTXStripPlugin` attaches it only in voice modes. The plugin's state (component and controller) is saved as base64 with the options, a moment after it changes in the plugin's window. Receive and running plugins in a separate process (so a crashing plugin can't take Kainos down) are still to come.
 
+**New: one Audio menu**
+- In the Kainos layout, the menu bar has a single **Audio** menu in place of Equalizer and Kainos Audio: **Kainos Audio: Receive** and **Transmit**, **VST3 Plugin** (straight to the transmit chain's plugin page), **Equalizer**, and shortcuts to the **VAC 1 / VAC 2**, **VOX / DEXP** and **CFC** settings. Classic keeps Thetis's menu bar as it was (`consoleKainosAudioMenu.cs`).
+
 **Fixes**
+- The menu bar said **Collapse** instead of **Compact** in the Kainos layout (Thetis renames it as it starts up).
 - The right-hand column scrolls smoothly: the mouse wheel glides it instead of jumping, a touchpad scrolls in proportion (it used to jump a whole step for every small movement), and the column is drawn once per step instead of control by control.
 - Menus in the Kainos layout could show light for a moment before turning dark. Their windows now start dark, and they no longer lay themselves out again each time they open. Windows's own menus (a text box's right-click Cut / Copy / Paste) are dark too, on Windows 10 1903 and later.
 

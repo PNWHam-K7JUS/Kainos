@@ -27,4 +27,4 @@ A column of tabs you turn on and off by clicking them: **VFO**, **VFO SYNC**, **
 
 ## Menus
 
-The menu bar has Kainos's windows (**Kainos Audio**, **FreeDV**, **RTTY**, **CW** ...) next to Thetis's. **Report a bug** is at the top right. The **Setup** menu also has **Back up settings now**, **Run setup wizard**, **Light mode**, **Check for updates** and **Report a bug**.
+The menu bar has Kainos's windows (**FreeDV**, **RTTY**, **CW** ...) next to Thetis's. Everything about audio is under one **Audio** menu: Kainos Audio (receive and transmit), the VST3 plugin, Thetis's Equalizer, and shortcuts to the VAC, VOX / DEXP and CFC settings. **Compact** (Thetis's Collapse) tucks the left and right columns away at the window's edges. **Report a bug** is at the top right. The **Setup** menu also has **Back up settings now**, **Run setup wizard**, **Light mode**, **Check for updates** and **Report a bug**.

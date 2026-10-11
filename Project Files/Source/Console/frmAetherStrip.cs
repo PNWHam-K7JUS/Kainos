@@ -652,6 +652,13 @@ namespace Thetis
 
         internal bool Bypassed { get { return _strip.Bypass; } }
 
+        // the menu bar's Audio > VST3 Plugin...: the transmit side's plugin page
+        internal void ShowPluginPage()
+        {
+            SetSide(false);
+            ShowPage(PagePlugin);
+        }
+
         internal void ShowPage(int id)
         {
             _pageId = id;
