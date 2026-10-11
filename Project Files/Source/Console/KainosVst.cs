@@ -38,7 +38,9 @@ namespace Thetis
         private const string Dll = "KainosVst.dll";
 
         [DllImport(Dll, CharSet = CharSet.Unicode)] private static extern int kv_scan(string path, StringBuilder buf, int cap);
-        [DllImport(Dll, CharSet = CharSet.Unicode)] private static extern IntPtr kv_load(string path, string classId, double rate, int maxBlock, StringBuilder err, int cap);
+        [DllImport(Dll, CharSet = CharSet.Unicode)] private static extern IntPtr kv_load(string path, string classId, double rate, int maxBlock, byte[] state, int stateLen, StringBuilder err, int cap);
+        [DllImport(Dll)] private static extern int kv_get_state(IntPtr h, byte[] buf, int cap);
+        [DllImport(Dll)] private static extern int kv_edits(IntPtr h);
         [DllImport(Dll)] private static extern IntPtr kv_process_proc();
         [DllImport(Dll)] private static extern int kv_latency(IntPtr h);
         [DllImport(Dll)] private static extern int kv_editor_open(IntPtr h, IntPtr hwnd, float scale, out int w, out int hh);
@@ -58,6 +60,9 @@ namespace Thetis
         private static bool _on = true;
         private static List<Plugin> _found;
         private static KainosVstEditor _editor;
+        private static string _state = "";                 // the plugin's settings (base64 of kv_get_state), saved with the options
+        private static Timer _watch;
+        private static int _edits;
 
         public static event EventHandler Changed;
 
@@ -120,20 +125,30 @@ namespace Thetis
         }
 
         // loads a plugin at the transmit chain's rate and attaches it (replacing any other); null: no plugin
-        public static string Load(Console console, Plugin p)
+        public static string Load(Console console, Plugin p) { return Load(console, p, null); }
+
+        // state: the plugin's saved settings (base64), or none for its defaults
+        public static string Load(Console console, Plugin p, string state)
         {
             _console = console;
             Unload();
+            _state = "";
             if (p == null) return null;
             int rate = 48000, size = 1024;
             try { WDSP.GetTXAStripFormat(WDSP.id(1, 0), out rate, out size); } catch { }
             StringBuilder err = new StringBuilder(512);
             IntPtr h;
-            try { h = kv_load(p.Path, p.ClassId ?? "", rate, Math.Max(4096, size), err, err.Capacity); }
+            byte[] st = null;
+            if (!string.IsNullOrEmpty(state)) try { st = Convert.FromBase64String(state); } catch { st = null; }
+            try { h = kv_load(p.Path, p.ClassId ?? "", rate, Math.Max(4096, size), st, st == null ? 0 : st.Length, err, err.Capacity); }
             catch (Exception ex) { return ex.Message; }
             if (h == IntPtr.Zero) return err.Length > 0 ? err.ToString() : "the plugin wouldn't load";
             _h = h;
             _loaded = p;
+            _state = st != null ? state : "";
+            _edits = 0;
+            try { _edits = kv_edits(h); } catch { }
+            startWatch();
             attach();
             Changed?.Invoke(null, EventArgs.Empty);
             return null;
@@ -150,6 +165,40 @@ namespace Thetis
             attach();                       // out of the chain (under the DSP lock) before it goes
             try { kv_unload(h); } catch { }
             Changed?.Invoke(null, EventArgs.Empty);
+        }
+
+        // the plugin's settings are saved a moment after they're changed in its editor (and when it's closed)
+        private static void startWatch()
+        {
+            if (_watch == null)
+            {
+                _watch = new Timer { Interval = 1500 };
+                _watch.Tick += (s, e) =>
+                {
+                    if (_h == IntPtr.Zero) return;
+                    int n;
+                    try { n = kv_edits(_h); } catch { return; }
+                    if (n != _edits) { _edits = n; SaveState(); }
+                };
+            }
+            _watch.Start();
+        }
+
+        public static void SaveState()
+        {
+            if (_h == IntPtr.Zero) return;
+            try
+            {
+                int need = kv_get_state(_h, null, 0);
+                if (need <= 8 || need > 16 * 1024 * 1024) return;
+                byte[] buf = new byte[need];
+                if (kv_get_state(_h, buf, buf.Length) != need) return;
+                string s = Convert.ToBase64String(buf);
+                if (s == _state) return;
+                _state = s;
+                Changed?.Invoke(null, EventArgs.Empty);
+            }
+            catch { }
         }
 
         public static void SetOn(bool on)
@@ -195,7 +244,7 @@ namespace Thetis
                 _editor.FitTo(w, hh);
                 IntPtr inst = _h;
                 _editor.SizeWanted = () => { int a, b; kv_editor_size(inst, out a, out b); return new Size(a, b); };
-                _editor.FormClosing += (s, e) => { try { kv_editor_close(inst); } catch { } };
+                _editor.FormClosing += (s, e) => { SaveState(); try { kv_editor_close(inst); } catch { } };
                 // over the window it was opened from
                 Form o = owner as Form;
                 if (o != null)
@@ -208,10 +257,10 @@ namespace Thetis
             _editor.Activate();
         }
 
-        // ---- saved with the options (a hidden Setup box): "path|classId|on" ----
+        // ---- saved with the options (a hidden Setup box): "path|classId|on|state" (state: base64) ----
         public static string Settings
         {
-            get { return _loaded == null ? "" : _loaded.Path + "|" + _loaded.ClassId + "|" + (_on ? 1 : 0); }
+            get { return _loaded == null ? "" : _loaded.Path + "|" + _loaded.ClassId + "|" + (_on ? 1 : 0) + "|" + _state; }
         }
 
         public static void LoadSettings(Console console, string s)
@@ -222,7 +271,7 @@ namespace Thetis
             _on = p[2] == "1";
             if (!File.Exists(p[0]) && !Directory.Exists(p[0])) return;
             Plugin found = scan(p[0]).FirstOrDefault(x => x.ClassId == p[1]);
-            if (found != null) Load(console, found);
+            if (found != null) Load(console, found, p.Length > 3 ? p[3] : null);
         }
     }
 

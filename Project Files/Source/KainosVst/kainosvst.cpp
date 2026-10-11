@@ -37,6 +37,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "pluginterfaces/gui/iplugview.h"
 #include "pluginterfaces/gui/iplugviewcontentscalesupport.h"
 #include "base/source/fobject.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <windows.h>
 #include <string>
@@ -86,15 +87,17 @@ namespace
 	public:
 		ParameterChangeTransfer* transfer = nullptr;
 		IEditController* controller = nullptr;
+		std::atomic<int> edits { 0 };		// counts changes made in the editor (the console saves the state after them)
 
 		tresult PLUGIN_API beginEdit (ParamID) override { return kResultOk; }
 		tresult PLUGIN_API performEdit (ParamID id, ParamValue value) override
 		{
 			if (transfer) transfer->addChange (id, value, 0);
+			edits++;
 			return kResultOk;
 		}
-		tresult PLUGIN_API endEdit (ParamID) override { return kResultOk; }
-		tresult PLUGIN_API restartComponent (int32) override { return kResultOk; }
+		tresult PLUGIN_API endEdit (ParamID) override { edits++; return kResultOk; }
+		tresult PLUGIN_API restartComponent (int32) override { edits++; return kResultOk; }
 
 		tresult PLUGIN_API queryInterface (const TUID iid, void** obj) override
 		{
@@ -171,6 +174,31 @@ namespace
 		return info.channelCount;
 	}
 
+	// a saved state: [int32 n][component state, n bytes][int32 m][controller state, m bytes]
+	void applyState (Instance* k, const unsigned char* p, int len)
+	{
+		int32 n = 0, m = 0;
+		std::memcpy (&n, p, 4);
+		if (n < 0 || 4 + n + 4 > len) return;
+		std::memcpy (&m, p + 4 + n, 4);
+		if (m < 0 || 4 + n + 4 + m > len) m = 0;
+		if (n > 0)
+		{
+			MemoryStream a ((void*)(p + 4), n);
+			k->component->setState (&a);
+			if (k->controller)
+			{
+				MemoryStream b ((void*)(p + 4), n);
+				k->controller->setComponentState (&b);
+			}
+		}
+		if (m > 0 && k->controller)
+		{
+			MemoryStream c ((void*)(p + 8 + n), m);
+			k->controller->setState (&c);
+		}
+	}
+
 	bool setup (Instance* k)
 	{
 		k->processor = FUnknownPtr<IAudioProcessor> (k->component);
@@ -223,7 +251,9 @@ KV_API int kv_scan (const wchar_t* path, wchar_t* buf, int cap)
 
 // Loads a plugin (classId empty: the first audio effect in the file), ready to process at this rate and up to
 // maxBlock frames a call. Returns the instance, or null (err says why).
-KV_API void* kv_load (const wchar_t* path, const wchar_t* classId, double rate, int maxBlock, wchar_t* err, int errCap)
+// state / stateLen: a saved state (kv_get_state), or none.
+KV_API void* kv_load (const wchar_t* path, const wchar_t* classId, double rate, int maxBlock,
+	const unsigned char* state, int stateLen, wchar_t* err, int errCap)
 {
 	ensureHost ();
 	Instance* k = new Instance ();
@@ -251,6 +281,7 @@ KV_API void* kv_load (const wchar_t* path, const wchar_t* classId, double rate, 
 	k->handler.transfer = &k->transfer;
 	k->handler.controller = k->controller;
 	if (k->controller) k->controller->setComponentHandler (&k->handler);
+	if (state && stateLen > 8) applyState (k, state, stateLen);
 	if (!setup (k)) { copyOut ("the plugin wouldn't set up for " + std::to_string ((int)rate) + " Hz", err, errCap); delete k; return nullptr; }
 	return k;
 }
@@ -293,6 +324,33 @@ KV_API int kv_process (void* h, float* x, int frames, int nch)
 		done += n;
 	}
 	return 1;
+}
+
+// The plugin's state (its settings), to save: the size it needs, written into buf when it fits (cap)
+KV_API int kv_get_state (void* h, unsigned char* buf, int cap)
+{
+	Instance* k = (Instance*)h;
+	if (!k || !k->component) return 0;
+	MemoryStream a, c;
+	if (k->component->getState (&a) != kResultOk) a.setSize (0);
+	if (!k->controller || k->controller->getState (&c) != kResultOk) c.setSize (0);
+	int32 n = (int32)a.getSize (), m = (int32)c.getSize ();
+	int need = 8 + n + m;
+	if (buf && cap >= need)
+	{
+		std::memcpy (buf, &n, 4);
+		if (n) std::memcpy (buf + 4, a.getData (), n);
+		std::memcpy (buf + 4 + n, &m, 4);
+		if (m) std::memcpy (buf + 8 + n, c.getData (), m);
+	}
+	return need;
+}
+
+// changes made in the plugin's editor so far (the console saves the state when this moves)
+KV_API int kv_edits (void* h)
+{
+	Instance* k = (Instance*)h;
+	return k ? k->handler.edits.load () : 0;
 }
 
 // for handing to WDSP (SetTXAStripPlugin)

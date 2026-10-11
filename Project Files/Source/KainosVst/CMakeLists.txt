@@ -17,7 +17,8 @@ set(VST3SDK ${CMAKE_CURRENT_SOURCE_DIR}/../vst3sdk)
 # the Windows module loader and the plug provider (the SDK's hosting library leaves them to the host)
 add_library(KainosVst SHARED kainosvst.cpp
     ${VST3SDK}/public.sdk/source/vst/hosting/module_win32.cpp
-    ${VST3SDK}/public.sdk/source/vst/hosting/plugprovider.cpp)
+    ${VST3SDK}/public.sdk/source/vst/hosting/plugprovider.cpp
+    ${VST3SDK}/public.sdk/source/common/memorystream.cpp)
 target_link_libraries(KainosVst PRIVATE sdk_hosting)
 target_compile_features(KainosVst PRIVATE cxx_std_17)
 set_target_properties(KainosVst PROPERTIES OUTPUT_NAME "KainosVst")
