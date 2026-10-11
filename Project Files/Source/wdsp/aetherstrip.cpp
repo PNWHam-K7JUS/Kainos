@@ -55,7 +55,9 @@ struct _aetherstrip
 	ClientFinalLimiter limiter;
 	ClientEq eq;
 	ClientEq::BandParams bands[AS_EQ_BANDS];	// the EQ bands as last set (ClientEq takes a whole band at a time)
-	int order[AS_MAXORDER];				// chain order: stages and AS_EXCITER (the final limiter always runs last)
+	int order[AS_MAXORDER];				// chain order: stages, AS_EXCITER and AS_PLUGIN (the final limiter always runs last)
+	AS_PLUGPROC plugProc = nullptr;		// the VST3 plugin at AS_PLUGIN (KainosVst.dll), or none
+	void* plugH = nullptr;
 	int orderCount;
 	bool wasEnabled[AS_NSTAGES];		// to reset a stage's state when it is switched on
 	std::vector<float> buf;				// interleaved float scratch (AetherSDR processes float)
@@ -191,9 +193,14 @@ void xaetherstrip (AETHERSTRIP a, int stereo, struct _aethervoice* av)
 {
 	int nch = stereo ? 2 : 1, k;
 	bool any = false;
+	bool plugin = false;
 	for (k = 0; k < a->orderCount; k++)
-		if (a->order[k] != AS_EXCITER) refreshEnables (a, a->order[k], any);
+	{
+		if (a->order[k] == AS_PLUGIN) plugin = a->plugProc != nullptr;
+		else if (a->order[k] != AS_EXCITER) refreshEnables (a, a->order[k], any);
+	}
 	refreshEnables (a, AS_LIMITER, any);
+	any = any || plugin;
 
 	if (!any)
 	{
@@ -218,6 +225,10 @@ void xaetherstrip (AETHERSTRIP a, int stereo, struct _aethervoice* av)
 				toFloat (a, a->out, x, nch);
 			}
 		}
+		else if (s == AS_PLUGIN)
+		{
+			if (plugin) a->plugProc (a->plugH, x, a->size, nch);
+		}
 		else if (a->wasEnabled[s]) stageProcess (a, s, x, a->size, nch);
 	}
 	if (a->wasEnabled[AS_LIMITER]) stageProcess (a, AS_LIMITER, x, a->size, nch);
@@ -239,6 +250,18 @@ int setOrder_aetherstrip (AETHERSTRIP a, const int* order, int n)
 	std::memcpy (a->order, order, n * sizeof (int));
 	a->orderCount = n;
 	return 1;
+}
+
+void setPlugin_aetherstrip (AETHERSTRIP a, AS_PLUGPROC proc, void* h)
+{
+	a->plugProc = proc;
+	a->plugH = h;
+}
+
+void getFormat_aetherstrip (AETHERSTRIP a, int* rate, int* size)
+{
+	if (rate) *rate = a->samplerate;
+	if (size) *size = a->size;
 }
 
 void setBuffers_aetherstrip (AETHERSTRIP a, double* in, double* out)

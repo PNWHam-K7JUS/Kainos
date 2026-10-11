@@ -162,6 +162,9 @@ namespace Thetis
             }
         }
 
+        // the VST3 plugin's choice changed (KainosVst.cs): saved with the options
+        internal void KainosRaiseSettingsChanged() { KainosSettingsChanged?.Invoke(this, EventArgs.Empty); }
+
         // ---- squelch kept over a restart (GitHub #10) ----
 
         // InitConsole calls ptbSquelch_Scroll / ptbRX2Squelch_Scroll, which store the slider's value as the threshold for

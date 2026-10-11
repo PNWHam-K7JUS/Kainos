@@ -3144,6 +3144,30 @@ namespace Thetis
         {
             foreach (int key in new List<int>(tx_strip.Keys))
                 if (key % 100 == 0) sendTXStripParam(key);
+            applyTXStripPlugin();
+        }
+
+        // Kainos: the VST3 plugin at the chain's plugin slot (KainosVst.cs). Like the strip's stages it only runs in
+        // voice modes (a plugin would mangle digital and CW audio), and only while it's on
+        private IntPtr tx_plugin_proc = IntPtr.Zero, tx_plugin_h = IntPtr.Zero, tx_plugin_dsp = IntPtr.Zero;
+        private bool tx_plugin_on;
+        public void SetTXStripPlugin(IntPtr proc, IntPtr h, bool on)
+        {
+            tx_plugin_proc = proc;
+            tx_plugin_h = h;
+            tx_plugin_on = on;
+            applyTXStripPlugin();
+        }
+
+        private void applyTXStripPlugin()
+        {
+            bool run = tx_plugin_on && tx_plugin_proc != IntPtr.Zero && tx_plugin_h != IntPtr.Zero && RadioDSPRX.IsAetherVoiceMode(current_dsp_mode);
+            IntPtr want = run ? tx_plugin_h : IntPtr.Zero;
+            if (update && (want != tx_plugin_dsp || force))
+            {
+                WDSP.SetTXAStripPlugin(WDSP.id(thread, 0), run ? tx_plugin_proc : IntPtr.Zero, want);
+                tx_plugin_dsp = want;
+            }
         }
 
         private void applyTXStripAll()
