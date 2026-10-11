@@ -908,6 +908,8 @@ namespace Thetis
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool RedrawWindow(IntPtr hWnd, IntPtr rect, IntPtr region, uint flags);
 
         public void ArrangeSections() { arrange(true); }
 
@@ -933,7 +935,8 @@ namespace Thetis
                     }
                 }
                 finally { SendMessage(Viewport.Handle, 0x000B, (IntPtr)1, IntPtr.Zero); }
-                Viewport.Refresh();
+                // erase and repaint the viewport and everything in it, now (a plain repaint left the old pixels behind)
+                RedrawWindow(Viewport.Handle, IntPtr.Zero, IntPtr.Zero, 0x0001 | 0x0004 | 0x0080 | 0x0100);   // INVALIDATE | ERASE | ALLCHILDREN | UPDATENOW
                 _bar.Refresh();
                 return;
             }
