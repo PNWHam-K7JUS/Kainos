@@ -6,6 +6,20 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.10 (not yet released)
+
+**New: LED EQ in the Audio Scope**
+- The Audio Scope tab has a new view, **EQ (LED)**: the audio's spectrum as columns of LEDs that light from green through yellow to red with the level, each with a peak LED that hangs for a moment and then falls back. It follows the receive audio, and your transmit audio while you transmit (marked **TX EQ**).
+- Three styles on the right-click menu under **EQ style**: **Round dots** (the default), **Segmented bars** (with a frequency scale) and **Mirrored dots** (symmetric about the middle).
+
+**New: Audio Scope colours**
+- A **Colours** choice on the Audio Scope's right-click menu: **Standard** (as before, the default), **Kainos** (glowing trace and a gradient-filled spectrum), **Phosphor** (green, like an old CRT, with an afterglow), **Heat** (green, yellow and red by level) and **Spectrum** (a rainbow by frequency). In light mode the glow and afterglow are left out.
+
+**Fixed**
+- With no audio, the Audio Scope's auto scale no longer follows the silence down until the noise fills the view; it stops at -40 dBFS.
+
+- Technical: `KainosAudioScope.cs` (`Shows.Eq`, `EqStyles`, `Themes`; the EQ bands are taken from the AF spectrum's columns, 16 to 32 depending on the width; Phosphor keeps an afterglow bitmap faded each frame) and `consoleKainosAudioScope.cs` (menu, and the `eqs` and `col` settings).
+
 ### Kainos 1.0.9
 
 **New: compact view**

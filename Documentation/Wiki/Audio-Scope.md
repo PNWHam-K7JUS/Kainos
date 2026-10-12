@@ -41,6 +41,32 @@ The span follows the mode:
 
 While you transmit, the spectrum shows your transmit signal on your sideband: a quick way to see what the TX EQ and compressor are doing, and how wide your signal is.
 
+### EQ (LED)
+
+*(Kainos 1.0.10 and later.)* The same spectrum shown as columns of LEDs, like a graphic equaliser's display: each column lights from **green** through **yellow** to **red** as its band gets louder, and a **peak LED** hangs for a moment above it, then falls back. The top right shows the strongest frequency and its level. While you transmit it shows your transmit audio, marked **TX EQ**.
+
+Choose the look under **EQ style** on the right-click menu:
+
+| Style | Look |
+|---|---|
+| **Round dots** (default) | Round LEDs with a soft glow. |
+| **Segmented bars** | Flat segments, like a hi-fi meter, with a frequency scale underneath. |
+| **Mirrored dots** | Round LEDs lit from the middle out, up and down. |
+
+## Colours
+
+*(Kainos 1.0.10 and later.)* **Colours** on the right-click menu changes how the waveform and spectrum are drawn:
+
+| Colours | Look |
+|---|---|
+| **Standard** (default) | As before. |
+| **Kainos** | A glowing trace, and the spectrum filled with a gradient. |
+| **Phosphor** | Green, like an old oscilloscope's CRT, with a fading afterglow. |
+| **Heat** | Green, yellow and red by level. |
+| **Spectrum** | A rainbow across the frequencies. |
+
+In light mode the glow and afterglow are left out.
+
 ## Controls
 
 - **Click** the scope to **hold** the picture (HOLD shows bottom left); click again to carry on.
@@ -48,7 +74,9 @@ While you transmit, the spectrum shows your transmit signal on your sideband: a 
 
 | Option | What it does |
 |---|---|
-| **Waveform / AF spectrum / Both** | What the tab shows. Both puts the waveform above the spectrum. |
+| **Waveform / AF spectrum / Both / EQ (LED)** | What the tab shows. Both puts the waveform above the spectrum. |
+| **EQ style** | Round dots, segmented bars or mirrored dots (and switches to the EQ). |
+| **Colours** | Standard, Kainos, Phosphor, Heat or Spectrum. |
 | **Scale** | **Auto**, or a fixed full scale from 0 to -50 dBFS, to compare levels. |
 | **Timebase** | 2 to 100 ms across the waveform. |
 | **Trigger** | On: the waveform holds still. Off: it runs freely, better for noise. |
