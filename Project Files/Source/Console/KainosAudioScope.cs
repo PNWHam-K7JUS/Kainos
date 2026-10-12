@@ -87,9 +87,8 @@ namespace Thetis
     // right-click for the options (the console builds the menu).
     internal class KainosScopeView : Control
     {
-        public enum Shows { Scope, Af, Both, Eq }
+        public enum Shows { Scope, Af, Both }
         public enum Channels { Both, Left, Right }
-        public enum EqStyles { Dots, Bars, Mirror }          // the LED EQ's look: round dots, segmented bars, mirrored dots
         public enum Themes { Standard, Kainos, Phosphor, Heat, Spectrum }
         public static readonly string[] ThemeNames = { "Standard", "Kainos (glow)", "Phosphor (CRT afterglow)", "Heat (by level)", "Spectrum (by frequency)" };
         public static readonly int[] Timebases = { 2, 5, 10, 20, 50, 100 };        // ms across; the first four have buttons
@@ -107,15 +106,9 @@ namespace Thetis
         public Channels Channel = Channels.Both;
         public bool Trigger = true, PeakHold = true, Smooth = true, Waterfall, Hold;
         public int FullScale = 1;                       // 1: auto; otherwise dBFS (0, -10 ...)
-        public EqStyles EqStyle = EqStyles.Dots;
         public Themes Theme = Themes.Standard;
         private int _timebase = 10;
         private bool _light;                            // light mode: no glow or afterglow
-
-        // the LED EQ: per band, the level (0..1 of the scale), and the peak dot that hangs, then falls
-        private float[] _eq = new float[0], _eqPk = new float[0];
-        private float[] _eqHold = new float[0];        // ms the peak dot still hangs
-        private readonly System.Diagnostics.Stopwatch _eqClock = System.Diagnostics.Stopwatch.StartNew();
 
         // Phosphor's afterglow: the waveform drawn into a picture that fades a little each frame
         private Bitmap _glowScope;
@@ -291,121 +284,11 @@ namespace Thetis
             // reads as silence rather than the scale following it down to nothing
             float want = Math.Max(-40, Math.Min(0, (float)Math.Ceiling((best + 6) / 10) * 10));
             _afTop = want > _afTop ? want : Math.Max(want, _afTop - 0.2f);
-            if (Show == Shows.Eq) eqFrame();
-            else if (Waterfall) addWfRow();
+            if (Waterfall) addWfRow();
         }
 
-        // ---- the LED EQ ----
-
-        // how many bands suit the view's width (a column about 12 px wide at 100%)
-        private int eqBands { get { return Math.Max(16, Math.Min(32, Width / Math.Max(1, KainosUI.S(12)))); } }
-
-        // each band's level from the spectrum's columns (the loudest in the band), on the same scale as the spectrum
-        // (60 dB from its top): quick to rise, slower to fall; the peak dot hangs half a second, then falls. The falls
-        // follow the clock rather than the frames, so a late frame doesn't make them stall and then jump.
-        private void eqFrame()
-        {
-            int n = eqBands, cols = _af.Length;
-            if (_eq.Length != n) { _eq = new float[n]; _eqPk = new float[n]; _eqHold = new float[n]; }
-            float ms = (float)Math.Min(200, _eqClock.Elapsed.TotalMilliseconds), frames = ms / 33f;
-            _eqClock.Restart();
-            float keep = (float)Math.Pow(0.88, frames);
-            float top = FullScale == 1 ? _afTop : FullScale, range = 60;
-            for (int b = 0; b < n; b++)
-            {
-                int c0 = b * cols / n, c1 = Math.Max(c0 + 1, (b + 1) * cols / n);
-                float db = -200;
-                for (int c = c0; c < c1 && c < cols; c++) db = Math.Max(db, _af[c]);
-                float v = Math.Max(0, Math.Min(1, (db - (top - range)) / range));
-                _eq[b] = v > _eq[b] ? v : _eq[b] * keep + v * (1 - keep);
-                if (_eq[b] >= _eqPk[b]) { _eqPk[b] = _eq[b]; _eqHold[b] = 500; }
-                else if (_eqHold[b] > 0) _eqHold[b] -= ms;
-                else _eqPk[b] = Math.Max(0, _eqPk[b] - 0.02f * frames);
-            }
-        }
-
-        private static readonly Color EqGreen = Color.FromArgb(0x3c, 0xcb, 0x6a), EqYellow = Color.FromArgb(0xe8, 0xc8, 0x4a), EqRed = Color.FromArgb(0xe2, 0x57, 0x4c);
-        private static Color eqColour(float fraction) { return fraction < 0.55f ? EqGreen : fraction < 0.8f ? EqYellow : EqRed; }
-        private static Color eqUnlit(Color c) { return Color.FromArgb(c.R / 5 + 6, c.G / 5 + 12, c.B / 5 + 16); }
-
-        private void paintEq(Graphics g, RectangleF r, Font f)
-        {
-            int n = _eq.Length;
-            float pad = KainosUI.S(4), labelH = EqStyle == EqStyles.Bars ? KainosUI.S(13) : 0;
-            RectangleF area = new RectangleF(r.Left + pad, r.Top + f.Height + pad * 2, r.Width - pad * 2, r.Height - f.Height - pad * 3 - labelH);
-            if (n > 0 && area.Height > 10)
-            {
-                float cw = area.Width / n;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                if (EqStyle == EqStyles.Bars)
-                {
-                    int rows = Math.Max(6, (int)(area.Height / KainosUI.S(7)));
-                    float rh = area.Height / rows, gap = Math.Max(1f, KainosUI.S(2));
-                    for (int b = 0; b < n; b++)
-                    {
-                        int lit = (int)Math.Round(_eq[b] * rows);
-                        for (int j = 0; j < rows; j++)
-                        {
-                            Color c = eqColour(j / (float)(rows - 1));
-                            using (Brush br = new SolidBrush(j < lit ? c : eqUnlit(c)))
-                                g.FillRectangle(br, area.Left + cw * b + gap / 2, area.Bottom - rh * (j + 1) + gap / 2, cw - gap, rh - gap);
-                        }
-                        int pk = (int)Math.Round(_eqPk[b] * rows);
-                        if (pk > 0)
-                            using (Brush br = new SolidBrush(KainosUI.GoldHi))
-                                g.FillRectangle(br, area.Left + cw * b + gap / 2, area.Bottom - rh * pk + gap / 2, cw - gap, Math.Max(2f, KainosUI.S(2)));
-                    }
-                    eqFrequencyLabels(g, new RectangleF(area.Left, area.Bottom + 1, area.Width, labelH));
-                }
-                else
-                {
-                    bool mirror = EqStyle == EqStyles.Mirror;
-                    float pitch = Math.Max(4f, Math.Min(cw, KainosUI.S(9)));
-                    int rows = Math.Max(4, (int)((mirror ? area.Height / 2 : area.Height) / pitch));
-                    float rh = (mirror ? area.Height / 2 : area.Height) / rows, rad = Math.Max(1.5f, Math.Min(cw, rh) * 0.34f);
-                    float mid = area.Top + area.Height / 2;
-                    for (int b = 0; b < n; b++)
-                    {
-                        int lit = (int)Math.Round(_eq[b] * rows), pk = (int)Math.Round(_eqPk[b] * rows);
-                        float cx = area.Left + cw * b + cw / 2;
-                        for (int j = 0; j < rows; j++)
-                        {
-                            Color c = eqColour(j / (float)(rows - 1));
-                            bool on = j < lit || (!mirror && j == pk - 1 && pk > lit);
-                            foreach (int side in mirror ? new[] { -1, 1 } : new[] { -1 })
-                            {
-                                float cy = mirror ? mid + side * (rh * j + rh / 2) : area.Bottom - rh * j - rh / 2;
-                                if (on && !_light)
-                                    using (Brush glow = new SolidBrush(Color.FromArgb(55, c))) g.FillEllipse(glow, cx - rad * 1.8f, cy - rad * 1.8f, rad * 3.6f, rad * 3.6f);
-                                using (Brush br = new SolidBrush(on ? c : eqUnlit(c))) g.FillEllipse(br, cx - rad, cy - rad, rad * 2, rad * 2);
-                            }
-                        }
-                    }
-                }
-                g.SmoothingMode = SmoothingMode.None;
-            }
-            using (Brush b = new SolidBrush(_shownTx ? KainosUI.Tx : KainosUI.Dim)) g.DrawString(_shownTx ? "TX  EQ" : "EQ", f, b, r.Left + pad, r.Top + pad);
-            string strongest = _strongestDb > -120 ? _strongestHz.ToString("0") + " Hz  " + _strongestDb.ToString("0") + " dBFS" : "no audio";
-            using (Brush b = new SolidBrush(KainosUI.Dim))
-            using (StringFormat far = new StringFormat { Alignment = StringAlignment.Far })
-                g.DrawString(strongest, f, b, new RectangleF(r.Left, r.Top + pad, r.Width - pad, f.Height + 2), far);
-            using (Pen border = new Pen(KainosUI.Line)) g.DrawRectangle(border, r.Left, r.Top, r.Width - 1, r.Height - 1);
-        }
-
-        // 0k, 1k ... under the bars, at the spectrum's span
-        private void eqFrequencyLabels(Graphics g, RectangleF r)
-        {
-            KainosAfInfo info = _afShown;
-            float span = Math.Max(1, info.Hi - info.Lo), every = span <= 1200 ? 200 : span <= 4000 ? 1000 : 2000;
-            using (Font small = new Font("Segoe UI", Math.Max(7f, KainosUI.S(9)), FontStyle.Regular, GraphicsUnit.Pixel))
-            using (Brush lb = new SolidBrush(KainosUI.Faint))
-                for (float hz = (float)Math.Ceiling(info.Lo / every) * every; hz <= info.Hi; hz += every)
-                {
-                    float x = r.Left + (hz - info.Lo) / span * r.Width;
-                    if (x > r.Right - KainosUI.S(18)) x = r.Right - KainosUI.S(18);
-                    g.DrawString((hz / 1000f).ToString(span <= 1200 ? "0.0" : "0.#") + "k", small, lb, x, r.Top);
-                }
-        }
+        // Heat's colours: green, yellow and red by level
+        private static readonly Color HeatGreen = Color.FromArgb(0x3c, 0xcb, 0x6a), HeatYellow = Color.FromArgb(0xe8, 0xc8, 0x4a), HeatRed = Color.FromArgb(0xe2, 0x57, 0x4c);
 
         // the spectrum (smoothed) and the waterfall below it, when the waterfall is on
         private RectangleF spectrumRect(RectangleF af) { return Waterfall ? new RectangleF(af.Left, af.Top, af.Width, (int)(af.Height * 0.55f)) : af; }
@@ -474,9 +357,8 @@ namespace Thetis
             Graphics g = e.Graphics;
             using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel))
             {
-                if (Show == Shows.Eq) paintEq(g, afRect, f);
-                else if (Show != Shows.Af) paintScope(g, scopeRect, f);
-                if (Show == Shows.Af || Show == Shows.Both)
+                if (Show != Shows.Af) paintScope(g, scopeRect, f);
+                if (Show != Shows.Scope)
                 {
                     paintAf(g, spectrumRect(afRect), f);
                     if (Waterfall) paintWf(g, wfRect(afRect));
@@ -553,7 +435,7 @@ namespace Thetis
             switch (Theme)
             {
                 case Themes.Phosphor: return Color.FromArgb(0x5d, 0xff, 0x8a);
-                case Themes.Heat: return EqGreen;
+                case Themes.Heat: return HeatGreen;
                 case Themes.Spectrum: return Color.FromArgb(0x4c, 0xc9, 0xf0);
                 default: return KainosUI.IceHi;
             }
@@ -566,10 +448,10 @@ namespace Thetis
             if (r.Width < 2 || r.Height < 2) return null;
             if (Theme == Themes.Heat)
             {
-                LinearGradientBrush b = new LinearGradientBrush(new PointF(0, r.Top - 1), new PointF(0, r.Bottom + 1), EqRed, EqGreen);
+                LinearGradientBrush b = new LinearGradientBrush(new PointF(0, r.Top - 1), new PointF(0, r.Bottom + 1), HeatRed, HeatGreen);
                 b.InterpolationColors = waveform
-                    ? new ColorBlend { Colors = new[] { EqRed, EqYellow, EqGreen, EqYellow, EqRed }, Positions = new[] { 0f, 0.3f, 0.5f, 0.7f, 1f } }
-                    : new ColorBlend { Colors = new[] { EqRed, EqYellow, EqGreen, EqGreen }, Positions = new[] { 0f, 0.25f, 0.5f, 1f } };
+                    ? new ColorBlend { Colors = new[] { HeatRed, HeatYellow, HeatGreen, HeatYellow, HeatRed }, Positions = new[] { 0f, 0.3f, 0.5f, 0.7f, 1f } }
+                    : new ColorBlend { Colors = new[] { HeatRed, HeatYellow, HeatGreen, HeatGreen }, Positions = new[] { 0f, 0.25f, 0.5f, 1f } };
                 return b;
             }
             if (Theme == Themes.Spectrum)
@@ -620,7 +502,7 @@ namespace Thetis
         // older ones glow and die away like a CRT's
         private void phosphorFrame()
         {
-            if (Show != Shows.Af && Show != Shows.Eq)
+            if (Show != Shows.Af)
             {
                 RectangleF r = scopeRect;
                 Bitmap bmp = glowBitmap(ref _glowScope, r);

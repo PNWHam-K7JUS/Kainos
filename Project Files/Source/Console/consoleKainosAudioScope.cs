@@ -72,14 +72,12 @@ namespace Thetis
             FormClosing += (s, e) => { _scopeTimer.Stop(); KainosScopeTap.Wanted = false; cmaster.KainosScopeRefresh(); };
         }
 
-        // the timebase buttons only while the waveform shows
-        private bool scopeButtonsShown { get { return _scopeView.Show == KainosScopeView.Shows.Scope || _scopeView.Show == KainosScopeView.Shows.Both; } }
+        private bool scopeButtonsShown { get { return _scopeView.Show != KainosScopeView.Shows.Af; } }
         private int scopeViewHeight
         {
             get
             {
-                bool both = _scopeView.Show == KainosScopeView.Shows.Both;
-                bool wf = _scopeView.Waterfall && (_scopeView.Show == KainosScopeView.Shows.Af || both);
+                bool both = _scopeView.Show == KainosScopeView.Shows.Both, wf = _scopeView.Waterfall && _scopeView.Show != KainosScopeView.Shows.Scope;
                 return KainosUI.S((both ? 250 : 150) + (wf ? 110 : 0));
             }
         }
@@ -138,17 +136,8 @@ namespace Thetis
             menu.Items.Add(item("Waveform", v.Show == KainosScopeView.Shows.Scope, () => show(KainosScopeView.Shows.Scope)));
             menu.Items.Add(item("AF spectrum", v.Show == KainosScopeView.Shows.Af, () => show(KainosScopeView.Shows.Af)));
             menu.Items.Add(item("Both", v.Show == KainosScopeView.Shows.Both, () => show(KainosScopeView.Shows.Both)));
-            menu.Items.Add(item("EQ (LED)", v.Show == KainosScopeView.Shows.Eq, () => show(KainosScopeView.Shows.Eq)));
 
-            // the LED EQ's look, and the colour theme of the waveform and spectrum
-            ToolStripMenuItem eqStyle = new ToolStripMenuItem("EQ style") { ForeColor = KainosUI.Text };
-            string[] styles = { "Round dots", "Segmented bars", "Mirrored dots" };
-            for (int i = 0; i < styles.Length; i++)
-            {
-                KainosScopeView.EqStyles st = (KainosScopeView.EqStyles)i;
-                eqStyle.DropDownItems.Add(item(styles[i], v.EqStyle == st, () => { v.EqStyle = st; if (v.Show != KainosScopeView.Shows.Eq) show(KainosScopeView.Shows.Eq); }));
-            }
-            menu.Items.Add(eqStyle);
+            // the colour theme of the waveform and spectrum
             ToolStripMenuItem colours = new ToolStripMenuItem("Colours") { ForeColor = KainosUI.Text };
             for (int i = 0; i < KainosScopeView.ThemeNames.Length; i++)
             {
@@ -205,14 +194,13 @@ namespace Thetis
                 switch (kv.Substring(0, eq))
                 {
                     case "tb": v.Timebase = n; break;
-                    case "show": if (n >= 0 && n <= 3) v.Show = (KainosScopeView.Shows)n; break;
+                    case "show": if (n >= 0 && n <= 2) v.Show = (KainosScopeView.Shows)n; break;
                     case "fs": v.FullScale = n == 1 || Array.IndexOf(KainosScopeView.FullScales, n) >= 0 ? n : 1; break;
                     case "trig": v.Trigger = n != 0; break;
                     case "ch": if (n >= 0 && n <= 2) v.Channel = (KainosScopeView.Channels)n; break;
                     case "pk": v.PeakHold = n != 0; break;
                     case "sm": v.Smooth = n != 0; break;
                     case "wf": v.Waterfall = n != 0; break;
-                    case "eqs": if (n >= 0 && n <= 2) v.EqStyle = (KainosScopeView.EqStyles)n; break;
                     case "col": if (n >= 0 && n < KainosScopeView.ThemeNames.Length) v.Theme = (KainosScopeView.Themes)n; break;
                 }
             }
@@ -225,7 +213,7 @@ namespace Thetis
             KainosScopeView v = _scopeView;
             KainosScopeSettings = "tb=" + v.Timebase + ";show=" + (int)v.Show + ";fs=" + v.FullScale + ";trig=" + (v.Trigger ? 1 : 0)
                                   + ";ch=" + (int)v.Channel + ";pk=" + (v.PeakHold ? 1 : 0) + ";sm=" + (v.Smooth ? 1 : 0) + ";wf=" + (v.Waterfall ? 1 : 0)
-                                  + ";eqs=" + (int)v.EqStyle + ";col=" + (int)v.Theme;
+                                  + ";col=" + (int)v.Theme;
             _scopeButtons.Invalidate();
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
