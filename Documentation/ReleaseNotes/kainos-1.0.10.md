@@ -8,8 +8,9 @@ Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS
 **Fixed**
 - With no audio, the Audio Scope's auto scale no longer follows the silence down until the noise fills the view; it stops at -40 dBFS.
 - The Audio Scope now moves smoothly: it drew about 21 frames a second at uneven spacing (31 to 62 ms), which showed as jitter and little pauses; it now draws a steady 30, in step with the screen.
+- The AF spectrum is steadier: it averages each frequency's level over about 0.2 s (it used to jump about with band noise every frame), and its auto scale no longer creeps down and jumps back up all the time: it goes up at once, but only comes down after 3 seconds of quieter audio, and glides there.
 
-- Technical: `KainosAudioScope.cs` (`Themes`; Phosphor keeps an afterglow bitmap faded each frame; the glow is drawn through about one point every 3 px; the frames are paced by a thread waiting on `DwmFlush` instead of a Forms timer, whose 15.6 ms grain gave 31 / 47 / 62 ms frames) and `consoleKainosAudioScope.cs` (menu, and the `col` setting).
+- Technical: `KainosAudioScope.cs` (`Themes`; Phosphor keeps an afterglow bitmap faded each frame; the glow is drawn through about one point every 3 px; the frames are paced by a thread waiting on `DwmFlush` instead of a Forms timer, whose 15.6 ms grain gave 31 / 47 / 62 ms frames; the AF columns are averaged as power with a 180 ms time constant by the clock, and the auto top has a target with a 3 s hold before stepping down, eased at 150 dB/s up and 20 dB/s down) and `consoleKainosAudioScope.cs` (menu, and the `col` setting).
 
 ## Installing
 

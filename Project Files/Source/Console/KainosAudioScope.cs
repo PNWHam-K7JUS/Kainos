@@ -132,6 +132,11 @@ namespace Thetis
         private static readonly double[] _window = hann();
         private KainosAfInfo _afShown = new KainosAfInfo { Lo = 0, Hi = 3000, Pitch = float.NaN };
         private float _afTop = -20, _strongestHz, _strongestDb = -200;
+        // smoothing: each column's power averaged over about 180 ms (by the clock, not the frame count); the auto top
+        // eases to its target, which goes up at once but only comes down a step after 3 s of quieter audio
+        private double[] _afPow = new double[0];
+        private float _afTopTarget = -20, _afQuietMs;
+        private readonly System.Diagnostics.Stopwatch _afClock = System.Diagnostics.Stopwatch.StartNew();
 
         // the AF waterfall under the spectrum: newest row at the top, a pixel a column
         private int[] _wfPixels = new int[0];
@@ -282,6 +287,7 @@ namespace Thetis
             {
                 _af = new float[cols];
                 _afPeak = new float[cols];
+                _afPow = new double[cols];
                 for (int i = 0; i < cols; i++) { _af[i] = -200; _afPeak[i] = -200; }
                 _wfW = -1;          // a new span: a fresh waterfall
             }
@@ -305,6 +311,10 @@ namespace Thetis
             float hzPerBin = rate / (float)FftSize;
             bool lower = tx && info.LowerSideband;
             float best = -200, bestHz = 0;
+            float ms = (float)Math.Max(1, Math.Min(100, _afClock.Elapsed.TotalMilliseconds));
+            _afClock.Restart();
+            double a = Smooth ? 1 - Math.Exp(-ms / 180.0) : 1;
+            float peakFall = 9f * ms / 1000f;          // the peak line falls back 9 dB a second
             for (int c = 0; c < cols; c++)
             {
                 float f0 = info.Lo + (info.Hi - info.Lo) * c / cols, f1 = info.Lo + (info.Hi - info.Lo) * (c + 1) / cols;
@@ -315,17 +325,23 @@ namespace Thetis
                     int k = lower ? (FftSize - b) % FftSize : b;
                     m = Math.Max(m, _re[k] * _re[k] + _im[k] * _im[k]);
                 }
-                float db = (float)(10 * Math.Log10(m / (norm * norm) + 1e-20));
-                _af[c] = Smooth && _af[c] > -199 ? _af[c] * 0.65f + db * 0.35f : db;
-                _afPeak[c] = PeakHold ? Math.Max(_afPeak[c] - 0.3f, _af[c]) : -200;
+                m /= norm * norm;
+                _afPow[c] = _afPow[c] > 0 ? _afPow[c] + a * (m - _afPow[c]) : m;
+                _af[c] = (float)(10 * Math.Log10(_afPow[c] + 1e-20));
+                _afPeak[c] = PeakHold ? Math.Max(_afPeak[c] - peakFall, _af[c]) : -200;
                 if (_af[c] > best) { best = _af[c]; bestHz = (f0 + f1) / 2; }
             }
             _strongestDb = best;
             _strongestHz = bestHz;
-            // the auto top: 10 dB steps above the strongest, moving down slowly, and no lower than -40 dBFS, so silence
-            // reads as silence rather than the scale following it down to nothing
+            // the auto top: 10 dB steps above the strongest, and no lower than -40 dBFS, so silence reads as silence
+            // rather than the scale following it down to nothing. Up at once; down a step only after 3 s of quieter
+            // audio, so it doesn't hunt; and the drawn top eases there rather than jumping or creeping every frame.
             float want = Math.Max(-40, Math.Min(0, (float)Math.Ceiling((best + 6) / 10) * 10));
-            _afTop = want > _afTop ? want : Math.Max(want, _afTop - 0.2f);
+            if (want > _afTopTarget) { _afTopTarget = want; _afQuietMs = 0; }
+            else if (want < _afTopTarget - 5) { _afQuietMs += ms; if (_afQuietMs >= 3000) { _afTopTarget -= 10; _afQuietMs = 0; } }
+            else _afQuietMs = 0;
+            _afTop = _afTop < _afTopTarget ? Math.Min(_afTopTarget, _afTop + 150f * ms / 1000f)
+                                           : Math.Max(_afTopTarget, _afTop - 20f * ms / 1000f);
             if (Waterfall) addWfRow();
         }
 
