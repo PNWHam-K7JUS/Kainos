@@ -38,7 +38,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define AS_EQ			6
 #define AS_NSTAGES		7
 #define AS_EXCITER		7			// chain slot for the AetherVoice exciter (not a strip stage)
-#define AS_MAXORDER		8
+#define AS_PLUGIN		8			// chain slot for a VST3 plugin (KainosVst.dll; not a strip stage)
+#define AS_MAXORDER		9
+
+// a plugin at the AS_PLUGIN slot: called on the DSP thread with the chain's float audio, in place
+// (frames frames of nch interleaved channels)
+typedef int (*AS_PLUGPROC) (void* h, float* x, int frames, int nch);
 
 #define AS_EQ_BANDS		10			// AetherSDR's default 10-band layout (ClientEq supports 16)
 #define AS_EQ_BAND0		10			// first band parameter
@@ -83,6 +88,11 @@ extern void xaetherstrip (AETHERSTRIP a, int stereo, struct _aethervoice* av);
 extern int setOrder_aetherstrip (AETHERSTRIP a, const int* order, int n);
 
 extern void setBuffers_aetherstrip (AETHERSTRIP a, double* in, double* out);
+
+// the plugin at the AS_PLUGIN slot (proc null: none); call with the channel's DSP lock held
+extern void setPlugin_aetherstrip (AETHERSTRIP a, AS_PLUGPROC proc, void* h);
+
+extern void getFormat_aetherstrip (AETHERSTRIP a, int* rate, int* size);
 
 extern void setSamplerate_aetherstrip (AETHERSTRIP a, int rate);
 

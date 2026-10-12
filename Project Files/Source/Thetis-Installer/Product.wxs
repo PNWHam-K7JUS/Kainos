@@ -276,6 +276,15 @@
               />
       </Component>
 
+		<!-- Kainos: the VST3 plugin host (Source/KainosVst) -->
+		<Component Guid="*">
+        <File Id="KainosVstDLL"
+              Source="$(var.FilesPath)KainosVst.dll"
+              KeyPath="yes"
+			  Checksum="yes"
+              />
+      </Component>
+
 		<Component Guid="*">
         <File Id="wdspDLL"
               Source="$(var.FilesPath)wdsp.dll"

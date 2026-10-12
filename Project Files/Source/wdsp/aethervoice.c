@@ -339,6 +339,37 @@ int SetRXAStripOrder (int channel, int* order, int n)
 	return ok;
 }
 
+// the VST3 plugin at the chain's AS_PLUGIN slot (KainosVst.dll's kv_process and an instance; null: none). Set
+// under the DSP lock, so a block never runs a plugin that's being taken away.
+PORT
+void SetTXAStripPlugin (int channel, void* proc, void* h)
+{
+	EnterCriticalSection (&ch[channel].csDSP);
+	setPlugin_aetherstrip (txa[channel].aetherstrip.p, (AS_PLUGPROC)proc, h);
+	LeaveCriticalSection (&ch[channel].csDSP);
+}
+
+PORT
+void SetRXAStripPlugin (int channel, void* proc, void* h)
+{
+	EnterCriticalSection (&ch[channel].csDSP);
+	setPlugin_aetherstrip (rxa[channel].aetherstrip.p, (AS_PLUGPROC)proc, h);
+	LeaveCriticalSection (&ch[channel].csDSP);
+}
+
+// the chain's sample rate and block size, for setting a plugin up
+PORT
+void GetTXAStripFormat (int channel, int* rate, int* size)
+{
+	getFormat_aetherstrip (txa[channel].aetherstrip.p, rate, size);
+}
+
+PORT
+void GetRXAStripFormat (int channel, int* rate, int* size)
+{
+	getFormat_aetherstrip (rxa[channel].aetherstrip.p, rate, size);
+}
+
 // AetherSDR's EQ band response, for drawing the EQ curve (no channel needed)
 PORT
 double GetAetherEqBandMagnitudeDb (int type, double freq, double gain, double q, int on, int slope,

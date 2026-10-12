@@ -122,6 +122,10 @@ namespace Thetis
                 _kainosColumn.AddSection("rx", "RX", w => kainosRowsHeight(kainosRxRows), r => kainosRowsArrange(kainosRxRows, r));
                 _kainosColumn.AddSection("tx", "TX", kainosTxMeasure, kainosTxArrange);
                 kainosAddMoreSections();        // EQ, KAINOS AUDIO, FREEDV, MEMORY: consoleKainosTabs.cs
+                _kainosColumn.GlideEnded += kainosStandInsOff;
+                _kainosStandInTimer = new Timer { Interval = 1000 };
+                _kainosStandInTimer.Tick += (s, e) => { if (_kainosLayout) kainosStandInPictures(); };
+                _kainosStandInTimer.Start();
                 _kainosColumn.TabsChanged += (s, e) =>
                 {
                     KainosColumnTabs = _kainosColumn.TabState;
@@ -296,11 +300,13 @@ namespace Thetis
                 // Thetis's collapsed display has its own layout: step aside, and come back when it's expanded
                 if (collapsedDisplay)
                 {
+                    if (_kainosCompactOn) { _kainosPlacing = false; SetKainosCompact(false); _kainosPlacing = true; }
                     if (_kainosPartsOn) kainosPartsOff();
                     if (_kainosDock != null) _kainosDock.Visible = false;
                     return;
                 }
                 if (!_kainosPartsOn) { kainosPartsOn(); positionKainosDock(); }
+                if (_kainosCompactOn) { kainosHideThetisMeters(); kainosCompactPlace(); return; }    // consoleKainosCompact.cs
 
                 int width = KainosUI.S(312);
                 int x = ClientSize.Width - width - 4;
@@ -336,7 +342,12 @@ namespace Thetis
         private void kainosFitDisplay(int right)
         {
             if (_kainosDisplayLocation.X < 0) _kainosDisplayLocation = panelDisplay.Location;
-            if (_kainosDock != null && _kainosDock.Visible)
+            if (_kainosCompactOn)
+            {
+                int left = KainosUI.S(6) + 2;       // beside the compact view's edge strip
+                if (panelDisplay.Left != left) panelDisplay.Left = left;
+            }
+            else if (_kainosDock != null && _kainosDock.Visible)
             {
                 int left = _kainosDock.Right + 6;
                 if (panelDisplay.Left != left) panelDisplay.Left = left;
@@ -366,6 +377,7 @@ namespace Thetis
         // whatever Thetis still shows under it (RX2's panels when RX2 is on)
         private int kainosDisplayBottom()
         {
+            if (_kainosCompactOn) return (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;     // the compact view: down to the status bar
             int thetis = gr_display_basis.Y + gr_display_size_basis.Height + v_delta;
             int bottom = (statusStripMain.Visible ? statusStripMain.Top : ClientSize.Height) - 4;
             foreach (Control c in Controls)
@@ -400,6 +412,7 @@ namespace Thetis
         // or they are scrolled out of the column
         private void kainosPin(Control c, Rectangle viewportRect, bool sizeToWidth)
         {
+            if (_kainosColumn.Gliding && kainosStandIn(c, viewportRect)) return;
             Rectangle vp = _kainosColumn.Viewport.Bounds;
             if (sizeToWidth && c.Width != viewportRect.Width) c.Width = viewportRect.Width;
             bool inView = viewportRect.Top >= 0 && viewportRect.Top + c.Height <= vp.Height && _kainosColumn.Visible;
@@ -407,6 +420,91 @@ namespace Thetis
                              : new Point(-20000, -20000);
             if (c.Location != p) c.Location = p;
             if (inView) c.BringToFront();
+        }
+
+        // While the column glides, a pinned panel (the meter, VFO SYNC, the TX tab's mode panel) is a picture of itself
+        // inside the column: the real one lies over the column, so it can't be clipped at the column's edges (it was
+        // hidden whenever part of it was out of view), and the meter draws on its own timer (it went blank while moved
+        // every frame). The real panels come back when the glide ends.
+        private readonly Dictionary<Control, PictureBox> _kainosStandIns = new Dictionary<Control, PictureBox>();
+        // the last picture of each, and when its panel was put back: the meter only draws itself again with its next
+        // reading, so for a moment after it's moved it shows its empty background. A glide that starts soon after the
+        // last one uses the last picture instead of photographing the empty meter.
+        private readonly Dictionary<Control, Bitmap> _kainosStandInPics = new Dictionary<Control, Bitmap>();
+        private DateTime _kainosStandInsBack = DateTime.MinValue;
+
+        // about once a second while the column is still: a picture of each pinned panel that's on screen, settled and
+        // not covered (by a menu or another window), for the next glide
+        private Timer _kainosStandInTimer;
+        private void kainosStandInPictures()
+        {
+            if (_kainosColumn == null || _kainosColumn.Gliding || !_kainosColumn.Visible || WindowState == FormWindowState.Minimized) return;
+            if ((DateTime.Now - _kainosStandInsBack).TotalMilliseconds < 1500) return;
+            foreach (Control c in kainosModePanels.Concat(new Control[] { grpVFOBetween, _kainosMeter }))
+            {
+                if (c == null || !c.Visible || c.Left < -10000 || c.Width <= 0 || c.Height <= 0 || !c.IsHandleCreated) continue;
+                Point mid = c.PointToScreen(new Point(c.Width / 2, c.Height / 2));
+                Control top = Control.FromChildHandle(kainosWindowFromPoint(mid));
+                bool ours = false;
+                for (Control t = top; t != null; t = t.Parent) if (t == c) { ours = true; break; }
+                if (!ours) continue;
+                // PrintWindow with PW_RENDERFULLCONTENT: the meter is drawn by DirectX, which a copy of the screen from
+                // in here doesn't see (it came out as the meter's empty background)
+                Bitmap bmp = new Bitmap(c.Width, c.Height);
+                bool ok = false;
+                try
+                {
+                    using (Graphics g = Graphics.FromImage(bmp))
+                    {
+                        IntPtr hdc = g.GetHdc();
+                        try { ok = kainosPrintWindow(c.Handle, hdc, 2); }
+                        finally { g.ReleaseHdc(hdc); }
+                    }
+                }
+                catch { ok = false; }
+                if (!ok) { bmp.Dispose(); continue; }
+                Bitmap last;
+                if (_kainosStandInPics.TryGetValue(c, out last)) last.Dispose();
+                _kainosStandInPics[c] = bmp;
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "PrintWindow")]
+        private static extern bool kainosPrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "WindowFromPoint")]
+        private static extern IntPtr kainosWindowFromPoint(Point p);
+
+        private bool kainosStandIn(Control c, Rectangle viewportRect)
+        {
+            PictureBox pb;
+            if (!_kainosStandIns.TryGetValue(c, out pb))
+            {
+                // its picture as it is on screen now (a panel that wasn't in view keeps the old way)
+                // the picture taken while the column was still (a moved meter is blank until its next reading)
+                Bitmap bmp;
+                if (!_kainosStandInPics.TryGetValue(c, out bmp) || bmp.Size != c.Size) return false;
+                pb = new PictureBox { Name = "kainosStandIn" + _kainosStandIns.Count, Image = bmp, Size = c.Size, BackColor = KainosUI.Surface, Enabled = false };
+                _kainosColumn.Viewport.Controls.Add(pb);
+                _kainosStandIns[c] = pb;
+                c.Location = new Point(-20000, -20000);
+            }
+            if (pb.Location != viewportRect.Location) pb.Location = viewportRect.Location;
+            return true;
+        }
+
+        private void kainosStandInsOff()
+        {
+            if (_kainosStandIns.Count == 0) return;
+            foreach (PictureBox pb in _kainosStandIns.Values)
+            {
+                pb.Parent?.Controls.Remove(pb);
+                pb.Image = null;            // kept in _kainosStandInPics for the next glide
+                pb.Dispose();
+            }
+            _kainosStandIns.Clear();
+            _kainosStandInsBack = DateTime.Now;
+            _kainosColumn.ArrangeSections();
         }
 
         private void kainosUnpin(Control c)
@@ -766,11 +864,51 @@ namespace Thetis
         internal int ContentHeight { get { return _contentHeight; } }
         internal int ViewHeight { get { return Viewport.Height; } }
 
+        // the scroll bar: straight there
         internal void ScrollTo(int pos)
         {
+            stopGlide();
             int before = _scroll;
             _scroll = Math.Max(0, Math.Min(pos, Math.Max(0, _contentHeight - Viewport.Height)));
-            if (_scroll != before) ArrangeSections();
+            _glideTo = _scroll;
+            if (_scroll != before) arrange(false);
+        }
+
+        // the mouse wheel glides there: each notch (or a touchpad's smaller steps, in proportion) moves the target,
+        // and the column eases toward it about 60 times a second, moving the sections without measuring them again
+        private Timer _glide;
+        private int _glideTo;
+        public bool Gliding { get { return _glide != null && _glide.Enabled; } }
+        public event Action GlideEnded;
+
+        private void stopGlide()
+        {
+            if (_glide == null || !_glide.Enabled) return;
+            _glide.Stop();
+            GlideEnded?.Invoke();
+        }
+
+        internal void ScrollBy(int delta)
+        {
+            int from = _glide != null && _glide.Enabled ? _glideTo : _scroll;
+            int max = Math.Max(0, _contentHeight - Viewport.Height);
+            _glideTo = Math.Max(0, Math.Min(max, from - (int)Math.Round(delta / 120.0 * KainosUI.S(80))));
+            if (_glideTo == _scroll) return;
+            if (_glide == null)
+            {
+                _glide = new Timer { Interval = 15 };
+                _glide.Tick += (s, e) =>
+                {
+                    int diff = _glideTo - _scroll;
+                    if (diff == 0) { stopGlide(); return; }
+                    int step = (int)Math.Round(diff * 0.35);
+                    if (step == 0) step = Math.Sign(diff);
+                    _scroll += step;
+                    arrange(false);
+                    if (_scroll == _glideTo) stopGlide();
+                };
+            }
+            _glide.Start();
         }
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
@@ -863,8 +1001,45 @@ namespace Thetis
         private static Font tabFont() { return new Font("Segoe UI", Math.Max(8f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel); }
 
         // lays out the panels of the tabs that are on (called by the console after it places the column)
-        public void ArrangeSections()
+        // the sections' heights from the last full layout, for moving them while scrolling
+        private readonly Dictionary<Section, int> _heights = new Dictionary<Section, int>();
+        private Size _heightsFor = Size.Empty;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool RedrawWindow(IntPtr hWnd, IntPtr rect, IntPtr region, uint flags);
+
+        public void ArrangeSections() { arrange(true); }
+
+        private void arrange(bool remeasure)
         {
+            // scrolling: the same sections at the same sizes, moved; drawn once when they're all in place
+            if (!remeasure && _heightsFor == Size && _sections.All(x => !x.On || _heights.ContainsKey(x)) && Viewport.IsHandleCreated)
+            {
+                int pad0 = KainosUI.S(8), header0 = KainosUI.S(24), gap0 = KainosUI.S(10);
+                int w0 = Viewport.Width - pad0 * 2;
+                _scroll = Math.Max(0, Math.Min(_scroll, _contentHeight - Viewport.Height));
+                SendMessage(Viewport.Handle, 0x000B, IntPtr.Zero, IntPtr.Zero);         // WM_SETREDRAW off
+                try
+                {
+                    int y0 = -_scroll;
+                    foreach (Section x in _sections)
+                    {
+                        if (!x.On) continue;
+                        int h = _heights[x];
+                        x.HeaderRect = new Rectangle(pad0, y0, w0, header0);
+                        try { x.Arrange(new Rectangle(pad0, y0 + header0, w0, h)); } catch (Exception ex) { logSection(x, "arrange", ex); }
+                        y0 += header0 + h + gap0;
+                    }
+                }
+                finally { SendMessage(Viewport.Handle, 0x000B, (IntPtr)1, IntPtr.Zero); }
+                // erase and repaint the viewport and everything in it, now (a plain repaint left the old pixels behind)
+                RedrawWindow(Viewport.Handle, IntPtr.Zero, IntPtr.Zero, 0x0001 | 0x0004 | 0x0080 | 0x0100);   // INVALIDATE | ERASE | ALLCHILDREN | UPDATENOW
+                _bar.Refresh();
+                return;
+            }
+
             int top = tabBarHeight();
             int viewH = Math.Max(0, Height - top), barW = KainosUI.S(16);
             int pad = KainosUI.S(8), header = KainosUI.S(24), gap = KainosUI.S(10);
@@ -894,6 +1069,9 @@ namespace Thetis
             if (_bar.Visible != scrolls) _bar.Visible = scrolls;
             _contentHeight = total;
             _scroll = Math.Max(0, Math.Min(_scroll, total - Viewport.Height));
+            _heights.Clear();
+            foreach (KeyValuePair<Section, int> kv in heights) _heights[kv.Key] = kv.Value;
+            _heightsFor = Size;
             int y = -_scroll;
             foreach (Section s in _sections)
             {
@@ -926,10 +1104,6 @@ namespace Thetis
             catch { }
         }
 
-        internal void ScrollBy(int delta)
-        {
-            ScrollTo(_scroll - Math.Sign(delta) * KainosUI.S(60));
-        }
 
         internal void PaintHeaders(Graphics g)
         {

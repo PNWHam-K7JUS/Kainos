@@ -103,6 +103,8 @@ namespace Thetis
             kainosSlidersOn();          // Kainos sliders and menus: consoleKainosSliders.cs
             kainosButtonsOn();
             kainosMenusOn();
+            kainosCompactMenuText();    // Collapse is Kainos's compact view here: consoleKainosCompact.cs
+            kainosAudioMenuOn(true);    // one Audio menu: consoleKainosAudioMenu.cs
             if (!_kpcShownHooked)
             {
                 // Setup's start-up applies the user's display colours too; put Kainos's back once the console is up
@@ -118,6 +120,9 @@ namespace Thetis
 
         private void restoreClassicTheme()
         {
+            SetKainosCompact(false);
+            kainosCompactMenuText();
+            kainosAudioMenuOn(false);
             kainosPanColoursOff();
             kainosMenusOff();
             kainosSlidersOff();
@@ -181,6 +186,7 @@ namespace Thetis
         {
             Color c = setupToolStripMenuItem.ForeColor;
             if (kainosAudioToolStripMenuItem != null) kainosAudioToolStripMenuItem.ForeColor = c;
+            if (_kainosAudioMenu != null) _kainosAudioMenu.ForeColor = _kainosModesMenu.ForeColor = _kainosToolsMenu.ForeColor = c;
             if (freeDVToolStripMenuItem != null) freeDVToolStripMenuItem.ForeColor = c;
             if (rttyToolStripMenuItem != null) rttyToolStripMenuItem.ForeColor = c;
             if (cwToolStripMenuItem != null) cwToolStripMenuItem.ForeColor = c;

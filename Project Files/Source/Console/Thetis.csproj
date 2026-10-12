@@ -752,6 +752,24 @@
     </Compile>
     <Compile Include="KainosKiwi.cs" />
     <Compile Include="KainosAudioScope.cs" />
+    <Compile Include="KainosVst.cs" />
+    <Compile Include="KainosCiv.cs" />
+    <Compile Include="consoleKainosCiv.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="setupKainosCiv.cs">
+      <DependentUpon>setup.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="consoleKainosAudioMenu.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="consoleKainosCompact.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosAudioScope.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
@@ -1505,4 +1523,17 @@ copy /Y "..\..\..\Source\packages\SkiaSharp.NativeAssets.Win32.3.119.2\runtimes\
   <Import Project="..\packages\SkiaSharp.NativeAssets.macOS.3.119.2\build\net462\SkiaSharp.NativeAssets.macOS.targets" Condition="Exists('..\packages\SkiaSharp.NativeAssets.macOS.3.119.2\build\net462\SkiaSharp.NativeAssets.macOS.targets')" />
   <Import Project="..\packages\SkiaSharp.NativeAssets.Win32.3.119.2\build\net462\SkiaSharp.NativeAssets.Win32.targets" Condition="Exists('..\packages\SkiaSharp.NativeAssets.Win32.3.119.2\build\net462\SkiaSharp.NativeAssets.Win32.targets')" />
   <Import Project="..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" />
+  <!-- Kainos: the VST3 host (Source/KainosVst, on the VST3 SDK submodule Source/vst3sdk), built with CMake (the one Visual
+       Studio ships, or one on the PATH) in bin/kvst (a short path: the SDK's build goes deep) and copied next to Kainos.exe -->
+  <Target Name="KainosVstBuild" BeforeTargets="Build" Condition="'$(Platform)' == 'x64' And Exists('$(MSBuildProjectDirectory)\..\vst3sdk\CMakeLists.txt')">
+    <PropertyGroup>
+      <KvSrc>$(MSBuildProjectDirectory)\..\KainosVst</KvSrc>
+      <KvBuild>$(MSBuildProjectDirectory)\..\..\bin\kvst</KvBuild>
+      <KvCMake Condition="'$(VsInstallRoot)' != '' And Exists('$(VsInstallRoot)\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe')">$(VsInstallRoot)\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe</KvCMake>
+      <KvCMake Condition="'$(KvCMake)' == ''">cmake</KvCMake>
+    </PropertyGroup>
+    <Exec Condition="!Exists('$(KvBuild)\CMakeCache.txt')" Command="&quot;$(KvCMake)&quot; -S &quot;$(KvSrc)&quot; -B &quot;$(KvBuild)&quot; -A x64" />
+    <Exec Command="&quot;$(KvCMake)&quot; --build &quot;$(KvBuild)&quot; --config $(Configuration) --target KainosVst" />
+    <Copy SourceFiles="$(KvBuild)\$(Configuration)\KainosVst.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

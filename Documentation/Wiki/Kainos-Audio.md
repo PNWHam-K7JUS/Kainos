@@ -1,6 +1,6 @@
 # Kainos Audio
 
-Audio processing for the voices you hear and your own transmitted voice, ported from [AetherSDR](https://github.com/aethersdr/AetherSDR). Open it from **Kainos Audio** in the menu bar; it has **Receive** and **Transmit** tabs.
+Audio processing for the voices you hear and your own transmitted voice, ported from [AetherSDR](https://github.com/aethersdr/AetherSDR). Open it from the menu bar's **Audio** menu (**Kainos Audio: Receive** or **Kainos Audio: Transmit**; in the Classic layout, **Kainos Audio** in the menu bar); it has **Receive** and **Transmit** tabs.
 
 ## Receive
 

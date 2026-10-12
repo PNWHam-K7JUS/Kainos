@@ -1,4 +1,4 @@
-﻿/*  frmAetherStrip.cs
+/*  frmAetherStrip.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 
@@ -49,6 +49,7 @@ namespace Thetis
     {
         public const int Gate = 0, DeEss = 1, Comp = 2, Tube = 3, Reverb = 4, Limiter = 5, Eq = 6, Stages = 7, MaxParams = 70;
         public const int Exciter = 7;                    // the AetherVoice slot in the chain order (wdsp/aetherstrip.h)
+        public const int Plugin = 8;                     // the VST3 plugin slot (transmit; KainosVst.cs)
         public const int EqBands = 10, EqBand0 = 10;      // EQ band b's parameters start at EqBand0 + 6 * b (wdsp/aetherstrip.h)
         public static readonly string[] StageNames = { "Gate", "De-Esser", "Compressor", "Tube", "Reverb", "Final Output", "EQ" };
         // AetherSDR's default 10-band layout (ClientEq::defaultBand): HP, low shelf, 6 peaks, high shelf, LP
@@ -173,7 +174,7 @@ namespace Thetis
         {
             return rx ? new[] { AetherStripDefs.Eq, AetherStripDefs.Gate, AetherStripDefs.Comp, AetherStripDefs.Tube, AetherStripDefs.Exciter }
                       : new[] { AetherStripDefs.Gate, AetherStripDefs.Eq, AetherStripDefs.DeEss, AetherStripDefs.Comp, AetherStripDefs.Tube,
-                                AetherStripDefs.Exciter, AetherStripDefs.Reverb };
+                                AetherStripDefs.Exciter, AetherStripDefs.Plugin, AetherStripDefs.Reverb };
         }
 
         public int[] Order { get { return (int[])_order.Clone(); } }
@@ -329,6 +330,12 @@ namespace Thetis
                 {
                     List<int> o = new List<int>();
                     foreach (string n in kv[1].Split(',')) { int x; if (int.TryParse(n, out x)) o.Add(x); }
+                    // an order saved before the plugin slot: the plugin goes after the exciter
+                    if (!_rx && !o.Contains(AetherStripDefs.Plugin))
+                    {
+                        int at = o.IndexOf(AetherStripDefs.Exciter);
+                        o.Insert(at < 0 ? o.Count : at + 1, AetherStripDefs.Plugin);
+                    }
                     if (validOrder(o.ToArray())) _order = o.ToArray();
                     continue;
                 }
@@ -364,6 +371,7 @@ namespace Thetis
 
         // pages in AetherSDR's chain order; Exciter is AetherVoice TX
         private const int PageExciter = 100;
+        private const int PagePlugin = 101;               // the VST3 plugin slot (transmit)
 
         private readonly Console _console;
         private bool _rx;                                   // the tab shown: receive or transmit
@@ -519,7 +527,7 @@ namespace Thetis
             _tips.SetToolTip(_tabTX, "Transmit: your voice's audio chain, saved in each TX profile.");
             Controls.Add(_tabRX);
             Controls.Add(_tabTX);
-            _list = new StageList(this) { Location = new Point(10, 70), Size = new Size(170, 8 * 38 + 4) };
+            _list = new StageList(this) { Location = new Point(10, 70), Size = new Size(170, 9 * 38 + 4) };      // transmit: 8 stages and the plugin slot, then Final Output
             Controls.Add(_list);
             Label orderHint = new Label
             {
@@ -609,6 +617,8 @@ namespace Thetis
             _strip = rx ? _console.AetherStripRX : _console.AetherStripTX;
             _pageIds = pagesFromOrder();
             _av = rx ? _setup.AetherVoiceRX : _setup.AetherVoiceTX;
+            KainosVst.Changed += pluginChanged;
+            FormClosed += (s, e) => KainosVst.Changed -= pluginChanged;
             _strip.Changed += stripChanged;
             hookSetupTX(true);
 
@@ -630,15 +640,24 @@ namespace Thetis
 
         internal string PageName(int id)
         {
+            if (id == PagePlugin) return KainosVst.Loaded != null ? "Plugin: " + KainosVst.Loaded.Name : "Plugin (VST3)";
             return id == PageExciter ? "Exciter" : AetherStripDefs.StageNames[id];
         }
 
         internal bool PageEnabled(int id)
         {
+            if (id == PagePlugin) return KainosVst.Loaded != null && KainosVst.On;
             return id == PageExciter ? _av.Enable.Checked : _strip.Enabled(id);
         }
 
         internal bool Bypassed { get { return _strip.Bypass; } }
+
+        // the menu bar's Audio > VST3 Plugin...: the transmit side's plugin page
+        internal void ShowPluginPage()
+        {
+            SetSide(false);
+            ShowPage(PagePlugin);
+        }
 
         internal void ShowPage(int id)
         {
@@ -653,7 +672,7 @@ namespace Thetis
 
             _pageTitle.Text = PageName(id);
             _logo.Visible = _bodyLbl.Visible = _clarityLbl.Visible = id == PageExciter;
-            _viz.Visible = id != PageExciter && id != AetherStripDefs.Eq;
+            _viz.Visible = id != PageExciter && id != PagePlugin && id != AetherStripDefs.Eq;
             syncViewButtons();
 
             const int knobY = 300, step = 92;
@@ -661,6 +680,10 @@ namespace Thetis
             {
                 _pageNote.Text = "Parametric EQ: drag a numbered handle to shape the sound. Mouse wheel: Q. Right-click a handle: band on/off.";
                 buildEqPage();
+            }
+            else if (id == PagePlugin)
+            {
+                buildPluginPage();
             }
             else if (id == PageExciter)
             {
@@ -725,6 +748,86 @@ namespace Thetis
             syncControls();
             _list.Invalidate();
             _viz.Invalidate();
+        }
+
+        // the VST3 plugin: which one, its own window, and taking it out
+        private void buildPluginPage()
+        {
+            KainosVst.Plugin p = KainosVst.Loaded;
+            if (!KainosVst.Available) _pageNote.Text = "VST3 plugins need KainosVst.dll next to Kainos.exe.";
+            else if (p == null) _pageNote.Text = "No plugin. Choose one of the VST3 plugins installed on this PC; it runs at this point of the transmit chain, in voice modes.";
+            else
+            {
+                int lat = KainosVst.LatencySamples;
+                _pageNote.Text = p.Name + "  (" + System.IO.Path.GetFileName(p.Path.TrimEnd('\\')) + ")" + (lat > 0 ? "   latency " + lat + " samples" : "");
+            }
+            int x = 300;
+            Func<string, string, Action, AetherToggleButton> button = (text, tip, act) =>
+            {
+                AetherToggleButton b = new AetherToggleButton { Text = text, Location = new Point(x, 2), Size = new Size(text.Length * 8 + 24, 26) };
+                x += b.Width + 6;
+                b.Click += (s, e) => act();
+                _tips.SetToolTip(b, tip);
+                _page.Controls.Add(b);
+                _extraButtons.Add(b);
+                return b;
+            };
+            if (!KainosVst.Available) return;
+            AetherToggleButton choose = null;
+            choose = button("CHOOSE...", "Pick a VST3 plugin installed on this PC.", () => pluginMenu(choose));
+            if (p != null)
+            {
+                button("EDITOR", "Open the plugin's own window.", () => KainosVst.ShowEditor(this));
+                button("REMOVE", "Take the plugin out of the chain.", () => { KainosVst.Unload(); ShowPage(PagePlugin); });
+            }
+        }
+
+        private void pluginMenu(Control under)
+        {
+            ContextMenuStrip menu = new ContextMenuStrip { Renderer = new KainosToolStripRenderer(), BackColor = KainosUI.Raised, ForeColor = KainosUI.Text };
+            Cursor = Cursors.WaitCursor;
+            List<KainosVst.Plugin> found;
+            try { found = KainosVst.Found(); } finally { Cursor = Cursors.Default; }
+            if (found.Count == 0) menu.Items.Add(new ToolStripMenuItem("No VST3 plugins found in Common Files\\VST3") { Enabled = false });
+            foreach (KainosVst.Plugin p in found)
+            {
+                KainosVst.Plugin pp = p;
+                ToolStripMenuItem it = new ToolStripMenuItem(p.Name) { ForeColor = KainosUI.Text, Checked = KainosVst.Loaded != null && KainosVst.Loaded.Path == p.Path && KainosVst.Loaded.ClassId == p.ClassId };
+                it.Click += (s, e) => loadPlugin(pp);
+                menu.Items.Add(it);
+            }
+            menu.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem browse = new ToolStripMenuItem("Browse for a .vst3...") { ForeColor = KainosUI.Text };
+            browse.Click += (s, e) =>
+            {
+                using (OpenFileDialog d = new OpenFileDialog { Filter = "VST3 plugin (*.vst3)|*.vst3", Title = "VST3 plugin" })
+                {
+                    if (d.ShowDialog(this) != DialogResult.OK) return;
+                    string path = d.FileName;
+                    // inside a bundle (x.vst3\Contents\x86_64-win\x.vst3): the bundle
+                    int c = path.IndexOf(".vst3\\Contents", StringComparison.OrdinalIgnoreCase);
+                    if (c > 0) path = path.Substring(0, c + 5);
+                    List<KainosVst.Plugin> all = KainosVst.scan(path);
+                    KainosVst.Plugin first = all.Count > 0 ? all[0] : null;
+                    if (first == null) MessageBox.Show(this, "No audio effect found in " + path, "VST3 plugin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    else loadPlugin(first);
+                }
+            };
+            menu.Items.Add(browse);
+            ToolStripMenuItem rescan = new ToolStripMenuItem("Look for plugins again") { ForeColor = KainosUI.Text };
+            rescan.Click += (s, e) => { Cursor = Cursors.WaitCursor; try { KainosVst.Found(true); } finally { Cursor = Cursors.Default; } };
+            menu.Items.Add(rescan);
+            menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(under, new Point(0, under.Height));
+        }
+
+        private void loadPlugin(KainosVst.Plugin p)
+        {
+            Cursor = Cursors.WaitCursor;
+            string err;
+            try { err = KainosVst.Load(_console, p); } finally { Cursor = Cursors.Default; }
+            if (err != null) MessageBox.Show(this, p.Name + " couldn't be loaded: " + err, "VST3 plugin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            ShowPage(PagePlugin);
         }
 
         private void addModeButtons(string[] names, int stage, int param, string[] tips)
@@ -807,7 +910,15 @@ namespace Thetis
         private void toggleStage()
         {
             if (_pageId == PageExciter) _av.Enable.Checked = !_av.Enable.Checked;
+            else if (_pageId == PagePlugin) KainosVst.SetOn(!KainosVst.On);
             else _strip.Set(_pageId, 0, _strip.Enabled(_pageId) ? 0 : 1);
+        }
+
+        private void pluginChanged(object sender, EventArgs e)
+        {
+            if (IsDisposed) return;
+            _list.Invalidate();
+            if (_pageId == PagePlugin) { _pageTitle.Text = PageName(PagePlugin); syncControls(); }
         }
 
         private void stripChanged(object sender, EventArgs e)
@@ -821,7 +932,7 @@ namespace Thetis
         private int[] pagesFromOrder()
         {
             List<int> pages = new List<int>();
-            foreach (int s in _strip.Order) pages.Add(s == AetherStripDefs.Exciter ? PageExciter : s);
+            foreach (int s in _strip.Order) pages.Add(s == AetherStripDefs.Exciter ? PageExciter : s == AetherStripDefs.Plugin ? PagePlugin : s);
             if (!_rx) pages.Add(AetherStripDefs.Limiter);
             return pages.ToArray();
         }
@@ -907,7 +1018,7 @@ namespace Thetis
                     try { wet = _rx ? WDSP.GetRXAAetherVoiceWetRms(WDSP.id(0, 0)) : WDSP.GetTXAAetherVoiceWetRms(WDSP.id(1, 0)); } catch { }
                 _logo.Update(wet);
             }
-            else _viz.UpdateMeters(live && _strip.Enabled(_pageId));
+            else if (_pageId != PagePlugin) _viz.UpdateMeters(live && _strip.Enabled(_pageId));
         }
 
         internal double Meter(int stage, int meter)

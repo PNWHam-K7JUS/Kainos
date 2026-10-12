@@ -53,7 +53,7 @@ namespace Thetis
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
         private ComboBoxTS comboKainosFlagOpacity, comboKainosWheel;
         private TextBoxTS txtKainosFlags;
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact, txtKainosVst;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -172,12 +172,18 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosKiwi);
             txtKainosScope = new TextBoxTS { Name = "txtKainosScope", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosScope);
+            txtKainosCompact = new TextBoxTS { Name = "txtKainosCompact", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosCompact);
+            txtKainosVst = new TextBoxTS { Name = "txtKainosVst", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosVst);
             addKainosWizardControls(tpAppearanceKainos);       // setupKainosWizard.cs
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
 
         // called from ForceAllEvents at startup, and when the setting changes
+        private bool _kainosVstLoaded;
+
         private void applyKainosUI()
         {
             // Kainos is the starting layout. A fresh install already defaults to it; settings from an earlier Kainos
@@ -205,6 +211,8 @@ namespace Thetis
                     txtKainosSpots.Text = console.KainosSpotSettings;
                     txtKainosKiwi.Text = console.KainosKiwiSettings;
                     txtKainosScope.Text = console.KainosScopeSettings;
+                    txtKainosCompact.Text = console.KainosCompactSettings;
+                    txtKainosVst.Text = KainosVst.Settings;
                     txtKainosFlags.Text = console.KainosFlagSettings;
                 };
             }
@@ -228,6 +236,15 @@ namespace Thetis
             console.KiwiLoadSettings();
             console.KainosScopeSettings = txtKainosScope.Text;
             console.KainosScopeLoad();
+            console.KainosCompactSettings = txtKainosCompact.Text;
+            console.KainosCompactLoad();
+            if (!_kainosVstLoaded)
+            {
+                // the transmit chain's VST3 plugin, once at start-up
+                _kainosVstLoaded = true;
+                KainosVst.Changed += (s, e) => console.KainosRaiseSettingsChanged();
+                if (KainosVst.Available) KainosVst.LoadSettings(console, txtKainosVst.Text);
+            }
             console.KainosFlagSettings = txtKainosFlags.Text;
             console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;
@@ -235,6 +252,7 @@ namespace Thetis
             Display.KainosBackdropLogo = new[] { 0f, 0.06f, 0.12f, 0.20f }[Math.Max(0, comboKainosBackdropLogo.SelectedIndex)];
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
             console.KainosPanColours = chkKainosPanColours.Checked;
+            applyKainosCiv();               // setupKainosCiv.cs: the amplifier link, from the saved settings
             kainosLicenceToCombos();        // setupKainosWizard.cs: the band plan lists from the saved licence, and the band plan to the console
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);

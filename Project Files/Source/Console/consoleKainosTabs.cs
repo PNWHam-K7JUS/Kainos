@@ -138,7 +138,11 @@ namespace Thetis
             foreach (int stage in stages)
             {
                 int st = stage;
-                if (st == AetherStripDefs.Exciter)
+                if (st == AetherStripDefs.Plugin)
+                    g.Add("Plugin", () => KainosVst.Loaded != null && KainosVst.On,
+                          () => { if (KainosVst.Loaded != null) KainosVst.SetOn(!KainosVst.On); else kainosOpenAudio(rx); }, KainosUI.Tone.Gold,
+                          () => kainosOpenAudio(rx));
+                else if (st == AetherStripDefs.Exciter)
                     g.Add("Exciter", () => kainosAv(rx).Enable.Checked, () => kainosAv(rx).Enable.Checked = !kainosAv(rx).Enable.Checked, KainosUI.Tone.Gold,
                           () => kainosOpenAudio(rx));
                 else

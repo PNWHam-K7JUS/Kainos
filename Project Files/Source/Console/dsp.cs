@@ -365,6 +365,13 @@ namespace Thetis
         [DllImport("wdsp.dll", EntryPoint = "GetRXAStripMeter", CallingConvention = CallingConvention.Cdecl)]
         public static extern double GetRXAStripMeter(int channel, int stage, int meter);
 
+        // Kainos: the VST3 plugin at the transmit chain's plugin slot (KainosVst.dll's kv_process and an instance)
+        [DllImport("wdsp.dll", EntryPoint = "SetTXAStripPlugin", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SetTXAStripPlugin(int channel, IntPtr proc, IntPtr h);
+
+        [DllImport("wdsp.dll", EntryPoint = "GetTXAStripFormat", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void GetTXAStripFormat(int channel, out int rate, out int size);
+
         [DllImport("wdsp.dll", EntryPoint = "SetTXAStripOrder", CallingConvention = CallingConvention.Cdecl)]
         public static extern int SetTXAStripOrder(int channel, int[] order, int n);
 

@@ -303,7 +303,28 @@ namespace Thetis
         private Font _kmFont;
         private Padding _kmStripPadding;
         private readonly Dictionary<ToolStripItem, Padding> _kmPadding = new Dictionary<ToolStripItem, Padding>();
+        private readonly Dictionary<ToolStripDropDown, Color> _kmBack = new Dictionary<ToolStripDropDown, Color>();
         private bool _kmOn;
+        // one font for every drop-down: a new one each time a menu opened made it lay itself out again before drawing
+        private static readonly Font _kmDropFont = new Font("Segoe UI", 9.5f, FontStyle.Regular);
+
+        // Windows's own menus (a text box's right-click Cut / Copy / Paste, the window menu) in dark: uxtheme's
+        // SetPreferredAppMode (ordinal 135) and FlushMenuThemes (136), Windows 10 1903 and later; nothing on older ones
+        [System.Runtime.InteropServices.DllImport("uxtheme.dll", EntryPoint = "#135")]
+        private static extern int kainosSetPreferredAppMode(int mode);
+        [System.Runtime.InteropServices.DllImport("uxtheme.dll", EntryPoint = "#136")]
+        private static extern void kainosFlushMenuThemes();
+
+        private static void kainosNativeDarkMenus(bool dark)
+        {
+            try
+            {
+                if (Environment.OSVersion.Version.Major < 10 || Environment.OSVersion.Version.Build < 18362) return;
+                kainosSetPreferredAppMode(dark ? 2 : 0);        // ForceDark / Default
+                kainosFlushMenuThemes();
+            }
+            catch { }
+        }
 
         private void kainosMenusOn()
         {
@@ -315,6 +336,7 @@ namespace Thetis
             }
             menuStrip1.Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Regular);
             menuStrip1.Padding = new Padding(6, 3, 0, 3);
+            kainosNativeDarkMenus(true);
             foreach (ToolStripItem item in menuStrip1.Items)
             {
                 if (!_kmPadding.ContainsKey(item)) _kmPadding[item] = item.Padding;
@@ -327,15 +349,21 @@ namespace Thetis
         // a drop-down's rows: roomier, in the regular weight (menus built later get the same when they open)
         private void kainosMenuDropDown(ToolStripMenuItem parent)
         {
-            parent.DropDown.Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-            parent.DropDown.Padding = new Padding(0, 4, 0, 4);
+            // the drop-down's own window starts dark (it showed its default background until the first paint)
+            ToolStripDropDown dd = parent.DropDown;
+            if (!_kmBack.ContainsKey(dd)) _kmBack[dd] = dd.BackColor;
+            if (dd.BackColor != KainosUI.Raised) dd.BackColor = KainosUI.Raised;
+            if (dd.Font != _kmDropFont) dd.Font = _kmDropFont;
+            Padding pad = new Padding(0, 4, 0, 4);
+            if (dd.Padding != pad) dd.Padding = pad;
             parent.DropDownOpening -= kainosMenuOpening;
             parent.DropDownOpening += kainosMenuOpening;
             foreach (ToolStripItem item in parent.DropDownItems)
             {
                 if (item is ToolStripSeparator) continue;
                 if (!_kmPadding.ContainsKey(item)) _kmPadding[item] = item.Padding;
-                item.Padding = new Padding(4, 4, 4, 4);
+                Padding ip = new Padding(4, 4, 4, 4);
+                if (item.Padding != ip) item.Padding = ip;
                 ToolStripMenuItem mi = item as ToolStripMenuItem;
                 if (mi != null && mi.HasDropDownItems) kainosMenuDropDown(mi);
             }
@@ -350,6 +378,9 @@ namespace Thetis
         {
             if (!_kmOn) return;
             _kmOn = false;
+            kainosNativeDarkMenus(false);
+            foreach (KeyValuePair<ToolStripDropDown, Color> kv in _kmBack) kv.Key.BackColor = kv.Value;
+            _kmBack.Clear();
             menuStrip1.Font = _kmFont;
             menuStrip1.Padding = _kmStripPadding;
             foreach (KeyValuePair<ToolStripItem, Padding> kv in _kmPadding) kv.Key.Padding = kv.Value;

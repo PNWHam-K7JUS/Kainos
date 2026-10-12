@@ -4,7 +4,7 @@ Built-in [FreeDV](https://freedv.org) **RADE** digital voice (the Radio Autoenco
 
 ## Using it
 
-1. Open **FreeDV** in the menu bar.
+1. Open **Modes > FreeDV** in the menu bar (**FreeDV** on its own in the Classic layout).
 2. Pick **RX1** or **RX2** and press **RADE**. The receiver switches to DIGU or DIGL, and received RADE is decoded straight to speech.
 3. Transmit as normal: your overs are sent as RADE, with your callsign in the end-of-over frame.
 
