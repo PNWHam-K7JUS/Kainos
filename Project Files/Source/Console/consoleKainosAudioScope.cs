@@ -136,6 +136,15 @@ namespace Thetis
             menu.Items.Add(item("Waveform", v.Show == KainosScopeView.Shows.Scope, () => show(KainosScopeView.Shows.Scope)));
             menu.Items.Add(item("AF spectrum", v.Show == KainosScopeView.Shows.Af, () => show(KainosScopeView.Shows.Af)));
             menu.Items.Add(item("Both", v.Show == KainosScopeView.Shows.Both, () => show(KainosScopeView.Shows.Both)));
+
+            // the colour theme of the waveform and spectrum
+            ToolStripMenuItem colours = new ToolStripMenuItem("Colours") { ForeColor = KainosUI.Text };
+            for (int i = 0; i < KainosScopeView.ThemeNames.Length; i++)
+            {
+                KainosScopeView.Themes th = (KainosScopeView.Themes)i;
+                colours.DropDownItems.Add(item(KainosScopeView.ThemeNames[i], v.Theme == th, () => v.Theme = th));
+            }
+            menu.Items.Add(colours);
             menu.Items.Add(new ToolStripSeparator());
 
             ToolStripMenuItem scale = new ToolStripMenuItem("Scale") { ForeColor = KainosUI.Text };
@@ -192,6 +201,7 @@ namespace Thetis
                     case "pk": v.PeakHold = n != 0; break;
                     case "sm": v.Smooth = n != 0; break;
                     case "wf": v.Waterfall = n != 0; break;
+                    case "col": if (n >= 0 && n < KainosScopeView.ThemeNames.Length) v.Theme = (KainosScopeView.Themes)n; break;
                 }
             }
             _scopeButtons.Invalidate();
@@ -202,7 +212,8 @@ namespace Thetis
         {
             KainosScopeView v = _scopeView;
             KainosScopeSettings = "tb=" + v.Timebase + ";show=" + (int)v.Show + ";fs=" + v.FullScale + ";trig=" + (v.Trigger ? 1 : 0)
-                                  + ";ch=" + (int)v.Channel + ";pk=" + (v.PeakHold ? 1 : 0) + ";sm=" + (v.Smooth ? 1 : 0) + ";wf=" + (v.Waterfall ? 1 : 0);
+                                  + ";ch=" + (int)v.Channel + ";pk=" + (v.PeakHold ? 1 : 0) + ";sm=" + (v.Smooth ? 1 : 0) + ";wf=" + (v.Waterfall ? 1 : 0)
+                                  + ";col=" + (int)v.Theme;
             _scopeButtons.Invalidate();
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
