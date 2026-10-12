@@ -101,8 +101,21 @@ namespace Thetis
         private System.Threading.Thread _pacer;
         private readonly System.Threading.ManualResetEventSlim _runGate = new System.Threading.ManualResetEventSlim(false);
         private volatile bool _running, _closing;
-        private volatile int _pending;                  // a frame posted to the UI thread and not yet drawn
         private volatile float _frameMs = 33.3f;
+
+        // the frames are drawn on that thread too, into a picture copied straight to the window, so a busy UI thread
+        // (the panadapter as the mouse moves over it, menus, the meters) can't hold them up. _sync keeps the frame
+        // thread and the UI thread's own painting from drawing at once; what the frame thread needs from the console
+        // (the sample rates, the AF span) is fetched on the UI thread ten times a second.
+        private readonly object _sync = new object();
+        private Bitmap _back;
+        private IntPtr _hwnd;
+        private readonly Timer _inputs;
+        private int _rxRate = 48000, _txRate = 48000;
+        private KainosAfInfo _afInfo = new KainosAfInfo { Lo = 0, Hi = 3000, PassLo = 100, PassHi = 2900, Pitch = float.NaN };
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr hdc);
 
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")] private static extern int DwmFlush();
         private readonly float[] _l = new float[16384], _r = new float[16384];
@@ -151,7 +164,22 @@ namespace Thetis
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = KainosUI.Bg;
             Cursor = Cursors.Hand;
+            _inputs = new Timer { Interval = 100 };
+            _inputs.Tick += (s, e) => fetchInputs();
         }
+
+        private void fetchInputs()
+        {
+            int rx = 48000, tx = 48000;
+            KainosAfInfo info;
+            try { rx = RxRate(); } catch { }
+            try { tx = TxRate(); } catch { }
+            try { info = AfInfo(); } catch { info = _afInfo; }
+            lock (_sync) { _rxRate = rx > 0 ? rx : 48000; _txRate = tx > 0 ? tx : 48000; _afInfo = info; }
+        }
+
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); _hwnd = Handle; }
+        protected override void OnHandleDestroyed(EventArgs e) { lock (_sync) _hwnd = IntPtr.Zero; base.OnHandleDestroyed(e); }
 
         private void pace()
         {
@@ -169,28 +197,44 @@ namespace Thetis
                 // the first refresh at least about a frame on (minus a few ms, so it stays on the same refresh each time)
                 if (now - last < _frameMs - 5) continue;
                 last = now;
-                if (System.Threading.Interlocked.CompareExchange(ref _pending, 1, 0) != 0) continue;    // still drawing the last
-                try { if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(frame)); else _pending = 0; }
-                catch { _pending = 0; }
+                try { frame(); } catch { }
             }
         }
 
+        // on the frame thread: the new samples, drawn into the back picture and copied to the window
         private void frame()
         {
-            try
+            if (!_running || _closing || Hold) return;
+            lock (_sync)
             {
-                if (!_running || IsDisposed || Hold) return;
+                int w = Width, h = Height;
+                if (_hwnd == IntPtr.Zero || w < 2 || h < 2) return;
                 capture();
                 if (Theme == Themes.Phosphor && !_light) phosphorFrame();
-                Invalidate();
-                Update();           // draw now, in step with the frame, rather than whenever the UI gets round to it
+                if (_back == null || _back.Width != w || _back.Height != h)
+                {
+                    _back?.Dispose();
+                    _back = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+                }
+                using (Graphics g = Graphics.FromImage(_back))
+                {
+                    g.Clear(KainosUI.Bg);
+                    paintAll(g);
+                }
+                IntPtr hdc = GetDC(_hwnd);
+                if (hdc == IntPtr.Zero) return;
+                try { using (Graphics g = Graphics.FromHdc(hdc)) g.DrawImageUnscaled(_back, 0, 0); }
+                finally { ReleaseDC(_hwnd, hdc); }
             }
-            finally { _pending = 0; }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { _closing = true; _running = false; _runGate.Set(); _wfBitmap?.Dispose(); _glowScope?.Dispose(); }
+            if (disposing)
+            {
+                _closing = true; _running = false; _runGate.Set(); _inputs.Dispose();
+                lock (_sync) { _wfBitmap?.Dispose(); _glowScope?.Dispose(); _back?.Dispose(); _back = null; _hwnd = IntPtr.Zero; }
+            }
             base.Dispose(disposing);
         }
 
@@ -200,7 +244,7 @@ namespace Thetis
             set { _timebase = Array.IndexOf(Timebases, value) >= 0 ? value : 10; Invalidate(); }
         }
 
-        public void ClearPeak() { for (int i = 0; i < _afPeak.Length; i++) _afPeak[i] = -200; Invalidate(); }
+        public void ClearPeak() { lock (_sync) for (int i = 0; i < _afPeak.Length; i++) _afPeak[i] = -200; Invalidate(); }
 
         // drawing while on screen (the console decides); slower in light mode
         public void SetRunning(bool run, bool light)
@@ -208,8 +252,10 @@ namespace Thetis
             _light = light;
             _frameMs = light ? 66.7f : 33.3f;
             _running = run;
+            _inputs.Enabled = run;
             if (run)
             {
+                fetchInputs();
                 if (_pacer == null) { _pacer = new System.Threading.Thread(pace) { IsBackground = true, Name = "Kainos scope frames" }; _pacer.Start(); }
                 _runGate.Set();
             }
@@ -232,8 +278,7 @@ namespace Thetis
             bool tx;
             int rate = 48000;
             KainosScopeTap.Latest(_l, _r, _l.Length, out tx);
-            try { rate = tx ? TxRate() : RxRate(); } catch { }
-            if (rate <= 0) rate = 48000;
+            rate = tx ? _txRate : _rxRate;
             _shownTx = tx;
             if (Show != Shows.Af) captureScope(rate, tx);
             if (Show != Shows.Scope) captureAf(rate, tx);
@@ -281,7 +326,7 @@ namespace Thetis
         private void captureAf(int rate, bool tx)
         {
             KainosAfInfo info;
-            try { info = AfInfo(); } catch { info = _afShown; }
+            info = _afInfo;
             int cols = Math.Max(1, Width);
             if (_af.Length != cols || info.Lo != _afShown.Lo || info.Hi != _afShown.Hi)
             {
@@ -412,7 +457,11 @@ namespace Thetis
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            Graphics g = e.Graphics;
+            lock (_sync) paintAll(e.Graphics);
+        }
+
+        private void paintAll(Graphics g)
+        {
             using (Font f = new Font("Segoe UI", Math.Max(8f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel))
             {
                 if (Show != Shows.Af) paintScope(g, scopeRect, f);
