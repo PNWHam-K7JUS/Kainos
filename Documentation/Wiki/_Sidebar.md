@@ -16,6 +16,7 @@
 - [[KiwiSDR]]
 - [[Band Plan]]
 - [[SWR Sweep]]
+- [[Amplifier Band Switching]]
 - [[HL2 I/O board antennas|HL2 IO Board Antennas]]
 
 **Help**
