@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.10 (not yet released)
+### Kainos 1.0.10
 
 **New: Audio Scope colours**
 - A **Colours** choice on the Audio Scope's right-click menu: **Standard** (as before, the default), **Kainos** (glowing trace and a gradient-filled spectrum), **Phosphor** (green, like an old CRT, with an afterglow), **Heat** (green, yellow and red by level) and **Spectrum** (a rainbow by frequency). In light mode the glow and afterglow are left out.
