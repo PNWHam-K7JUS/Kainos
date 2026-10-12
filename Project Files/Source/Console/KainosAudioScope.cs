@@ -95,7 +95,16 @@ namespace Thetis
         public static readonly int[] FullScales = { 0, -10, -20, -30, -40, -50 };   // fixed full scale, dBFS
 
         private const int FftSize = 4096;               // about 12 Hz a bin at 48 kHz
-        private readonly Timer _frame;
+        // the frames: paced by the display (a thread waits for each screen refresh), so they come evenly; a Forms
+        // timer only ticks on Windows' 15.6 ms grain and when the UI is otherwise idle, so 33 ms came out as an uneven
+        // 31 / 47 / 62 ms, which showed as jitter and little pauses
+        private System.Threading.Thread _pacer;
+        private readonly System.Threading.ManualResetEventSlim _runGate = new System.Threading.ManualResetEventSlim(false);
+        private volatile bool _running, _closing;
+        private volatile int _pending;                  // a frame posted to the UI thread and not yet drawn
+        private volatile float _frameMs = 33.3f;
+
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")] private static extern int DwmFlush();
         private readonly float[] _l = new float[16384], _r = new float[16384];
         private float[] _shownL = new float[0], _shownR = new float[0];
         private bool _shownTx, _stereo;
@@ -137,19 +146,46 @@ namespace Thetis
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = KainosUI.Bg;
             Cursor = Cursors.Hand;
-            _frame = new Timer { Interval = 33 };
-            _frame.Tick += (s, e) =>
+        }
+
+        private void pace()
+        {
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            double last = 0;
+            while (!_closing)
             {
-                if (Hold) return;
+                if (!_running) { _runGate.Wait(); last = 0; continue; }
+                double before = clock.Elapsed.TotalMilliseconds;
+                bool flushed = false;
+                try { flushed = DwmFlush() == 0; } catch { }
+                // no composition to wait on (or it returned at once): wait a little ourselves
+                if (!flushed || clock.Elapsed.TotalMilliseconds - before < 1) System.Threading.Thread.Sleep(4);
+                double now = clock.Elapsed.TotalMilliseconds;
+                // the first refresh at least about a frame on (minus a few ms, so it stays on the same refresh each time)
+                if (now - last < _frameMs - 5) continue;
+                last = now;
+                if (System.Threading.Interlocked.CompareExchange(ref _pending, 1, 0) != 0) continue;    // still drawing the last
+                try { if (IsHandleCreated && !IsDisposed) BeginInvoke(new Action(frame)); else _pending = 0; }
+                catch { _pending = 0; }
+            }
+        }
+
+        private void frame()
+        {
+            try
+            {
+                if (!_running || IsDisposed || Hold) return;
                 capture();
                 if (Theme == Themes.Phosphor && !_light) phosphorFrame();
                 Invalidate();
-            };
+                Update();           // draw now, in step with the frame, rather than whenever the UI gets round to it
+            }
+            finally { _pending = 0; }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { _frame.Dispose(); _wfBitmap?.Dispose(); _glowScope?.Dispose(); }
+            if (disposing) { _closing = true; _running = false; _runGate.Set(); _wfBitmap?.Dispose(); _glowScope?.Dispose(); }
             base.Dispose(disposing);
         }
 
@@ -165,8 +201,14 @@ namespace Thetis
         public void SetRunning(bool run, bool light)
         {
             _light = light;
-            _frame.Interval = light ? 66 : 33;
-            if (_frame.Enabled != run) _frame.Enabled = run;
+            _frameMs = light ? 66.7f : 33.3f;
+            _running = run;
+            if (run)
+            {
+                if (_pacer == null) { _pacer = new System.Threading.Thread(pace) { IsBackground = true, Name = "Kainos scope frames" }; _pacer.Start(); }
+                _runGate.Set();
+            }
+            else _runGate.Reset();
         }
 
         private int split { get { return (int)(Height * 0.42f); } }

@@ -13,8 +13,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 **Fixed**
 - With no audio, the Audio Scope's auto scale no longer follows the silence down until the noise fills the view; it stops at -40 dBFS.
+- The Audio Scope now moves smoothly: it drew about 21 frames a second at uneven spacing (31 to 62 ms), which showed as jitter and little pauses; it now draws a steady 30, in step with the screen.
 
-- Technical: `KainosAudioScope.cs` (`Themes`; Phosphor keeps an afterglow bitmap faded each frame; the glow is drawn through about one point every 3 px) and `consoleKainosAudioScope.cs` (menu, and the `col` setting).
+- Technical: `KainosAudioScope.cs` (`Themes`; Phosphor keeps an afterglow bitmap faded each frame; the glow is drawn through about one point every 3 px; the frames are paced by a thread waiting on `DwmFlush` instead of a Forms timer, whose 15.6 ms grain gave 31 / 47 / 62 ms frames) and `consoleKainosAudioScope.cs` (menu, and the `col` setting).
 
 ### Kainos 1.0.9
 
