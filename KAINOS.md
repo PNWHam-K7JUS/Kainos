@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.9 (not yet released)
+### Kainos 1.0.9
 
 **New: compact view**
 - In the Kainos layout, **Collapse** in the menu bar is now **Compact**: the left dock and the right-hand column tuck away at the window's edges, the panadapter fills the window (full screen or a small window), and the VFO flags stay. Point at the left or right edge and the dock or the column slides in over the panadapter; move away and it slides back. **Expand** puts everything back. Thetis's own collapsed layout is still there in Classic.
