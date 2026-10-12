@@ -114,7 +114,8 @@ namespace Thetis
 
         // the LED EQ: per band, the level (0..1 of the scale), and the peak dot that hangs, then falls
         private float[] _eq = new float[0], _eqPk = new float[0];
-        private int[] _eqHold = new int[0];
+        private float[] _eqHold = new float[0];        // ms the peak dot still hangs
+        private readonly System.Diagnostics.Stopwatch _eqClock = System.Diagnostics.Stopwatch.StartNew();
 
         // Phosphor's afterglow: the waveform drawn into a picture that fades a little each frame
         private Bitmap _glowScope;
@@ -300,11 +301,15 @@ namespace Thetis
         private int eqBands { get { return Math.Max(16, Math.Min(32, Width / Math.Max(1, KainosUI.S(12)))); } }
 
         // each band's level from the spectrum's columns (the loudest in the band), on the same scale as the spectrum
-        // (60 dB from its top): quick to rise, slower to fall; the peak dot hangs about half a second, then falls
+        // (60 dB from its top): quick to rise, slower to fall; the peak dot hangs half a second, then falls. The falls
+        // follow the clock rather than the frames, so a late frame doesn't make them stall and then jump.
         private void eqFrame()
         {
             int n = eqBands, cols = _af.Length;
-            if (_eq.Length != n) { _eq = new float[n]; _eqPk = new float[n]; _eqHold = new int[n]; }
+            if (_eq.Length != n) { _eq = new float[n]; _eqPk = new float[n]; _eqHold = new float[n]; }
+            float ms = (float)Math.Min(200, _eqClock.Elapsed.TotalMilliseconds), frames = ms / 33f;
+            _eqClock.Restart();
+            float keep = (float)Math.Pow(0.88, frames);
             float top = FullScale == 1 ? _afTop : FullScale, range = 60;
             for (int b = 0; b < n; b++)
             {
@@ -312,10 +317,10 @@ namespace Thetis
                 float db = -200;
                 for (int c = c0; c < c1 && c < cols; c++) db = Math.Max(db, _af[c]);
                 float v = Math.Max(0, Math.Min(1, (db - (top - range)) / range));
-                _eq[b] = v > _eq[b] ? v : _eq[b] * 0.88f + v * 0.12f;
-                if (_eq[b] >= _eqPk[b]) { _eqPk[b] = _eq[b]; _eqHold[b] = 15; }
-                else if (_eqHold[b] > 0) _eqHold[b]--;
-                else _eqPk[b] = Math.Max(0, _eqPk[b] - 0.02f);
+                _eq[b] = v > _eq[b] ? v : _eq[b] * keep + v * (1 - keep);
+                if (_eq[b] >= _eqPk[b]) { _eqPk[b] = _eq[b]; _eqHold[b] = 500; }
+                else if (_eqHold[b] > 0) _eqHold[b] -= ms;
+                else _eqPk[b] = Math.Max(0, _eqPk[b] - 0.02f * frames);
             }
         }
 
@@ -593,9 +598,22 @@ namespace Thetis
             float width = Math.Max(1f, KainosUI.S(1.5f));
             // glow: a wide faint line under the trace (Kainos and Phosphor)
             if ((Theme == Themes.Kainos || Theme == Themes.Phosphor) && !_light)
-                using (Pen glow = new Pen(Color.FromArgb(50, c), width * 4) { LineJoin = LineJoin.Round }) g.DrawLines(glow, pts);
+                using (Pen glow = new Pen(Color.FromArgb(50, c), width * 4) { LineJoin = LineJoin.Bevel }) g.DrawLines(glow, thin(pts));
             using (Pen p = brush != null ? new Pen(brush, width + 0.4f) : new Pen(c, width)) g.DrawLines(p, pts);
             brush?.Dispose();
+        }
+
+        // a wide, soft glow doesn't need every point: about one every 3 px is several times quicker to draw
+        private static PointF[] thin(PointF[] pts)
+        {
+            if (pts.Length < 8) return pts;
+            float w = Math.Abs(pts[pts.Length - 1].X - pts[0].X);
+            int step = Math.Max(1, (int)(pts.Length / Math.Max(1f, w / KainosUI.S(3))));
+            if (step == 1) return pts;
+            PointF[] t = new PointF[(pts.Length - 1) / step + 2];
+            for (int i = 0, k = 0; k < t.Length - 1; i += step, k++) t[k] = pts[i];
+            t[t.Length - 1] = pts[pts.Length - 1];
+            return t;
         }
 
         // Phosphor: each frame the pictures fade a little toward the background and the new traces go on top, so
@@ -707,7 +725,7 @@ namespace Thetis
                 }
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 if ((Theme == Themes.Kainos || Theme == Themes.Phosphor) && !_light)
-                    using (Pen glow = new Pen(Color.FromArgb(45, c), lineW * 4) { LineJoin = LineJoin.Round }) g.DrawLines(glow, line);
+                    using (Pen glow = new Pen(Color.FromArgb(45, c), lineW * 4) { LineJoin = LineJoin.Bevel }) g.DrawLines(glow, thin(line));
                 Brush lineBrush = Theme == Themes.Heat || Theme == Themes.Spectrum ? themeBrush(r, false) : null;
                 using (Pen p = lineBrush != null ? new Pen(lineBrush, lineW + 0.3f) : new Pen(c, lineW)) g.DrawLines(p, line);
                 lineBrush?.Dispose();
