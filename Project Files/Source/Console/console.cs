@@ -49752,9 +49752,14 @@ namespace Thetis
             }
 
             if (_cached_background_image == null) return;
+            // Kainos layout: its background is a plain colour, which BackColor already gives; a window-sized picture
+            // of it took ~190 ms to paint at 4K, holding up everything else on the UI thread each time the window
+            // (or a PrintWindow of one of its panels) painted
+            if (kainosPlainBackground) return;
             try
             {
-                Image resized_image = new Bitmap(this.ClientSize.Width, this.ClientSize.Height);
+                // premultiplied: several times quicker for GDI+ to draw than plain ARGB
+                Image resized_image = new Bitmap(this.ClientSize.Width, this.ClientSize.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
 
                 graphics = Graphics.FromImage(resized_image);
                 graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
