@@ -123,9 +123,7 @@ namespace Thetis
                 _kainosColumn.AddSection("tx", "TX", kainosTxMeasure, kainosTxArrange);
                 kainosAddMoreSections();        // EQ, KAINOS AUDIO, FREEDV, MEMORY: consoleKainosTabs.cs
                 _kainosColumn.GlideEnded += kainosStandInsOff;
-                _kainosStandInTimer = new Timer { Interval = 1000 };
-                _kainosStandInTimer.Tick += (s, e) => { if (_kainosLayout) kainosStandInPictures(); };
-                _kainosStandInTimer.Start();
+                _kainosColumn.GlideStarting += () => { if (_kainosLayout) kainosStandInPictures(); };
                 _kainosColumn.TabsChanged += (s, e) =>
                 {
                     KainosColumnTabs = _kainosColumn.TabState;
@@ -433,12 +431,14 @@ namespace Thetis
         private readonly Dictionary<Control, Bitmap> _kainosStandInPics = new Dictionary<Control, Bitmap>();
         private DateTime _kainosStandInsBack = DateTime.MinValue;
 
-        // about once a second while the column is still: a picture of each pinned panel that's on screen, settled and
-        // not covered (by a menu or another window), for the next glide
-        private Timer _kainosStandInTimer;
+        // as a glide starts: a picture of each pinned panel that's on screen, settled and not covered (by a menu or
+        // another window). It used to be taken once a second while the column was still, but PrintWindow of a DirectX
+        // panel has Windows paint the whole window first, which held up the UI thread (the panadapter's cursor marks,
+        // mouse moves) for 60-190 ms every second. A glide soon after the last one keeps the last picture, since a
+        // moved meter shows its empty background until its next reading.
         private void kainosStandInPictures()
         {
-            if (_kainosColumn == null || _kainosColumn.Gliding || !_kainosColumn.Visible || WindowState == FormWindowState.Minimized) return;
+            if (_kainosColumn == null || !_kainosColumn.Visible || WindowState == FormWindowState.Minimized) return;
             if ((DateTime.Now - _kainosStandInsBack).TotalMilliseconds < 1500) return;
             foreach (Control c in kainosModePanels.Concat(new Control[] { grpVFOBetween, _kainosMeter }))
             {
@@ -879,7 +879,7 @@ namespace Thetis
         private Timer _glide;
         private int _glideTo;
         public bool Gliding { get { return _glide != null && _glide.Enabled; } }
-        public event Action GlideEnded;
+        public event Action GlideEnded, GlideStarting;
 
         private void stopGlide()
         {
@@ -894,6 +894,7 @@ namespace Thetis
             int max = Math.Max(0, _contentHeight - Viewport.Height);
             _glideTo = Math.Max(0, Math.Min(max, from - (int)Math.Round(delta / 120.0 * KainosUI.S(80))));
             if (_glideTo == _scroll) return;
+            if (_glide == null || !_glide.Enabled) GlideStarting?.Invoke();
             if (_glide == null)
             {
                 _glide = new Timer { Interval = 15 };

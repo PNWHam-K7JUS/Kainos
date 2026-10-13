@@ -60,6 +60,9 @@ namespace Thetis
             else restoreClassicTheme();
         }
 
+        // the Kainos layout's background is BackColor alone (console.cs resizeBackgroundImage skips the picture)
+        private bool kainosPlainBackground { get { return _kainosBackground != null && CachedBackgroundImage == _kainosBackground; } }
+
         private void applyKainosTheme()
         {
             // console background: the splash navy instead of the skin's image (the skin's image is kept for Classic)
