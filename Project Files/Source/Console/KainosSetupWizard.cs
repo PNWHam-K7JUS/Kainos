@@ -29,6 +29,7 @@ namespace Thetis
     internal class KainosWizardAnswers
     {
         public string Callsign = "", Grid = "", Country = "", Licence = "";
+        public string Model = "HERMES LITE";        // Setup's radio model: the wizard sets up a Hermes Lite 2
         public bool N2adr, IoBoard, Pa, BandVolts;
         public bool Ext10MHz, Cl2;
         public decimal Cl2Freq, TxLatency, PttHang;
@@ -106,6 +107,7 @@ namespace Thetis
         {
             _was = current;
             _now = current.Copy();
+            _now.Model = "HERMES LITE";
             _offer = offer;
 
             Text = "Kainos setup";
@@ -411,6 +413,7 @@ namespace Thetis
             List<string> lines = new List<string>();
             Action<string, string, string> diff = (what, a, b) => { if (a != b) lines.Add("•  " + what + ":  " + (a.Length > 0 ? a : "(none)") + "  →  " + (b.Length > 0 ? b : "(none)")); };
             Func<bool, string> onOff = v => v ? "on" : "off";
+            diff("Radio model", _was.Model, _now.Model);
             diff("Callsign", _was.Callsign, _now.Callsign);
             diff("Grid square", _was.Grid, _now.Grid);
             diff("Country", _was.Country, _now.Country);

@@ -42,6 +42,12 @@ namespace Thetis
                 try
                 {
                     if (IsSetupFormNull) return;
+                    if (SetupForm.KainosCheckRadioModel())
+                        MessageBox.Show(this, "Kainos has set the radio model to Hermes Lite 2." + Environment.NewLine + Environment.NewLine +
+                            "Earlier versions of Kainos started a new install as \"Hermes\" (a different board), so the HL2 was run with " +
+                            "Hermes's hardware settings and Setup had no HL2 Options page. You don't need to do anything else; the model " +
+                            "is in Setup > General > H/W Select if you ever need it.",
+                            "Kainos", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     string pending = KainosFirstRun.TakePending(AppDataPath);
                     if (pending == "skip") { SetupForm.KainosWizardState = "skipped"; SetupForm.SaveOptions(); kainosCheckForUpdate(false); return; }
                     if (pending == "hl2" || pending == "import") { KainosRunWizard(false); kainosCheckForUpdate(false); return; }

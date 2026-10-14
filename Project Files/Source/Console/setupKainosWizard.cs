@@ -27,6 +27,7 @@ namespace Thetis
     public partial class Setup
     {
         private TextBoxTS txtKainosWizard, txtKainosLicence;
+        private CheckBoxTS chkKainosModelChecked;       // the one-time radio model check has run (KainosCheckRadioModel)
         // light mode (consoleKainosSupport.cs): the box, and the frame rate and 3D it replaced; the update check's
         // "last=yyyy-mm-dd;skip=version"
         private CheckBoxTS chkKainosLightMode;
@@ -39,6 +40,8 @@ namespace Thetis
             txtKainosLicence = new TextBoxTS { Name = "txtKainosLicence", Visible = false, Text = "" };     // country|licence class
             page.Controls.Add(txtKainosWizard);
             page.Controls.Add(txtKainosLicence);
+            chkKainosModelChecked = new CheckBoxTS { Name = "chkKainosModelChecked", Visible = false, Checked = false };
+            page.Controls.Add(chkKainosModelChecked);
 
             ButtonTS run = new ButtonTS { Name = "btnKainosWizard", Text = "Run setup wizard...", Location = new Point(8, 316), Size = new Size(160, 26) };
             toolTip1.SetToolTip(run, "Set Kainos up for your Hermes Lite 2: callsign, grid square, licence class and which boards the HL2 has.");
@@ -161,11 +164,25 @@ namespace Thetis
             set { if (txtKainosWizard != null) txtKainosWizard.Text = value; }
         }
 
+        // Once: Kainos 1.0.0 to 1.0.9 started a fresh install as HERMES (Thetis's default), not HERMES LITE, so anyone who
+        // didn't change it has been running their HL2 with Hermes's hardware handling. Moves them to HERMES LITE once;
+        // after that the model is left alone, so a deliberate change sticks. True if it changed it.
+        internal bool KainosCheckRadioModel()
+        {
+            if (chkKainosModelChecked == null || chkKainosModelChecked.Checked) return false;
+            chkKainosModelChecked.Checked = true;
+            bool change = comboRadioModel.Text == "HERMES";
+            if (change) select(comboRadioModel, "HERMES LITE");
+            SaveOptions();
+            return change && comboRadioModel.Text == "HERMES LITE";
+        }
+
         internal KainosWizardAnswers KainosWizardRead()
         {
             string[] lic = (txtKainosLicence.Text ?? "").Split('|');
             return new KainosWizardAnswers
             {
+                Model = comboRadioModel.Text,
                 Callsign = _rade != null ? _rade.Callsign.Text : "",
                 Grid = _rade != null ? _rade.Grid.Text : "",
                 Country = lic[0],
@@ -191,6 +208,9 @@ namespace Thetis
 
         internal void KainosWizardApply(KainosWizardAnswers a)
         {
+            // the radio model first: the HL2's own settings (I/O board, band volts ...) are on its HL2 Options page,
+            // which Setup only shows for a Hermes Lite
+            select(comboRadioModel, a.Model);
             if (_rade != null)
             {
                 if (_rade.Callsign.Text != a.Callsign) _rade.Callsign.Text = a.Callsign;
