@@ -6,21 +6,15 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.11 (not yet released)
-
-**Fixed**
-- Typing a frequency in the **VFO** tab of the right-hand column didn't work (GitHub #15; the VFO flags were fine). Kainos's own text boxes now get the keys they're typed: the main window previews every key for Thetis's keyboard shortcuts and only let Thetis's own boxes through, so Enter never reached the VFO tab's entry (and moved the focus away, which cancelled it), and with the shortcuts on, letters and Space could fire shortcuts while typing in Kainos's boxes (Memory, Spots, Kiwi and others).
-- N1MM+'s spectrum (panafall) was shifted by the CW pitch in CW modes (GitHub #14; 550 Hz low in CWU with a 550 Hz pitch). This came from Thetis 2.10.3.15, where the pitch was applied twice.
-- In SPLIT, **MUTE** in VFO B's Audio drawer didn't mute B (GitHub #12). B is heard through RX1's sub-receiver (LISTEN), and the button muted RX2, which isn't running then. It now mutes the sub-receiver, keeping the LISTEN AF level for unmuting; moving LISTEN AF unmutes it (when Thetis's "AF sliders unmute" option is on), and turning split off clears it.
-
-- Technical: `consoleKainosSupport.cs` `KainosTypingInOwnBox` (the focused control is a plain `TextBoxBase` or `NumericUpDown`, not Thetis's `TextBoxTS` / `NumericUpDownTS`), checked first in `Console_KeyDown` and `Console_KeyPress`. `N1MM.cs`: no extra pitch shift, since `Display.CentreFreqRX1/RX2` is the DDS frequency, which already includes it (`UpdateVFOAFreq`), as the panadapter's own scale does (`vfo + getCWSideToneShift`). `consoleKainosFlag.cs` `KainosSetSubMute` / `KainosToggleMute`, applied in `ptbRX1Gain_Scroll` with RX1's mute.
-
 ### Kainos 1.0.10
 
 **New: Audio Scope colours**
 - A **Colours** choice on the Audio Scope's right-click menu: **Standard** (as before, the default), **Kainos** (glowing trace and a gradient-filled spectrum), **Phosphor** (green, like an old CRT, with an afterglow), **Heat** (green, yellow and red by level) and **Spectrum** (a rainbow by frequency). In light mode the glow and afterglow are left out.
 
 **Fixed**
+- Typing a frequency in the **VFO** tab of the right-hand column didn't work (GitHub #15; the VFO flags were fine). Kainos's own text boxes now get the keys they're typed: the main window previews every key for Thetis's keyboard shortcuts and only let Thetis's own boxes through, so Enter never reached the VFO tab's entry (and moved the focus away, which cancelled it), and with the shortcuts on, letters and Space could fire shortcuts while typing in Kainos's boxes (Memory, Spots, Kiwi and others).
+- N1MM+'s spectrum (panafall) was shifted by the CW pitch in CW modes (GitHub #14; 550 Hz low in CWU with a 550 Hz pitch). This came from Thetis 2.10.3.15, where the pitch was applied twice.
+- In SPLIT, **MUTE** in VFO B's Audio drawer didn't mute B (GitHub #12). B is heard through RX1's sub-receiver (LISTEN), and the button muted RX2, which isn't running then. It now mutes the sub-receiver, keeping the LISTEN AF level for unmuting; moving LISTEN AF unmutes it (when Thetis's "AF sliders unmute" option is on), and turning split off clears it.
 - In the Kainos layout the whole window froze for about a fifth of a second every second (since 1.0.9): the panadapter's cursor marks stopped following the mouse, and everything else paused with them. Two causes: a picture of the meter, taken once a second for smooth scrolling, made Windows repaint the whole window, and the window's background was a full-size picture (about 190 ms to paint at 4K) rather than just a colour. The meter's picture is now taken only as you start scrolling the column, and the Kainos layout's background is plain colour. Thetis's skin backgrounds (Classic) also paint several times faster.
 - With no audio, the Audio Scope's auto scale no longer follows the silence down until the noise fills the view; it stops at -40 dBFS.
 - The Audio Scope now moves smoothly: it drew about 21 frames a second at uneven spacing (31 to 62 ms), which showed as jitter and little pauses; it now draws a steady 30, in step with the screen, on its own thread, so it keeps going while the rest of the window is busy (for example while you move the mouse over the panadapter).
@@ -28,6 +22,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - Technical: `KainosAudioScope.cs` (`Themes`; Phosphor keeps an afterglow bitmap faded each frame; the glow is drawn through about one point every 3 px; the frames are paced by a thread waiting on `DwmFlush` instead of a Forms timer, whose 15.6 ms grain gave 31 / 47 / 62 ms frames, and drawn on that thread into a back picture copied to the window with `GetDC` (the console's sample rates and AF span are fetched on the UI thread every 100 ms; `_sync` keeps the UI thread's own painting apart); the AF columns are averaged as power with a 180 ms time constant by the clock, and the auto top has a target with a 3 s hold before stepping down, eased at 150 dB/s up and 20 dB/s down) and `consoleKainosAudioScope.cs` (menu, and the `col` setting).
 - Technical (the freeze): `consoleKainosColumn.cs` takes the pinned panels' pictures on `KainosColumn.GlideStarting` instead of a 1 s timer (`PrintWindow` with `PW_RENDERFULLCONTENT` renders the whole top-level window); `console.cs` `resizeBackgroundImage` skips the window-sized picture when the Kainos layout's plain background is in use (`kainosPlainBackground`) and makes the skin's one `Format32bppPArgb`. Found with a UI-thread watchdog that logged the stack whenever the UI thread stalled over 80 ms.
+- Technical (GitHub #12, #14, #15): `consoleKainosSupport.cs` `KainosTypingInOwnBox` (the focused control is a plain `TextBoxBase` or `NumericUpDown`, not Thetis's `TextBoxTS` / `NumericUpDownTS`), checked first in `Console_KeyDown` and `Console_KeyPress`. `N1MM.cs`: no extra pitch shift, since `Display.CentreFreqRX1/RX2` is the DDS frequency, which already includes it (`UpdateVFOAFreq`), as the panadapter's own scale does (`vfo + getCWSideToneShift`). `consoleKainosFlag.cs` `KainosSetSubMute` / `KainosToggleMute`, applied in `ptbRX1Gain_Scroll` with RX1's mute.
 
 ### Kainos 1.0.9
 
