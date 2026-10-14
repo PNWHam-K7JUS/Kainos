@@ -6,6 +6,15 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.11 (not yet released)
+
+**Fixed**
+- Typing a frequency in the **VFO** tab of the right-hand column didn't work (GitHub #15; the VFO flags were fine). Kainos's own text boxes now get the keys they're typed: the main window previews every key for Thetis's keyboard shortcuts and only let Thetis's own boxes through, so Enter never reached the VFO tab's entry (and moved the focus away, which cancelled it), and with the shortcuts on, letters and Space could fire shortcuts while typing in Kainos's boxes (Memory, Spots, Kiwi and others).
+- N1MM+'s spectrum (panafall) was shifted by the CW pitch in CW modes (GitHub #14; 550 Hz low in CWU with a 550 Hz pitch). This came from Thetis 2.10.3.15, where the pitch was applied twice.
+- In SPLIT, **MUTE** in VFO B's Audio drawer didn't mute B (GitHub #12). B is heard through RX1's sub-receiver (LISTEN), and the button muted RX2, which isn't running then. It now mutes the sub-receiver, keeping the LISTEN AF level for unmuting; moving LISTEN AF unmutes it (when Thetis's "AF sliders unmute" option is on), and turning split off clears it.
+
+- Technical: `consoleKainosSupport.cs` `KainosTypingInOwnBox` (the focused control is a plain `TextBoxBase` or `NumericUpDown`, not Thetis's `TextBoxTS` / `NumericUpDownTS`), checked first in `Console_KeyDown` and `Console_KeyPress`. `N1MM.cs`: no extra pitch shift, since `Display.CentreFreqRX1/RX2` is the DDS frequency, which already includes it (`UpdateVFOAFreq`), as the panadapter's own scale does (`vfo + getCWSideToneShift`). `consoleKainosFlag.cs` `KainosSetSubMute` / `KainosToggleMute`, applied in `ptbRX1Gain_Scroll` with RX1's mute.
+
 ### Kainos 1.0.10
 
 **New: Audio Scope colours**

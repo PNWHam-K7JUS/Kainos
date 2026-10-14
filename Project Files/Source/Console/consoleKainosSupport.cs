@@ -189,6 +189,25 @@ namespace Thetis
             using (KainosBugReport r = new KainosBugReport(diag)) r.ShowDialog(this);
         }
 
+        // Is the keyboard focus in one of Kainos's own text boxes (the VFO tab's frequency entry, Memory, Spots, Kiwi ...)?
+        // The console previews every key (KeyPreview) for Thetis's shortcuts, and only lets Thetis's own boxes (TextBoxTS,
+        // NumericUpDownTS) through: with the shortcuts off it marks every key handled, so a plain TextBox never saw Enter,
+        // Backspace or the arrows, and Enter moved the focus away (cancelling the entry); with them on, letters and Space
+        // could fire shortcuts. Console_KeyDown and Console_KeyPress let these keys through untouched.
+        internal bool KainosTypingInOwnBox
+        {
+            get
+            {
+                Control c = Control.FromChildHandle(kainosGetFocus());
+                if (c is NumericUpDown && !(c is NumericUpDownTS)) return true;
+                for (Control p = c; p != null; p = p.Parent) if (p is NumericUpDown && !(p is NumericUpDownTS)) return true;   // its inner edit
+                return c is TextBoxBase && !(c is TextBoxTS);
+            }
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetFocus")]
+        private static extern IntPtr kainosGetFocus();
+
         [System.Runtime.InteropServices.DllImport("gdi32.dll", EntryPoint = "GetDeviceCaps")]
         private static extern int kainosGetDeviceCaps(IntPtr hdc, int index);
 

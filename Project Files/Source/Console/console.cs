@@ -26920,6 +26920,7 @@ namespace Thetis
 
         private void Console_KeyPress(object sender, System.Windows.Forms.KeyPressEventArgs e)
         {
+            if (KainosTypingInOwnBox) return;       // Kainos: typing in a Kainos text box (consoleKainosSupport.cs)
             if (e.KeyChar == (char)Keys.Enter)
             {
                 if (!(txtVFOAFreq.Focused || txtVFOBFreq.Focused || txtVFOABand.Focused))
@@ -26957,6 +26958,7 @@ namespace Thetis
         private void Console_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             if (Common.ShiftKeyDown) Display.DisplayShiftKeyDown = true;
+            if (KainosTypingInOwnBox) return;       // Kainos: typing in a Kainos text box (consoleKainosSupport.cs)
 
             if (e.Alt == true) // ke9ns add
             {
@@ -37606,8 +37608,9 @@ namespace Thetis
             //
             //[2.10.1.0] MW0LGE consider mute when on vac
             if (!initializing && e != EventArgs.Empty && m_bRXAFSlidersWillUnmute && chkMUT.Checked) chkMUT.Checked = false;
+            if (!initializing && e != EventArgs.Empty && m_bRXAFSlidersWillUnmute && KainosSubMuted) { KainosSetSubMute(false); return; }   // Kainos: VFO B's mute in split (consoleKainosFlag.cs)
 
-            if (chkMUT.Checked && m_bMuteWillMuteVAC1)
+            if ((chkMUT.Checked && m_bMuteWillMuteVAC1) || KainosSubMuted)
             {
                 radio.GetDSPRX(0, 1).RXOutputGain = 0.0;
             }

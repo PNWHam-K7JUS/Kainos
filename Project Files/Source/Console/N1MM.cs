@@ -214,8 +214,12 @@ namespace Thetis
                 }
                 //
 
-                dL += nPitch * 1e-6;
-                dH += nPitch * 1e-6;
+                // Kainos (issue #14): not applied. The centre (Display.CentreFreqRX1/RX2) is the DDS frequency, which in CW
+                // modes already includes the pitch (UpdateVFOAFreq: rx_freq -= cw_pitch in CWU, += in CWL), and is where
+                // the panadapter's own scale is based (vfo + getCWSideToneShift); shifting again put N1MM+'s spectrum one
+                // pitch off (550 Hz low in CWU with a 550 Hz pitch)
+                //dL += nPitch * 1e-6;
+                //dH += nPitch * 1e-6;
 
                 setLowFrequencyMHz(rx, dL);
                 setHighFrequencyMHz(rx, dH);
