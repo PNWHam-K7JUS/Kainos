@@ -270,6 +270,25 @@ namespace Thetis
             if (on) RX1Gain = RX0Gain;
             chkEnableMultiRX.Checked = on;
         }
+        // VFO B's MUTE in split (GitHub #12): B is heard through RX1's sub-receiver, so muting RX2 (not running) did nothing.
+        // This mutes the sub-receiver instead (ptbRX1Gain_Scroll applies it), keeping its LISTEN AF level for unmuting;
+        // it's cleared when split goes off, so the sub-receiver isn't left silent for Thetis's own MultiRX use.
+        private bool _kainosSubMute;
+        internal bool KainosSubMuted { get { return _kainosSubMute; } }
+        internal void KainosSetSubMute(bool on)
+        {
+            if (_kainosSubMute == on) return;
+            _kainosSubMute = on;
+            ptbRX1Gain_Scroll(this, EventArgs.Empty);
+        }
+        internal bool KainosMuted(int rx) { return rx == 1 ? chkMUT.Checked : KainosSplitB ? _kainosSubMute : chkRX2Mute.Checked; }
+        internal void KainosToggleMute(int rx)
+        {
+            if (rx == 1) kainosClick(chkMUT);
+            else if (KainosSplitB) KainosSetSubMute(!_kainosSubMute);
+            else kainosClick(chkRX2Mute);
+        }
+
         // the sub-receiver only reaches inside RX1's span (its sample rate around the centre, less a margin)
         internal bool KainosListenBInReach { get { return Math.Abs(VFOBFreq - CentreFrequency) * 1e6 < SampleRateRX1 * 0.45; } }
 
@@ -368,8 +387,7 @@ namespace Thetis
                     {
                         bool rx2 = rx == 2 && !KainosSplitB;        // RX2 itself: its strip under the panadapter is collapsed
                         KainosActionGrid g = new KainosActionGrid(rx2 ? 2 : 1);
-                        CheckBox mute = rx == 1 ? (CheckBox)chkMUT : chkRX2Mute;
-                        g.Add("MUTE", () => mute.Checked, () => kainosClick(mute), KainosUI.Tone.Tx);
+                        g.Add("MUTE", () => KainosMuted(rx), () => KainosToggleMute(rx), KainosUI.Tone.Tx);
                         if (rx2) g.Add("SQL", () => chkRX2Squelch.CheckState != CheckState.Unchecked, () => kainosClick(chkRX2Squelch), tone);
                         if (rx == 2 && KainosSplitB) rows.Add(new KainosSlider(ptbRX1Gain, "LISTEN AF"));    // B heard through RX1's sub-receiver
                         else rows.Add(new KainosSlider(rx == 1 ? ptbRX1AF : ptbRX2AF, rx == 1 ? "RX1 AF" : "RX2 AF"));
@@ -544,7 +562,11 @@ namespace Thetis
                     foreach (Control d in _kainosVfoDrawer) if (d != null) d.Top = -30000;
             });
             RX2EnabledChangedHandlers += enabled => { if (_kainosLayout) positionKainosColumn(); };
-            chkVFOSplit.CheckedChanged += (s, e) => { if (_kainosLayout) positionKainosColumn(); };      // split shows VFO B
+            chkVFOSplit.CheckedChanged += (s, e) =>
+            {
+                if (!chkVFOSplit.Checked) KainosSetSubMute(false);
+                if (_kainosLayout) positionKainosColumn();      // split shows VFO B
+            };
         }
     }
 
