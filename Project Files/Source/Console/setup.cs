@@ -176,7 +176,9 @@ namespace Thetis
             // MW0LGE note: this will allways cause the change event to fire, as the combobox does not contain any default value
             // it is bypassed in the event by use of the initializing flag, and is then
             // forced through in ForceAllEvents. This is the default radio with a blank database.
-            if (comboRadioModel.Text == "") comboRadioModel.Text = "HERMES";
+            // Kainos: a blank database is a Hermes Lite 2 (Thetis defaulted to HERMES, so a fresh install ran with
+            // Hermes's hardware handling, Setup's tab said "Hermes Ctrl" and the HL2 Options page was missing)
+            if (comboRadioModel.Text == "") comboRadioModel.Text = "HERMES LITE";
             //
 
             labelSavingLoading.Visible = false;// MW0LGE gets shown/hidden by save/cancel/apply

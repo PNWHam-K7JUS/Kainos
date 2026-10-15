@@ -2074,6 +2074,9 @@ namespace Thetis
             LogTool.AddLogEntry("    Setup Form initialising...", "SETUP");
             SetupForm.StartPosition = FormStartPosition.Manual; // *********** IMPORTANT   first use of singleton will create Setup form       INIT_SLOW
             LogTool.Completed("SETUP");
+            // Kainos: an install still on HERMES (Kainos 1.0.0 - 1.0.9's first-run default) becomes HERMES LITE here, before
+            // the HL2's own start-up below (attenuator range, menus, antenna labels) and GetState; the message comes later
+            _kainosModelChanged = SetupForm.KainosCheckRadioModel();
 
             BuildTXProfileCombos(); // MW0LGE_21k9rc4b build them, so that GetState can apply the combobox text
 
