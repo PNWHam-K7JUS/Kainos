@@ -172,8 +172,7 @@ namespace Thetis
             if (chkKainosModelChecked == null || chkKainosModelChecked.Checked) return false;
             chkKainosModelChecked.Checked = true;
             bool change = comboRadioModel.Text == "HERMES";
-            if (change) select(comboRadioModel, "HERMES LITE");
-            SaveOptions();
+            if (change) select(comboRadioModel, "HERMES LITE");     // saved with the options as usual (it runs during start-up)
             return change && comboRadioModel.Text == "HERMES LITE";
         }
 

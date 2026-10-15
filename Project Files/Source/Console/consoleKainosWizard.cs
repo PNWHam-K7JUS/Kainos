@@ -28,6 +28,7 @@ namespace Thetis
     public partial class Console
     {
         private bool _kainosWizardStartupDone;
+        private bool _kainosModelChanged;       // set in InitConsole (console.cs) by Setup.KainosCheckRadioModel
 
         private void kainosWizardOnStartup()
         {
@@ -42,7 +43,7 @@ namespace Thetis
                 try
                 {
                     if (IsSetupFormNull) return;
-                    if (SetupForm.KainosCheckRadioModel())
+                    if (_kainosModelChanged)
                         MessageBox.Show(this, "Kainos has set the radio model to Hermes Lite 2." + Environment.NewLine + Environment.NewLine +
                             "Earlier versions of Kainos started a new install as \"Hermes\" (a different board), so the HL2 was run with " +
                             "Hermes's hardware settings and Setup had no HL2 Options page. You don't need to do anything else; the model " +
