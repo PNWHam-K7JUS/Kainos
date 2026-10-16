@@ -153,11 +153,9 @@ namespace Thetis
                 else if (e.KeyCode == Keys.Down) { s.Nav.Focus(); e.SuppressKeyPress = true; }
             };
 
-            s.NavHost = new Panel { Name = "kainosSetupNavHost", AutoScroll = true, BackColor = KainosWindowTheme.PanelBg, Tag = "kainos" };
-            s.Nav = new NavList(s) { Name = "kainosSetupNav" };
+            s.NavHost = new Panel { Name = "kainosSetupNavHost", BackColor = KainosWindowTheme.PanelBg, Tag = "kainos" };
+            s.Nav = new NavList(s) { Name = "kainosSetupNav", Dock = DockStyle.Fill };
             s.NavHost.Controls.Add(s.Nav);
-            s.NavHost.HandleCreated += (o, e) => { try { SetWindowTheme(s.NavHost.Handle, "DarkMode_Explorer", null); } catch { } };
-            s.NavHost.Resize += (o, e) => s.Nav.Width = s.NavHost.ClientSize.Width;
 
             s.Title = new PageTitle { Name = "kainosSetupTitle" };
 
@@ -446,6 +444,7 @@ namespace Thetis
             {
                 _rows.Clear();
                 TabPage current = _s.Top.SelectedTab;
+                int rowW = Width - barRoom;
                 int y = (int)Math.Round(6 * DeviceDpi / 96.0);
                 foreach (TabPage top in _s.Top.TabPages)
                 {
@@ -458,28 +457,38 @@ namespace Thetis
                         if (shown.Count == 0 && top.Text.IndexOf(_filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
                     }
                     else shown = top == current ? pages : new List<TabPage>();
-                    _rows.Add(new Row { Top = top, Page = top, Heading = true, Bounds = new Rectangle(0, y, Width, headH) });
+                    _rows.Add(new Row { Top = top, Page = top, Heading = true, Bounds = new Rectangle(0, y, rowW, headH) });
                     y += headH;
                     if (sub == null && _filter.Length == 0) continue;       // a single page: the heading is the page
                     foreach (TabPage p in shown)
                     {
-                        _rows.Add(new Row { Top = top, Page = p, Bounds = new Rectangle(0, y, Width, rowH) });
+                        _rows.Add(new Row { Top = top, Page = p, Bounds = new Rectangle(0, y, rowW, rowH) });
                         y += rowH;
                     }
                 }
-                int h = y + (int)Math.Round(8 * DeviceDpi / 96.0);
-                if (Height != h) Height = h;
-                Invalidate();
+                _contentH = y + (int)Math.Round(8 * DeviceDpi / 96.0);
                 // keep the page shown in view
                 Row sel = _rows.FirstOrDefault(isSelected);
-                if (sel != null && Parent is ScrollableControl)
-                {
-                    ScrollableControl host = (ScrollableControl)Parent;
-                    int top = -host.AutoScrollPosition.Y;
-                    if (sel.Bounds.Top < top || sel.Bounds.Bottom > top + host.ClientSize.Height)
-                        host.AutoScrollPosition = new Point(0, Math.Max(0, sel.Bounds.Top - host.ClientSize.Height / 3));
-                }
+                if (sel != null && (sel.Bounds.Top < _offset || sel.Bounds.Bottom > _offset + Height))
+                    _offset = sel.Bounds.Top - Height / 3;
+                clamp();
+                Invalidate();
             }
+
+            // ---- scrolling: the list moves itself, with a slim bar on the right ----
+            private int _offset, _contentH, _dragFrom = -1, _dragOffset;
+            private int barRoom { get { return (int)Math.Round(10 * DeviceDpi / 96.0); } }
+            private void clamp() { _offset = Math.Max(0, Math.Min(_offset, Math.Max(0, _contentH - Height))); }
+            private Rectangle thumb()
+            {
+                if (_contentH <= Height || Height <= 0) return Rectangle.Empty;
+                float k = DeviceDpi / 96f;
+                int track = Height - (int)(8 * k);
+                int th = Math.Max((int)(30 * k), track * Height / _contentH);
+                int ty = (int)(4 * k) + (track - th) * _offset / Math.Max(1, _contentH - Height);
+                return new Rectangle(Width - (int)(7 * k), ty, (int)(4 * k), th);
+            }
+            protected override void OnResize(EventArgs e) { base.OnResize(e); clamp(); Invalidate(); }
 
             private bool isSelected(Row r)
             {
@@ -494,6 +503,8 @@ namespace Thetis
             {
                 Graphics g = e.Graphics;
                 g.Clear(BackColor);
+                paintThumb(g);
+                g.TranslateTransform(0, -_offset);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 float k = DeviceDpi / 96f;
                 using (Font headFont = new Font("Segoe UI", 10.5f * k, FontStyle.Bold, GraphicsUnit.Pixel))
@@ -549,11 +560,28 @@ namespace Thetis
                 return p;
             }
 
-            private Row rowAt(Point p) { return _rows.FirstOrDefault(r => r.Bounds.Contains(p)); }
+            private void paintThumb(Graphics g)
+            {
+                Rectangle th = thumb();
+                if (th.IsEmpty) return;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (GraphicsPath path = rounded(th, th.Width / 2f))
+                using (Brush b = new SolidBrush(_dragFrom >= 0 ? KainosWindowTheme.TextMid : KainosWindowTheme.Border)) g.FillPath(b, path);
+                g.SmoothingMode = SmoothingMode.None;
+            }
+
+            private Row rowAt(Point p) { return _rows.FirstOrDefault(r => r.Bounds.Contains(new Point(p.X, p.Y + _offset))); }
 
             protected override void OnMouseMove(MouseEventArgs e)
             {
                 base.OnMouseMove(e);
+                if (_dragFrom >= 0)
+                {
+                    Rectangle th = thumb();
+                    int track = Height - th.Height;
+                    if (track > 0) { _offset = _dragOffset + (e.Y - _dragFrom) * (_contentH - Height) / track; clamp(); Invalidate(); }
+                    return;
+                }
                 Row r = rowAt(e.Location);
                 if (r != _hover) { _hover = r; Invalidate(); }
             }
@@ -564,6 +592,14 @@ namespace Thetis
             {
                 base.OnMouseDown(e);
                 Focus();
+                Rectangle th = thumb();
+                if (!th.IsEmpty && e.X >= Width - barRoom)
+                {
+                    if (th.Contains(e.Location)) { _dragFrom = e.Y; _dragOffset = _offset; Capture = true; }
+                    else { _offset += (e.Y < th.Top ? -1 : 1) * Height * 3 / 4; clamp(); }       // page up / down
+                    Invalidate();
+                    return;
+                }
                 Row r = rowAt(e.Location);
                 if (r == null) return;
                 if (r.Heading)
@@ -579,15 +615,17 @@ namespace Thetis
                 }
             }
 
+            protected override void OnMouseUp(MouseEventArgs e)
+            {
+                base.OnMouseUp(e);
+                if (_dragFrom >= 0) { _dragFrom = -1; Capture = false; Invalidate(); }
+            }
+
             protected override void OnMouseWheel(MouseEventArgs e)
             {
-                // scroll the list (this control is taller than its host)
-                if (Parent is ScrollableControl)
-                {
-                    ScrollableControl host = (ScrollableControl)Parent;
-                    int y = -host.AutoScrollPosition.Y - Math.Sign(e.Delta) * rowH * 2;
-                    host.AutoScrollPosition = new Point(0, Math.Max(0, y));
-                }
+                _offset -= Math.Sign(e.Delta) * rowH * 2;
+                clamp();
+                Invalidate();
             }
 
             // up / down through the pages shown
