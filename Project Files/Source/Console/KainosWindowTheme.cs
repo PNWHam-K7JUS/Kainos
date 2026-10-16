@@ -50,6 +50,8 @@ namespace Thetis
         public static readonly Color ButtonOn = Color.FromArgb(0x2a, 0x24, 0x14);
         public static readonly Color Gold = Color.FromArgb(0xd4, 0xad, 0x6a);
         public static readonly Color Selection = Color.FromArgb(0x1d, 0x3a, 0x55);
+        public static readonly Color Accent = Color.FromArgb(0xa8, 0xd8, 0xf0);       // section titles (the Kainos ice blue)
+        private static readonly Color BoxEdge = Color.FromArgb(0x4a, 0x60, 0x78);     // an unticked check box's edge
 
         private static Timer _scan;
         private static readonly HashSet<Form> _done = new HashSet<Form>();
@@ -104,6 +106,7 @@ namespace Thetis
             if (isDefaultBack(f.BackColor)) f.BackColor = WindowBg;
             if (isDefaultFore(f.ForeColor)) f.ForeColor = Text;
             if (f.BackgroundImage != null && isDefaultBack(f.BackColor)) f.BackgroundImage = null;
+            if (f is Setup) KainosSetupShell.Apply((Setup)f);      // the search box and page list (KainosSetupShell.cs)
             themeChildren(f);
             f.Invalidate(true);         // repaint everything in the new colours
         }
@@ -238,6 +241,12 @@ namespace Thetis
                 }
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
                 if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent;
+                // Windows draws the tick box itself, light whatever the colours: Kainos draws over it
+                if (b.FlatStyle != FlatStyle.System)
+                {
+                    c.Paint -= paintCheck;
+                    c.Paint += paintCheck;
+                }
                 return;
             }
             if (c is LinkLabel) { LinkLabel l = (LinkLabel)c; l.LinkColor = Gold; l.ActiveLinkColor = Color.White; l.VisitedLinkColor = Gold; if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent; return; }
@@ -269,6 +278,14 @@ namespace Thetis
                 if (isDefaultBack(c.BackColor) || c.BackColor == SystemColors.Window) c.BackColor = FieldBg;
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
                 if (u.BorderStyle == BorderStyle.Fixed3D) u.BorderStyle = BorderStyle.FixedSingle;
+                // the up / down arrows (Windows's light buttons): drawn by Kainos
+                foreach (Control part in u.Controls)
+                    if (!(part is TextBoxBase))
+                    {
+                        part.Paint -= paintSpin;
+                        part.Paint += paintSpin;
+                        part.Invalidate();
+                    }
                 return;
             }
             if (c is ComboBox)
@@ -340,22 +357,109 @@ namespace Thetis
             return WindowBg;
         }
 
+        // a section, as AetherSDR draws them: a rounded frame with its title in bold ice blue on the line
         private static void paintGroup(object sender, PaintEventArgs e)
         {
             GroupBox gb = (GroupBox)sender;
             Graphics g = e.Graphics;
             Color back = effectiveBack(gb);
             using (Brush b = new SolidBrush(back)) g.FillRectangle(b, gb.ClientRectangle);
-            Size ts = string.IsNullOrEmpty(gb.Text) ? Size.Empty : TextRenderer.MeasureText(gb.Text, gb.Font);
-            int top = Math.Max(ts.Height / 2, 1);
-            Rectangle frame = new Rectangle(0, top, gb.Width - 1, gb.Height - top - 1);
-            using (Pen p = new Pen(Border)) g.DrawRectangle(p, frame);
-            if (ts.Width > 0)
+            using (Font bold = new Font(gb.Font, FontStyle.Bold))
             {
-                Rectangle tr = new Rectangle(7, 0, ts.Width + 2, ts.Height);
-                using (Brush b = new SolidBrush(back)) g.FillRectangle(b, tr);
-                TextRenderer.DrawText(g, gb.Text, gb.Font, tr, gb.Enabled ? gb.ForeColor : TextDim, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine);
+                Size ts = string.IsNullOrEmpty(gb.Text) ? Size.Empty : TextRenderer.MeasureText(gb.Text, bold);
+                int top = Math.Max(ts.Height / 2, 1);
+                Rectangle frame = new Rectangle(0, top, gb.Width - 1, gb.Height - top - 1);
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                float rad = 4 * gb.DeviceDpi / 96f, d = rad * 2;
+                using (System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    path.AddArc(frame.X, frame.Y, d, d, 180, 90);
+                    path.AddArc(frame.Right - d, frame.Y, d, d, 270, 90);
+                    path.AddArc(frame.Right - d, frame.Bottom - d, d, d, 0, 90);
+                    path.AddArc(frame.X, frame.Bottom - d, d, d, 90, 90);
+                    path.CloseFigure();
+                    using (Pen p = new Pen(Border)) g.DrawPath(p, path);
+                }
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+                if (ts.Width > 0)
+                {
+                    Rectangle tr = new Rectangle(8, 0, ts.Width + 4, ts.Height);
+                    using (Brush b = new SolidBrush(back)) g.FillRectangle(b, tr);
+                    Color tc = !gb.Enabled ? TextDim : gb.ForeColor == TextMid ? Accent : gb.ForeColor;
+                    TextRenderer.DrawText(g, gb.Text, bold, new Rectangle(tr.X + 2, tr.Y, tr.Width, tr.Height), tc, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine);
+                }
             }
+        }
+
+        // check boxes and radio buttons: a dark box (or circle), gold when on, over Windows's light one
+        private static void paintCheck(object sender, PaintEventArgs e)
+        {
+            ButtonBase c = (ButtonBase)sender;
+            ContentAlignment align = c is CheckBox ? ((CheckBox)c).CheckAlign : ((RadioButton)c).CheckAlign;
+            if (c.RightToLeft == RightToLeft.Yes) return;
+            float k = c.DeviceDpi / 96f;
+            int size = (int)Math.Round(13 * k);
+            int x = 0, y;
+            int a = (int)align;
+            if ((a & 0x222) != 0) x = (c.Width - size) / 2;                 // centre
+            else if ((a & 0x444) != 0) x = c.Width - size - 1;              // right
+            if ((a & 0x007) != 0) y = 0;                                    // top
+            else if ((a & 0x700) != 0) y = c.Height - size - 1;             // bottom
+            else y = (c.Height - size) / 2;
+            Rectangle box = new Rectangle(x, y, size - 1, size - 1);
+            Graphics g = e.Graphics;
+            Color back = effectiveBack(c);
+            using (Brush b = new SolidBrush(back)) g.FillRectangle(b, Rectangle.Inflate(box, 2, 2));
+            bool on, mixed = false;
+            if (c is CheckBox) { CheckState st = ((CheckBox)c).CheckState; on = st == CheckState.Checked; mixed = st == CheckState.Indeterminate; }
+            else on = ((RadioButton)c).Checked;
+            Color edge = !c.Enabled ? Border : on || mixed ? Gold : BoxEdge;
+            Color mark = c.Enabled ? Gold : TextDim;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            if (c is RadioButton)
+            {
+                using (Brush b = new SolidBrush(FieldBg)) g.FillEllipse(b, box);
+                using (Pen p = new Pen(edge, Math.Max(1f, k))) g.DrawEllipse(p, box);
+                if (on)
+                {
+                    RectangleF dot = RectangleF.Inflate(box, -3.2f * k, -3.2f * k);
+                    using (Brush b = new SolidBrush(mark)) g.FillEllipse(b, dot);
+                }
+            }
+            else
+            {
+                using (Brush b = new SolidBrush(FieldBg)) g.FillRectangle(b, box);
+                using (Pen p = new Pen(edge, Math.Max(1f, k))) g.DrawRectangle(p, box);
+                if (on)
+                    using (Pen p = new Pen(mark, 1.8f * k) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round })
+                        g.DrawLines(p, new[] { new PointF(box.X + 2.8f * k, box.Y + 6.5f * k), new PointF(box.X + 5.2f * k, box.Y + 9f * k), new PointF(box.X + 9.8f * k, box.Y + 3.6f * k) });
+                else if (mixed)
+                    using (Brush b = new SolidBrush(mark)) g.FillRectangle(b, RectangleF.Inflate(box, -3.5f * k, -3.5f * k));
+            }
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+        }
+
+        // a number box's up / down buttons: dark, with ice arrows
+        private static void paintSpin(object sender, PaintEventArgs e)
+        {
+            Control b = (Control)sender;
+            Graphics g = e.Graphics;
+            float k = b.DeviceDpi / 96f;
+            Rectangle r = b.ClientRectangle;
+            using (Brush bg = new SolidBrush(ButtonBg)) g.FillRectangle(bg, r);
+            int mid = r.Height / 2;
+            using (Pen p = new Pen(Border)) { g.DrawLine(p, 0, 0, 0, r.Height); g.DrawLine(p, 0, mid, r.Width, mid); }
+            Color arrow = b.Enabled && b.Parent != null && b.Parent.Enabled ? TextMid : TextDim;
+            float cx = r.Width / 2f + 0.5f, w = Math.Min(3.5f * k, r.Width / 3f), h = Math.Min(2.2f * k, mid / 3f);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (Brush ab = new SolidBrush(arrow))
+            {
+                float uy = mid / 2f;
+                g.FillPolygon(ab, new[] { new PointF(cx - w, uy + h), new PointF(cx + w, uy + h), new PointF(cx, uy - h) });
+                float dy = mid + (r.Height - mid) / 2f;
+                g.FillPolygon(ab, new[] { new PointF(cx - w, dy - h), new PointF(cx + w, dy - h), new PointF(cx, dy + h) });
+            }
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
         }
 
         private static void themeButton(ButtonBase b)
@@ -398,7 +502,7 @@ namespace Thetis
 
         private static void themeTabs(TabControl tc)
         {
-            if (tc.Tag as string == "kainos-tabs") return;
+            if (tc.Tag as string == "kainos-tabs" || tc.Tag as string == "kainos-shell") return;     // done, or Setup's hidden strips
             tc.Tag = tc.Tag ?? "kainos-tabs";
             if (tc.Alignment == TabAlignment.Top || tc.Alignment == TabAlignment.Bottom)
             {
@@ -432,7 +536,7 @@ namespace Thetis
             {
                 base.WndProc(ref m);
                 const int WM_PAINT = 0x000F;
-                if (m.Msg != WM_PAINT || _tc.TabCount == 0) return;
+                if (m.Msg != WM_PAINT || _tc.TabCount == 0 || _tc.Tag as string == "kainos-shell") return;
                 try
                 {
                     using (Graphics g = Graphics.FromHwnd(_tc.Handle))
@@ -485,10 +589,19 @@ namespace Thetis
             else c.HandleCreated += (s, e) => { try { SetWindowTheme(c.Handle, theme, null); } catch { } };
         }
 
+        // set now, and again whenever the window's handle is made again (a window that changes its border or taskbar
+        // setting gets a new one, without the colours) or it's activated
+        private static readonly HashSet<Form> _titleHooked = new HashSet<Form>();
         private static void darkTitleBar(Form f)
         {
             if (f.IsHandleCreated) applyTitle(f);
-            else f.HandleCreated += (s, e) => applyTitle(f);
+            if (_titleHooked.Add(f))
+            {
+                f.HandleCreated += (s, e) => applyTitle(f);
+                f.Shown += (s, e) => applyTitle(f);
+                f.Activated += (s, e) => applyTitle(f);
+                f.Disposed += (s, e) => _titleHooked.Remove(f);
+            }
         }
 
         private static void applyTitle(Form f)

@@ -779,6 +779,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="KainosWindowTheme.cs" />
+    <Compile Include="KainosSetupShell.cs" />
     <Compile Include="consoleKainosSpots.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
