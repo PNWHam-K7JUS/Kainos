@@ -50,33 +50,107 @@ namespace Thetis
         public static readonly Color ButtonOn = Color.FromArgb(0x2a, 0x24, 0x14);
         public static readonly Color Gold = Color.FromArgb(0xd4, 0xad, 0x6a);
         public static readonly Color Selection = Color.FromArgb(0x1d, 0x3a, 0x55);
+        public static readonly Color Accent = Color.FromArgb(0xa8, 0xd8, 0xf0);       // section titles (the Kainos ice blue)
+        private static readonly Color BoxEdge = Color.FromArgb(0x4a, 0x60, 0x78);     // an unticked check box's edge
 
         private static Timer _scan;
         private static readonly HashSet<Form> _done = new HashSet<Form>();
 
-        // look for new windows a few times a second
+        // windows are styled as Windows is about to show them (a hook on the UI thread sees WM_SHOWWINDOW before the
+        // window appears), so they never flash up in the standard look first; and, as a safety net, looked for a few
+        // times a second
         public static void Start()
         {
             if (_scan != null) return;
             _scan = new Timer { Interval = 300 };
             _scan.Tick += (s, e) => scan();
             _scan.Start();
+            try
+            {
+                _hookProc = callWndProc;
+                _hook = SetWindowsHookEx(4 /* WH_CALLWNDPROC */, _hookProc, IntPtr.Zero, GetCurrentThreadId());
+                Application.ApplicationExit += (s, e) => { if (_hook != IntPtr.Zero) UnhookWindowsHookEx(_hook); _hook = IntPtr.Zero; };
+            }
+            catch { }
+        }
+
+        private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
+        private static HookProc _hookProc;          // kept, so it isn't collected while Windows holds it
+        private static IntPtr _hook;
+        private static bool _inHook;
+        [StructLayout(LayoutKind.Sequential)] private struct CWPSTRUCT { public IntPtr lParam, wParam; public int message; public IntPtr hwnd; }
+        [DllImport("user32.dll")] private static extern IntPtr SetWindowsHookEx(int id, HookProc proc, IntPtr mod, int thread);
+        [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(IntPtr hook);
+        [DllImport("user32.dll")] private static extern IntPtr CallNextHookEx(IntPtr hook, int code, IntPtr wParam, IntPtr lParam);
+        [DllImport("kernel32.dll")] private static extern int GetCurrentThreadId();
+
+        private static IntPtr callWndProc(int code, IntPtr wParam, IntPtr lParam)
+        {
+            if (code >= 0 && !_inHook)
+            {
+                try
+                {
+                    CWPSTRUCT m = (CWPSTRUCT)Marshal.PtrToStructure(lParam, typeof(CWPSTRUCT));
+                    if (m.message == 0x0018 /* WM_SHOWWINDOW */ && m.wParam != IntPtr.Zero)
+                    {
+                        Form f = Control.FromHandle(m.hwnd) as Form;
+                        if (f != null && !f.IsDisposed)
+                        {
+                            _inHook = true;
+                            try
+                            {
+                                if (!_done.Contains(f)) adopt(f, false);
+                                if (!skipForm(f)) cloakUntilPainted(f);
+                            }
+                            finally { _inHook = false; }
+                        }
+                    }
+                }
+                catch { }
+            }
+            return CallNextHookEx(_hook, code, wParam, lParam);
+        }
+
+        // a window is shown before everything in it has drawn itself (the parts not drawn yet show white for a frame):
+        // hidden from the screen (DWM cloaking) until it has all been painted, then shown at once
+        private static void cloakUntilPainted(Form f)
+        {
+            int on = 1;
+            if (DwmSetWindowAttribute(f.Handle, 13 /* DWMWA_CLOAK */, ref on, 4) != 0) return;
+            bool done = false;
+            Action reveal = () =>
+            {
+                if (done) return;
+                done = true;
+                try { if (!f.IsDisposed && f.Visible) f.Refresh(); } catch { }        // everything painted, while hidden
+                int off = 0;
+                try { if (f.IsHandleCreated) DwmSetWindowAttribute(f.Handle, 13, ref off, 4); } catch { }
+            };
+            try { f.BeginInvoke(reveal); } catch { reveal(); }
+            Timer safety = new Timer { Interval = 400 };                               // never left hidden
+            safety.Tick += (s, e) => { safety.Stop(); safety.Dispose(); reveal(); };
+            safety.Start();
         }
 
         private static void scan()
         {
             _done.RemoveWhere(f => f.IsDisposed);
             foreach (Form f in Application.OpenForms)
+                if (!_done.Contains(f) && !f.IsDisposed) adopt(f, true);
+        }
+
+        // a window seen for the first time: styled now, and again each time it's shown
+        private static void adopt(Form f, bool visibleNow)
+        {
             {
-                if (_done.Contains(f) || f.IsDisposed) continue;
                 _done.Add(f);
-                if (skipForm(f)) continue;
+                if (skipForm(f)) return;
                 try { Theme(f); } catch { }
                 // a window can set its own colours again after it's made (Setup loads its settings, a skin is
                 // applied...): restyle it each time it's shown
                 Form form = f;
                 form.VisibleChanged += (s, e) => { if (form.Visible && !form.IsDisposed) themeSoon(form); };
-                if (form.Visible) themeSoon(form);
+                if (visibleNow && form.Visible) themeSoon(form);
             }
         }
 
@@ -104,6 +178,7 @@ namespace Thetis
             if (isDefaultBack(f.BackColor)) f.BackColor = WindowBg;
             if (isDefaultFore(f.ForeColor)) f.ForeColor = Text;
             if (f.BackgroundImage != null && isDefaultBack(f.BackColor)) f.BackgroundImage = null;
+            if (f is Setup) KainosSetupShell.Apply((Setup)f);      // the search box and page list (KainosSetupShell.cs)
             themeChildren(f);
             f.Invalidate(true);         // repaint everything in the new colours
         }
@@ -238,6 +313,12 @@ namespace Thetis
                 }
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
                 if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent;
+                // Windows draws the tick box itself, light whatever the colours: Kainos draws over it
+                if (b.FlatStyle != FlatStyle.System)
+                {
+                    c.Paint -= paintCheck;
+                    c.Paint += paintCheck;
+                }
                 return;
             }
             if (c is LinkLabel) { LinkLabel l = (LinkLabel)c; l.LinkColor = Gold; l.ActiveLinkColor = Color.White; l.VisitedLinkColor = Gold; if (isDefaultBack(c.BackColor)) c.BackColor = Color.Transparent; return; }
@@ -269,6 +350,14 @@ namespace Thetis
                 if (isDefaultBack(c.BackColor) || c.BackColor == SystemColors.Window) c.BackColor = FieldBg;
                 if (isDefaultFore(c.ForeColor)) c.ForeColor = Text;
                 if (u.BorderStyle == BorderStyle.Fixed3D) u.BorderStyle = BorderStyle.FixedSingle;
+                // the up / down arrows (Windows's light buttons): drawn by Kainos
+                foreach (Control part in u.Controls)
+                    if (!(part is TextBoxBase))
+                    {
+                        part.Paint -= paintSpin;
+                        part.Paint += paintSpin;
+                        part.Invalidate();
+                    }
                 return;
             }
             if (c is ComboBox)
@@ -340,22 +429,109 @@ namespace Thetis
             return WindowBg;
         }
 
+        // a section, as AetherSDR draws them: a rounded frame with its title in bold ice blue on the line
         private static void paintGroup(object sender, PaintEventArgs e)
         {
             GroupBox gb = (GroupBox)sender;
             Graphics g = e.Graphics;
             Color back = effectiveBack(gb);
             using (Brush b = new SolidBrush(back)) g.FillRectangle(b, gb.ClientRectangle);
-            Size ts = string.IsNullOrEmpty(gb.Text) ? Size.Empty : TextRenderer.MeasureText(gb.Text, gb.Font);
-            int top = Math.Max(ts.Height / 2, 1);
-            Rectangle frame = new Rectangle(0, top, gb.Width - 1, gb.Height - top - 1);
-            using (Pen p = new Pen(Border)) g.DrawRectangle(p, frame);
-            if (ts.Width > 0)
+            using (Font bold = new Font(gb.Font, FontStyle.Bold))
             {
-                Rectangle tr = new Rectangle(7, 0, ts.Width + 2, ts.Height);
-                using (Brush b = new SolidBrush(back)) g.FillRectangle(b, tr);
-                TextRenderer.DrawText(g, gb.Text, gb.Font, tr, gb.Enabled ? gb.ForeColor : TextDim, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine);
+                Size ts = string.IsNullOrEmpty(gb.Text) ? Size.Empty : TextRenderer.MeasureText(gb.Text, bold);
+                int top = Math.Max(ts.Height / 2, 1);
+                Rectangle frame = new Rectangle(0, top, gb.Width - 1, gb.Height - top - 1);
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                float rad = 4 * gb.DeviceDpi / 96f, d = rad * 2;
+                using (System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    path.AddArc(frame.X, frame.Y, d, d, 180, 90);
+                    path.AddArc(frame.Right - d, frame.Y, d, d, 270, 90);
+                    path.AddArc(frame.Right - d, frame.Bottom - d, d, d, 0, 90);
+                    path.AddArc(frame.X, frame.Bottom - d, d, d, 90, 90);
+                    path.CloseFigure();
+                    using (Pen p = new Pen(Border)) g.DrawPath(p, path);
+                }
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+                if (ts.Width > 0)
+                {
+                    Rectangle tr = new Rectangle(8, 0, ts.Width + 4, ts.Height);
+                    using (Brush b = new SolidBrush(back)) g.FillRectangle(b, tr);
+                    Color tc = !gb.Enabled ? TextDim : gb.ForeColor == TextMid ? Accent : gb.ForeColor;
+                    TextRenderer.DrawText(g, gb.Text, bold, new Rectangle(tr.X + 2, tr.Y, tr.Width, tr.Height), tc, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine);
+                }
             }
+        }
+
+        // check boxes and radio buttons: a dark box (or circle), gold when on, over Windows's light one
+        private static void paintCheck(object sender, PaintEventArgs e)
+        {
+            ButtonBase c = (ButtonBase)sender;
+            ContentAlignment align = c is CheckBox ? ((CheckBox)c).CheckAlign : ((RadioButton)c).CheckAlign;
+            if (c.RightToLeft == RightToLeft.Yes) return;
+            float k = c.DeviceDpi / 96f;
+            int size = (int)Math.Round(13 * k);
+            int x = 0, y;
+            int a = (int)align;
+            if ((a & 0x222) != 0) x = (c.Width - size) / 2;                 // centre
+            else if ((a & 0x444) != 0) x = c.Width - size - 1;              // right
+            if ((a & 0x007) != 0) y = 0;                                    // top
+            else if ((a & 0x700) != 0) y = c.Height - size - 1;             // bottom
+            else y = (c.Height - size) / 2;
+            Rectangle box = new Rectangle(x, y, size - 1, size - 1);
+            Graphics g = e.Graphics;
+            Color back = effectiveBack(c);
+            using (Brush b = new SolidBrush(back)) g.FillRectangle(b, Rectangle.Inflate(box, 2, 2));
+            bool on, mixed = false;
+            if (c is CheckBox) { CheckState st = ((CheckBox)c).CheckState; on = st == CheckState.Checked; mixed = st == CheckState.Indeterminate; }
+            else on = ((RadioButton)c).Checked;
+            Color edge = !c.Enabled ? Border : on || mixed ? Gold : BoxEdge;
+            Color mark = c.Enabled ? Gold : TextDim;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            if (c is RadioButton)
+            {
+                using (Brush b = new SolidBrush(FieldBg)) g.FillEllipse(b, box);
+                using (Pen p = new Pen(edge, Math.Max(1f, k))) g.DrawEllipse(p, box);
+                if (on)
+                {
+                    RectangleF dot = RectangleF.Inflate(box, -3.2f * k, -3.2f * k);
+                    using (Brush b = new SolidBrush(mark)) g.FillEllipse(b, dot);
+                }
+            }
+            else
+            {
+                using (Brush b = new SolidBrush(FieldBg)) g.FillRectangle(b, box);
+                using (Pen p = new Pen(edge, Math.Max(1f, k))) g.DrawRectangle(p, box);
+                if (on)
+                    using (Pen p = new Pen(mark, 1.8f * k) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round })
+                        g.DrawLines(p, new[] { new PointF(box.X + 2.8f * k, box.Y + 6.5f * k), new PointF(box.X + 5.2f * k, box.Y + 9f * k), new PointF(box.X + 9.8f * k, box.Y + 3.6f * k) });
+                else if (mixed)
+                    using (Brush b = new SolidBrush(mark)) g.FillRectangle(b, RectangleF.Inflate(box, -3.5f * k, -3.5f * k));
+            }
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+        }
+
+        // a number box's up / down buttons: dark, with ice arrows
+        private static void paintSpin(object sender, PaintEventArgs e)
+        {
+            Control b = (Control)sender;
+            Graphics g = e.Graphics;
+            float k = b.DeviceDpi / 96f;
+            Rectangle r = b.ClientRectangle;
+            using (Brush bg = new SolidBrush(ButtonBg)) g.FillRectangle(bg, r);
+            int mid = r.Height / 2;
+            using (Pen p = new Pen(Border)) { g.DrawLine(p, 0, 0, 0, r.Height); g.DrawLine(p, 0, mid, r.Width, mid); }
+            Color arrow = b.Enabled && b.Parent != null && b.Parent.Enabled ? TextMid : TextDim;
+            float cx = r.Width / 2f + 0.5f, w = Math.Min(3.5f * k, r.Width / 3f), h = Math.Min(2.2f * k, mid / 3f);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (Brush ab = new SolidBrush(arrow))
+            {
+                float uy = mid / 2f;
+                g.FillPolygon(ab, new[] { new PointF(cx - w, uy + h), new PointF(cx + w, uy + h), new PointF(cx, uy - h) });
+                float dy = mid + (r.Height - mid) / 2f;
+                g.FillPolygon(ab, new[] { new PointF(cx - w, dy - h), new PointF(cx + w, dy - h), new PointF(cx, dy + h) });
+            }
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
         }
 
         private static void themeButton(ButtonBase b)
@@ -378,6 +554,9 @@ namespace Thetis
         private static void themeGrid(DataGridView g)
         {
             g.EnableHeadersVisualStyles = false;
+            // single lines in the grid colour (the raised 3-D header borders are drawn light)
+            if (g.ColumnHeadersBorderStyle == DataGridViewHeaderBorderStyle.Raised) g.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+            if (g.RowHeadersBorderStyle == DataGridViewHeaderBorderStyle.Raised) g.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
             g.BackgroundColor = FieldBg;
             g.GridColor = Border;
             g.BorderStyle = BorderStyle.FixedSingle;
@@ -398,12 +577,19 @@ namespace Thetis
 
         private static void themeTabs(TabControl tc)
         {
-            if (tc.Tag as string == "kainos-tabs") return;
+            if (tc.Tag as string == "kainos-tabs" || tc.Tag as string == "kainos-shell") return;     // done, or Setup's hidden strips
             tc.Tag = tc.Tag ?? "kainos-tabs";
             if (tc.Alignment == TabAlignment.Top || tc.Alignment == TabAlignment.Bottom)
             {
                 tc.DrawMode = TabDrawMode.OwnerDrawFixed;
                 tc.DrawItem += drawTab;
+                // flat buttons: no light 3-D border round the page; and room round each name, so the pill is bigger than
+                // its text
+                tc.Appearance = TabAppearance.FlatButtons;
+                if (tc.Padding.X < 10) tc.Padding = new Point(10, Math.Max(tc.Padding.Y, 3));
+                // without the separator bars Windows draws between flat tabs (light, whatever the colours)
+                if (tc.IsHandleCreated) noSeparators(tc);
+                tc.HandleCreated += (s, e) => noSeparators(tc);
             }
             foreach (TabPage p in tc.TabPages) { p.UseVisualStyleBackColor = false; p.BackColor = WindowBg; p.ForeColor = Text; }
             if (tc.IsHandleCreated) new TabStripPainter(tc);
@@ -414,12 +600,37 @@ namespace Thetis
         {
             TabControl tc = (TabControl)sender;
             if (e.Index < 0 || e.Index >= tc.TabPages.Count) return;
-            Rectangle r = tc.GetTabRect(e.Index);
-            bool sel = e.Index == tc.SelectedIndex;
-            using (Brush b = new SolidBrush(sel ? PanelBg : TitleBg)) e.Graphics.FillRectangle(b, r);
-            if (sel) using (Pen p = new Pen(Gold, 2)) e.Graphics.DrawLine(p, r.Left + 2, r.Bottom - 1, r.Right - 2, r.Bottom - 1);
-            TextRenderer.DrawText(e.Graphics, tc.TabPages[e.Index].Text, tc.Font, r, sel ? Gold : TextMid,
-                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+            drawPill(e.Graphics, tc, e.Index, tc.GetTabRect(e.Index));
+        }
+
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        private static void noSeparators(TabControl tc)
+        {
+            try { SendMessage(tc.Handle, 0x1334 /* TCM_SETEXTENDEDSTYLE */, (IntPtr)1 /* TCS_EX_FLATSEPARATORS */, IntPtr.Zero); } catch { }
+        }
+
+        // a tab as a rounded pill: the one shown filled, with gold text and edge
+        private static void drawPill(Graphics g, TabControl tc, int i, Rectangle r)
+        {
+            bool sel = i == tc.SelectedIndex;
+            float k = tc.DeviceDpi / 96f;
+            Rectangle p = new Rectangle(r.X + (int)(1 * k), r.Y + (int)(1 * k), r.Width - (int)(2 * k) - 1, r.Height - (int)(2 * k) - 1);
+            using (Brush b = new SolidBrush(WindowBg)) g.FillRectangle(b, r);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            float rad = Math.Min(p.Height / 2f, 7 * k), d = rad * 2;
+            using (System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                path.AddArc(p.X, p.Y, d, d, 180, 90);
+                path.AddArc(p.Right - d, p.Y, d, d, 270, 90);
+                path.AddArc(p.Right - d, p.Bottom - d, d, d, 0, 90);
+                path.AddArc(p.X, p.Bottom - d, d, d, 90, 90);
+                path.CloseFigure();
+                using (Brush b = new SolidBrush(sel ? Selection : PanelBg)) g.FillPath(b, path);
+                using (Pen pen = new Pen(sel ? Gold : Border)) g.DrawPath(pen, path);
+            }
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            TextRenderer.DrawText(g, tc.TabPages[i].Text, tc.Font, p, sel ? Gold : Text,
+                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 
         // paints what the owner-drawn tabs don't: the strip beside the tabs and the page's light border
@@ -432,41 +643,22 @@ namespace Thetis
             {
                 base.WndProc(ref m);
                 const int WM_PAINT = 0x000F;
-                if (m.Msg != WM_PAINT || _tc.TabCount == 0) return;
+                if (m.Msg != WM_PAINT || _tc.TabCount == 0 || _tc.Tag as string == "kainos-shell") return;
                 try
                 {
                     using (Graphics g = Graphics.FromHwnd(_tc.Handle))
                     {
-                        Rectangle last = _tc.GetTabRect(_tc.TabCount - 1), first = _tc.GetTabRect(0);
-                        int stripTop = Math.Min(first.Top, last.Top), stripBottom = Math.Max(first.Bottom, last.Bottom);
-                        Rectangle page = _tc.DisplayRectangle;
+                        // everything but the page in the window colour (the gaps between flat tabs and the edges round
+                        // the page are drawn light), then each tab as a pill, and a thin frame round the page
+                        Rectangle page = _tc.SelectedTab != null ? _tc.SelectedTab.Bounds : _tc.DisplayRectangle;
+                        using (Region r = new Region(new Rectangle(0, 0, _tc.Width, _tc.Height)))
                         using (Brush b = new SolidBrush(WindowBg))
                         {
-                            if (_tc.Alignment == TabAlignment.Top)
-                            {
-                                g.FillRectangle(b, last.Right + 1, 0, Math.Max(0, _tc.Width - last.Right - 1), stripBottom + 1);
-                                if (stripTop > 0) g.FillRectangle(b, 0, 0, _tc.Width, stripTop);
-                            }
-                            else if (_tc.Alignment == TabAlignment.Bottom)
-                                g.FillRectangle(b, last.Right + 1, stripTop - 1, Math.Max(0, _tc.Width - last.Right - 1), _tc.Height - stripTop + 1);
+                            r.Exclude(page);
+                            g.FillRegion(b, r);
                         }
-                        // every tab, over Windows's light 3-D edges
-                        for (int i = 0; i < _tc.TabCount; i++)
-                        {
-                            Rectangle r = _tc.GetTabRect(i);
-                            bool sel = i == _tc.SelectedIndex;
-                            Rectangle o = Rectangle.Inflate(r, 2, 2);
-                            using (Brush b = new SolidBrush(WindowBg)) g.FillRectangle(b, o);
-                            Rectangle t = Rectangle.Inflate(r, -1, -1);
-                            using (Brush b = new SolidBrush(sel ? PanelBg : TitleBg)) g.FillRectangle(b, t);
-                            using (Pen p = new Pen(sel ? Border : Color.FromArgb(0x1a, 0x26, 0x34))) g.DrawRectangle(p, t);
-                            if (sel) using (Pen p = new Pen(Gold, 2)) g.DrawLine(p, t.Left + 2, _tc.Alignment == TabAlignment.Bottom ? t.Top + 1 : t.Bottom - 1, t.Right - 2, _tc.Alignment == TabAlignment.Bottom ? t.Top + 1 : t.Bottom - 1);
-                            TextRenderer.DrawText(g, _tc.TabPages[i].Text, _tc.Font, t, sel ? Gold : TextMid,
-                                                  TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
-                        }
-                        // the page's border, in the window colours (covers the light 3-D edge)
-                        using (Pen p = new Pen(WindowBg, 4)) g.DrawRectangle(p, page.X - 3, page.Y - 3, page.Width + 5, page.Height + 5);
-                        using (Pen p = new Pen(Border)) g.DrawRectangle(p, page.X - 2, page.Y - 2, page.Width + 3, page.Height + 3);
+                        for (int i = 0; i < _tc.TabCount; i++) drawPill(g, _tc, i, _tc.GetTabRect(i));
+                        using (Pen p = new Pen(Border)) g.DrawRectangle(p, page.X - 1, page.Y - 1, page.Width + 1, page.Height + 1);
                     }
                 }
                 catch { }
@@ -485,10 +677,19 @@ namespace Thetis
             else c.HandleCreated += (s, e) => { try { SetWindowTheme(c.Handle, theme, null); } catch { } };
         }
 
+        // set now, and again whenever the window's handle is made again (a window that changes its border or taskbar
+        // setting gets a new one, without the colours) or it's activated
+        private static readonly HashSet<Form> _titleHooked = new HashSet<Form>();
         private static void darkTitleBar(Form f)
         {
             if (f.IsHandleCreated) applyTitle(f);
-            else f.HandleCreated += (s, e) => applyTitle(f);
+            if (_titleHooked.Add(f))
+            {
+                f.HandleCreated += (s, e) => applyTitle(f);
+                f.Shown += (s, e) => applyTitle(f);
+                f.Activated += (s, e) => applyTitle(f);
+                f.Disposed += (s, e) => _titleHooked.Remove(f);
+            }
         }
 
         private static void applyTitle(Form f)
