@@ -28,4 +28,4 @@ Questions? See [[Troubleshooting and FAQ]], or use **Report a bug** at the top r
 
 ## Download
 
-The latest release is on the [Releases page](https://github.com/PNWHam-K7JUS/Kainos/releases).
+The latest release is on [kainossdr.com](https://kainossdr.com/download.html) and the [Releases page](https://github.com/PNWHam-K7JUS/Kainos/releases).
