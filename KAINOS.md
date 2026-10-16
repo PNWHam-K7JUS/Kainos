@@ -6,6 +6,16 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.11 (not yet released)
+
+**New: a new look for Setup**
+- **Setup** now works like a modern settings window: a **Search settings** box along the top (Ctrl+F), a list of pages down the left in place of the two rows of tabs (Setup's sections as headings, which open to show their pages), and the page's name over the page. Typing in the search box shows only the pages that mention what you typed; Enter opens the first and briefly highlights the setting. Up and Down step through the pages.
+- The pages have more room: Setup is a little bigger, and each page's sections are spread over it, so the busy pages (Transmit, DSP Options, Display General ...) are less cramped.
+- Every Kainos window (Setup, XVTRs, Memory, CWX, Equalizer ...) gets the full dark look: dark check boxes and radio buttons with a gold tick, dark number boxes with dark arrows, rounded section frames with their titles in ice blue, tabs as rounded "pills", grid headings without light lines, and a dark title bar (which some windows had lost).
+- Windows no longer flash up in the standard light look for a moment before turning dark: they're styled before they appear, and shown only once they've been drawn.
+
+- Technical: `KainosSetupShell.cs` (new) wraps Setup's own pages: the tab strips of `tcSetup` and its second row are hidden (flat, 1 px) and each tab control sits in a page-sized `Holder` panel, offset so only the page shows; the list (`NavList`, drawn by Kainos, scrolling itself) chooses the tab, so `ShowSetupTab` and every handler work as before. Setup's controls all move together (so the spare ones Thetis keeps beyond its edges stay out of sight), with a `MinimumSize` against Setup's saved size; the page area is 1.14 times Setup's and each page's controls are placed proportionally from their original bounds (`spread`, again on each page's `Resize`). Search matches the text of every control on a page. `KainosWindowTheme.cs`: a `WH_CALLWNDPROC` hook styles a window on `WM_SHOWWINDOW` and DWM-cloaks it until it has painted; check boxes, radio buttons and up-down buttons are painted over Windows's light glyphs; group boxes are rounded with bold titles; tab rows are flat buttons drawn as pills (no flat separators) with everything outside the page painted; the title bar colours are set again on `HandleCreated`, `Shown` and `Activated`.
+
 ### Kainos 1.0.10
 
 **New: Audio Scope colours**

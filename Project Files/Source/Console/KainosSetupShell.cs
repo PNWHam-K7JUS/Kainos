@@ -76,49 +76,6 @@ namespace Thetis
             hideStrips(s);
             foreach (TabPage top in s.Top.TabPages) spread(s, top);
             s.Nav.Rebuild();
-            shotsStart(s);      // TEMPORARY
-        }
-
-        // TEMPORARY: KAINOS_SETUP_SHOTS=<folder> saves pictures of some pages and a search, for review
-        private static bool _shots;
-        private static void shotsStart(Shell s)
-        {
-            string dir = Environment.GetEnvironmentVariable("KAINOS_SETUP_SHOTS");
-            if (string.IsNullOrEmpty(dir) || _shots) return;
-            _shots = true;
-            string[][] plan = {
-                new[] { "General", "H/W Select" }, new[] { "General", "Options" }, new[] { "Audio", "" }, new[] { "Display", "" },
-                new[] { "DSP", "" }, new[] { "Transmit", "" }, new[] { "Appearance", "Kainos" }, new[] { "Serial", "Amplifier" },
-                new[] { "?search", "vox" } };
-            int i = -1;
-            Timer t = new Timer { Interval = 1500 };
-            t.Tick += (o, e) =>
-            {
-                try
-                {
-                    if (i >= 0)
-                    {
-                        Rectangle r = Screen.PrimaryScreen.Bounds;
-                        using (Bitmap b = new Bitmap(r.Width, r.Height))
-                        {
-                            using (Graphics g = Graphics.FromImage(b)) g.CopyFromScreen(r.Location, Point.Empty, r.Size);
-                            b.Save(System.IO.Path.Combine(dir, "setup_" + i + ".png"));
-                        }
-                    }
-                    i++;
-                    if (i >= plan.Length) { t.Stop(); return; }
-                    s.Form.Activate();
-                    string[] step = plan[i];
-                    if (step[0] == "?search") { s.Search.Text = step[1]; s.Search.Focus(); s.Nav.OpenFirstMatch(); return; }
-                    TabPage top = s.Top.TabPages.Cast<TabPage>().FirstOrDefault(p => p.Text.StartsWith(step[0], StringComparison.OrdinalIgnoreCase));
-                    if (top == null) return;
-                    TabControl sub = SubOf(top);
-                    TabPage page = sub == null ? top : sub.TabPages.Cast<TabPage>().FirstOrDefault(p => step[1].Length > 0 && p.Text.IndexOf(step[1], StringComparison.OrdinalIgnoreCase) >= 0) ?? (sub.TabCount > 0 ? sub.TabPages[0] : top);
-                    Open(s, top, page);
-                }
-                catch (Exception ex) { System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "setup_error.txt"), ex.ToString()); t.Stop(); }
-            };
-            t.Start();
         }
 
         private static int S(Control c, int px) { return (int)Math.Round(px * c.DeviceDpi / 96.0); }

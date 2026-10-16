@@ -28,3 +28,9 @@ A column of tabs you turn on and off by clicking them: **VFO**, **VFO SYNC**, **
 ## Menus
 
 The menu bar is grouped: **Audio**, **Modes** (FreeDV, RTTY, CW, CWX) and **Tools** (XVTRs, Linearity, Radio Astronomy, Finder) sit between **Memory** and **Compact**. Everything about audio is under **Audio**: Kainos Audio (receive and transmit), the VST3 plugin, Thetis's Equalizer, and shortcuts to the VAC, VOX / DEXP and CFC settings. **Compact** (Thetis's Collapse) tucks the left and right columns away at the window's edges. **Report a bug** is at the top right. The **Setup** menu also has **Back up settings now**, **Run setup wizard**, **Light mode**, **Check for updates** and **Report a bug**.
+
+## Setup
+
+*(Kainos 1.0.11 and later.)* Setup has a **Search settings** box along the top: type part of a setting's name (for example *vox* or *latency*) and the list on the left shows only the pages that mention it. Press **Enter** to open the first one; the setting is highlighted for a moment. **Ctrl+F** jumps to the search box from anywhere in Setup, and **Esc** clears it.
+
+Instead of rows of tabs, Setup's pages are listed down the left: the headings (General, Audio, Display, DSP, Transmit ...) open to show their pages, and the page you're on is marked in gold. The **Up** and **Down** keys step through the pages. Every setting is where it always was, on the same page, so Thetis guides still apply.
