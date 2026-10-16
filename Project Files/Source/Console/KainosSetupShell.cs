@@ -48,11 +48,18 @@ namespace Thetis
             public Point OrigTop;
             public int Dx, Dy;
             public readonly Dictionary<Control, Point> Moved = new Dictionary<Control, Point>();     // and where Setup had each
+            public Size OrigTopSize;
+            // the pages' controls as Setup laid them out, and where Kainos last put them (spread over the bigger page)
+            public readonly Dictionary<Control, Size> PageSize0 = new Dictionary<Control, Size>();
+            public readonly Dictionary<Control, Rectangle> Orig = new Dictionary<Control, Rectangle>();
+            public readonly Dictionary<Control, Point> Placed = new Dictionary<Control, Point>();
         }
 
         private static readonly Dictionary<Setup, Shell> _shells = new Dictionary<Setup, Shell>();
 
         private const int Pad = 8, SearchH = 28, NavW = 196, Gap = 8, TitleH = 40;
+        // the page area, bigger than Setup's own by this much, with the sections spread over it (more room between them)
+        private const float Grow = 1.14f;
 
         public static void Apply(Setup f)
         {
@@ -67,6 +74,7 @@ namespace Thetis
             }
             layout(s);
             hideStrips(s);
+            foreach (TabPage top in s.Top.TabPages) spread(s, top);
             s.Nav.Rebuild();
             shotsStart(s);      // TEMPORARY
         }
@@ -119,6 +127,8 @@ namespace Thetis
         {
             Shell s = new Shell { Form = f, Top = f.TabSetup };
             s.OrigTop = s.Top.Location;
+            s.OrigTopSize = s.Top.Size;
+            foreach (TabPage top in s.Top.TabPages) remember(s, top);
 
             s.Search = new TextBox
             {
@@ -182,6 +192,76 @@ namespace Thetis
             return s;
         }
 
+        // ---- the pages, spread over the bigger area ----
+
+        // a page and its controls as Setup laid them out (and any tab control's pages within it, which grow too)
+        private static void remember(Shell s, TabPage page)
+        {
+            if (s.PageSize0.ContainsKey(page)) return;
+            s.PageSize0[page] = page.ClientSize;
+            page.Resize += (o, e) => spread(s, page);       // a page takes its new size a moment after its tab control
+            foreach (Control c in page.Controls)
+            {
+                s.Orig[c] = c.Bounds;
+                TabControl tc = c as TabControl;
+                if (tc != null) foreach (TabPage p in tc.TabPages) remember(s, p);
+            }
+        }
+
+        // each control at the same proportional place on the bigger page; sections keep their size, so only the gaps
+        // between them grow. A control Thetis has moved since is taken from where it put it. The tab control of
+        // Setup's second row (held, filling the page) is left to fill it.
+        private static void spread(Shell s, TabPage page)
+        {
+            Size s0;
+            bool known = s.PageSize0.TryGetValue(page, out s0);
+            Size s1 = page.ClientSize;
+            if (!known || s0.Width < 50 || s0.Height < 50) return;
+            float fx = s1.Width / (float)s0.Width, fy = s1.Height / (float)s0.Height;
+            if (fx < 1.01f && fy < 1.01f) return;
+            fx = Math.Min(fx, Grow + 0.05f); fy = Math.Min(fy, Grow + 0.05f);
+            foreach (Control c in page.Controls.Cast<Control>().ToList())
+            {
+                if (c is Holder)        // Setup's second row: its pages are spread in their turn
+                {
+                    foreach (TabControl sub in c.Controls.OfType<TabControl>()) foreach (TabPage p in sub.TabPages) spread(s, p);
+                    continue;
+                }
+                if (c.Dock != DockStyle.None)
+                {
+                    // a tab control filling the page grows with it: its pages are spread in their turn
+                    if (c is TabControl) foreach (TabPage p in ((TabControl)c).TabPages) spread(s, p);
+                    continue;
+                }
+                Rectangle o;
+                Point placed;
+                if (!s.Orig.TryGetValue(c, out o)) continue;
+                if (s.Placed.TryGetValue(c, out placed) && c.Location != placed)
+                {
+                    // Thetis moved it (in Setup's own layout): from there
+                    o = new Rectangle(c.Location, o.Size);
+                    s.Orig[c] = o;
+                }
+                Point want = new Point((int)Math.Round(o.X * fx), (int)Math.Round(o.Y * fy));
+                TabControl tc = c as TabControl;
+                if (tc != null)
+                {
+                    // a tab control on the page (a third row): bigger by as much, its pages spread too
+                    Size big = new Size((int)Math.Round(o.Width * fx), (int)Math.Round(o.Height * fy));
+                    if (tc.Size != big) tc.Size = big;
+                    if (c.Location != want) c.Location = want;
+                    s.Placed[c] = want;
+                    foreach (TabPage p in tc.TabPages) spread(s, p);
+                    continue;
+                }
+                if (c.Size != o.Size && (c.Anchor & (AnchorStyles.Left | AnchorStyles.Right)) == (AnchorStyles.Left | AnchorStyles.Right)
+                    || c.Size != o.Size && (c.Anchor & (AnchorStyles.Top | AnchorStyles.Bottom)) == (AnchorStyles.Top | AnchorStyles.Bottom))
+                    c.Size = o.Size;      // stretched by its anchors as the page grew: back to Setup's size
+                if (c.Location != want) c.Location = want;
+                s.Placed[c] = want;
+            }
+        }
+
         // the second row: a tab control filling a top page (General > H/W Select, Options ...)
         internal static TabControl SubOf(TabPage top)
         {
@@ -202,13 +282,13 @@ namespace Thetis
                 if (tc.Appearance != TabAppearance.FlatButtons) tc.Appearance = TabAppearance.FlatButtons;
                 if (tc.SizeMode != TabSizeMode.Fixed) tc.SizeMode = TabSizeMode.Fixed;
                 if (tc.ItemSize != new Size(0, 1)) tc.ItemSize = new Size(0, 1);
-                hold(tc);
+                hold(tc, tc != s.Top);      // the second row fills its page (and grows with it)
             }
         }
 
         private class Holder : Panel { }
 
-        private static void hold(TabControl tc)
+        private static void hold(TabControl tc, bool fillPage)
         {
             Holder h = tc.Parent as Holder;
             if (h == null)
@@ -220,7 +300,7 @@ namespace Thetis
                 parent.SuspendLayout();
                 parent.Controls.Add(h);
                 parent.Controls.SetChildIndex(h, z);
-                h.Dock = tc.Dock;               // a tab control that filled its page: the holder does now
+                h.Dock = fillPage ? DockStyle.Fill : tc.Dock;       // a tab control that filled its page: the holder does now
                 tc.Dock = DockStyle.None;
                 tc.Anchor = AnchorStyles.Top | AnchorStyles.Left;
                 h.Controls.Add(tc);
@@ -259,6 +339,10 @@ namespace Thetis
                 int pad = S(f, Pad), gap = S(f, Gap), navW = S(f, NavW), searchH = S(f, SearchH), titleH = S(f, TitleH);
                 int contentLeft = pad + navW + gap, contentTop = pad + searchH + gap;
                 int dx = contentLeft - s.OrigTop.X, dy = contentTop + titleH - s.OrigTop.Y;
+                int contentW = (int)Math.Round(s.OrigTopSize.Width * Grow), contentH = (int)Math.Round(s.OrigTopSize.Height * Grow);
+                int extraW = contentW - s.OrigTopSize.Width, extraH = contentH - s.OrigTopSize.Height;
+                Func<Point, Point> place = o => new Point(o.X + dx + (o.X > s.OrigTop.X + s.OrigTopSize.Width / 2 ? extraW : 0),
+                                                          o.Y + dy + (o.Y >= s.OrigTop.Y + s.OrigTopSize.Height - 2 ? extraH : 0));
                 foreach (Control c in f.Controls.Cast<Control>().ToList())
                 {
                     if (c == s.SearchHost || c == s.NavHost || c == s.Title) continue;
@@ -267,17 +351,17 @@ namespace Thetis
                     if (s.Moved.TryGetValue(key, out orig))
                     {
                         Point now = c.Location;
-                        if (now == orig) c.Location = new Point(orig.X + dx, orig.Y + dy);      // Setup put it back
+                        if (now == orig) c.Location = place(orig);      // Setup put it back
                         continue;
                     }
                     s.Moved[key] = c.Location;
-                    c.Location = new Point(c.Left + dx, c.Top + dy);
+                    c.Location = place(c.Location);
                 }
+                Control topBox = s.Top.Parent is Holder ? s.Top.Parent : (Control)s.Top;
+                if (topBox.Size != new Size(contentW, contentH)) topBox.Size = new Size(contentW, contentH);
                 s.Dx = dx; s.Dy = dy;
                 // Setup's own area, as it was: its tabs and the buttons under them
-                Control top = s.Top.Parent is Holder ? s.Top.Parent : (Control)s.Top;
-                int contentW = top.Width;
-                int bottom = top.Bottom;
+                int bottom = topBox.Bottom;
                 foreach (string n in new[] { "btnOK", "btnCancel", "btnApply" })
                 {
                     Control b = f.Controls[n];

@@ -583,6 +583,13 @@ namespace Thetis
             {
                 tc.DrawMode = TabDrawMode.OwnerDrawFixed;
                 tc.DrawItem += drawTab;
+                // flat buttons: no light 3-D border round the page; and room round each name, so the pill is bigger than
+                // its text
+                tc.Appearance = TabAppearance.FlatButtons;
+                if (tc.Padding.X < 10) tc.Padding = new Point(10, Math.Max(tc.Padding.Y, 3));
+                // without the separator bars Windows draws between flat tabs (light, whatever the colours)
+                if (tc.IsHandleCreated) noSeparators(tc);
+                tc.HandleCreated += (s, e) => noSeparators(tc);
             }
             foreach (TabPage p in tc.TabPages) { p.UseVisualStyleBackColor = false; p.BackColor = WindowBg; p.ForeColor = Text; }
             if (tc.IsHandleCreated) new TabStripPainter(tc);
@@ -596,12 +603,18 @@ namespace Thetis
             drawPill(e.Graphics, tc, e.Index, tc.GetTabRect(e.Index));
         }
 
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        private static void noSeparators(TabControl tc)
+        {
+            try { SendMessage(tc.Handle, 0x1334 /* TCM_SETEXTENDEDSTYLE */, (IntPtr)1 /* TCS_EX_FLATSEPARATORS */, IntPtr.Zero); } catch { }
+        }
+
         // a tab as a rounded pill: the one shown filled, with gold text and edge
         private static void drawPill(Graphics g, TabControl tc, int i, Rectangle r)
         {
             bool sel = i == tc.SelectedIndex;
             float k = tc.DeviceDpi / 96f;
-            Rectangle p = new Rectangle(r.X + (int)(2 * k), r.Y + (int)(2 * k), r.Width - (int)(4 * k), r.Height - (int)(4 * k));
+            Rectangle p = new Rectangle(r.X + (int)(1 * k), r.Y + (int)(1 * k), r.Width - (int)(2 * k) - 1, r.Height - (int)(2 * k) - 1);
             using (Brush b = new SolidBrush(WindowBg)) g.FillRectangle(b, r);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             float rad = Math.Min(p.Height / 2f, 7 * k), d = rad * 2;
@@ -616,7 +629,7 @@ namespace Thetis
                 using (Pen pen = new Pen(sel ? Gold : Border)) g.DrawPath(pen, path);
             }
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
-            TextRenderer.DrawText(g, tc.TabPages[i].Text, tc.Font, p, sel ? Gold : TextMid,
+            TextRenderer.DrawText(g, tc.TabPages[i].Text, tc.Font, p, sel ? Gold : Text,
                                   TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
         }
 
@@ -635,29 +648,17 @@ namespace Thetis
                 {
                     using (Graphics g = Graphics.FromHwnd(_tc.Handle))
                     {
-                        Rectangle last = _tc.GetTabRect(_tc.TabCount - 1), first = _tc.GetTabRect(0);
-                        int stripTop = Math.Min(first.Top, last.Top), stripBottom = Math.Max(first.Bottom, last.Bottom);
-                        Rectangle page = _tc.DisplayRectangle;
+                        // everything but the page in the window colour (the gaps between flat tabs and the edges round
+                        // the page are drawn light), then each tab as a pill, and a thin frame round the page
+                        Rectangle page = _tc.SelectedTab != null ? _tc.SelectedTab.Bounds : _tc.DisplayRectangle;
+                        using (Region r = new Region(new Rectangle(0, 0, _tc.Width, _tc.Height)))
                         using (Brush b = new SolidBrush(WindowBg))
                         {
-                            if (_tc.Alignment == TabAlignment.Top)
-                            {
-                                g.FillRectangle(b, last.Right + 1, 0, Math.Max(0, _tc.Width - last.Right - 1), stripBottom + 1);
-                                if (stripTop > 0) g.FillRectangle(b, 0, 0, _tc.Width, stripTop);
-                            }
-                            else if (_tc.Alignment == TabAlignment.Bottom)
-                                g.FillRectangle(b, last.Right + 1, stripTop - 1, Math.Max(0, _tc.Width - last.Right - 1), _tc.Height - stripTop + 1);
+                            r.Exclude(page);
+                            g.FillRegion(b, r);
                         }
-                        // every tab, over Windows's light 3-D edges
-                        for (int i = 0; i < _tc.TabCount; i++)
-                        {
-                            Rectangle r = _tc.GetTabRect(i);
-                            using (Brush b = new SolidBrush(WindowBg)) g.FillRectangle(b, Rectangle.Inflate(r, 2, 2));
-                            drawPill(g, _tc, i, r);
-                        }
-                        // the page's border, in the window colours (covers the light 3-D edge)
-                        using (Pen p = new Pen(WindowBg, 4)) g.DrawRectangle(p, page.X - 3, page.Y - 3, page.Width + 5, page.Height + 5);
-                        using (Pen p = new Pen(Border)) g.DrawRectangle(p, page.X - 2, page.Y - 2, page.Width + 3, page.Height + 3);
+                        for (int i = 0; i < _tc.TabCount; i++) drawPill(g, _tc, i, _tc.GetTabRect(i));
+                        using (Pen p = new Pen(Border)) g.DrawRectangle(p, page.X - 1, page.Y - 1, page.Width + 1, page.Height + 1);
                     }
                 }
                 catch { }
