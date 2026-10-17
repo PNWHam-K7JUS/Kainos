@@ -245,6 +245,9 @@ namespace Thetis
         public void Remove() { ui(() => _c.KainosRemoveModuleMenuItem(_modes, _classic)); }
     }
 
+    // the pane's panel is a terminal (IKainosTerminal): the panadapter's layout looks past it, as past RTTY's and CW's
+    internal class KainosModulePanePanel : Panel, IKainosTerminal { }
+
     // A module's pane: its content in a Kainos panel, docked under the panadapter or in its own window
     internal class KainosModulePane : IKainosPane
     {
@@ -262,7 +265,7 @@ namespace Thetis
             _c = c;
             _host = host;
             _title = title;
-            Panel = new Panel { BackColor = KainosUI.Bg, Visible = false, Name = "kainosModulePane_" + host.ModuleId + "_" + Guid.NewGuid().ToString("N").Substring(0, 6) };
+            Panel = new KainosModulePanePanel { BackColor = KainosUI.Bg, Visible = false, Name = "kainosModulePane_" + host.ModuleId + "_" + Guid.NewGuid().ToString("N").Substring(0, 6) };
             content.Dock = DockStyle.Fill;
             Panel.Controls.Add(content);
             _popped = host.GetSetting("pane.popped." + title, "0") == "1";

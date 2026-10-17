@@ -355,7 +355,7 @@ namespace Thetis
             int top = menuStrip1.Bottom + 4;
             int bottom = kainosDisplayBottom();
             int term = kainosTermDockHeight;
-            if (term > 0 && bottom - term - 4 - top > 160) bottom -= term + 4;      // the RTTY / CW terminal under it
+            if (term > 0 && bottom - term - KainosTermGap - top > 160) bottom -= term + KainosTermGap;      // the RTTY / CW / module terminal under it (consoleKainosTerminal.cs)
             if (bottom - top > 100 && (panelDisplay.Top != top || panelDisplay.Height != bottom - top))
                 panelDisplay.SetBounds(panelDisplay.Left, top, panelDisplay.Width, bottom - top);
 
