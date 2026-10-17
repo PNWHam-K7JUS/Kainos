@@ -33,6 +33,7 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="KainosCrispHost.cs" />
     <Compile Include="KainosModuleApi.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
