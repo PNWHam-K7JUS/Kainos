@@ -563,7 +563,8 @@ namespace Thetis
                                 using (Brush b = new SolidBrush(sel ? KainosWindowTheme.Selection : KainosWindowTheme.ButtonHover)) g.FillPath(b, path);
                             if (sel) using (Brush b = new SolidBrush(KainosWindowTheme.Gold)) g.FillRectangle(b, hr.X, hr.Y + 4 * k, 3 * k, hr.Height - 8 * k);
                             Color tc = sel ? KainosWindowTheme.Gold : open ? KainosWindowTheme.TextMid : KainosWindowTheme.TextDim;
-                            TextRenderer.DrawText(g, r.Top.Text.ToUpperInvariant(), headFont, new Rectangle(hr.X + (int)(12 * k), hr.Y, hr.Width - (int)(30 * k), hr.Height), tc,
+                            // TextRenderer (GDI) ignores the scroll transform: its rectangles are moved by hand
+                            TextRenderer.DrawText(g, r.Top.Text.ToUpperInvariant(), headFont, new Rectangle(hr.X + (int)(12 * k), hr.Y - _offset, hr.Width - (int)(30 * k), hr.Height), tc,
                                                   TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
                             // a chevron: open or closed
                             if (SubOf(r.Top) != null && _filter.Length == 0)
@@ -581,7 +582,7 @@ namespace Thetis
                                 using (GraphicsPath path = rounded(pr, 5 * k))
                                 using (Brush b = new SolidBrush(sel ? KainosWindowTheme.Selection : KainosWindowTheme.ButtonHover)) g.FillPath(b, path);
                             if (sel) using (Brush b = new SolidBrush(KainosWindowTheme.Gold)) g.FillRectangle(b, pr.X, pr.Y + 4 * k, 3 * k, pr.Height - 8 * k);
-                            TextRenderer.DrawText(g, r.Page.Text, pageFont, new Rectangle(pr.X + (int)(14 * k), pr.Y, pr.Width - (int)(18 * k), pr.Height),
+                            TextRenderer.DrawText(g, r.Page.Text, pageFont, new Rectangle(pr.X + (int)(14 * k), pr.Y - _offset, pr.Width - (int)(18 * k), pr.Height),
                                                   sel ? Color.White : KainosWindowTheme.Text,
                                                   TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
                         }
