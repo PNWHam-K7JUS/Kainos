@@ -253,6 +253,7 @@ namespace Thetis
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
             console.KainosPanColours = chkKainosPanColours.Checked;
             applyKainosCiv();               // setupKainosCiv.cs: the amplifier link, from the saved settings
+            applyKainosModules();           // setupKainosModules.cs: the installed modules (they start once the console is shown)
             kainosLicenceToCombos();        // setupKainosWizard.cs: the band plan lists from the saved licence, and the band plan to the console
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);

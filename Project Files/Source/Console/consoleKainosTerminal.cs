@@ -91,7 +91,7 @@ namespace Thetis
         {
             get
             {
-                bool docked = (_rttyOpen && _rttyPane != null && !RttyPopped) || (_cwOpen && _cwPane != null && !CwPopped);
+                bool docked = (_rttyOpen && _rttyPane != null && !RttyPopped) || (_cwOpen && _cwPane != null && !CwPopped) || kainosModulePaneDocked;
                 return docked ? KainosUI.S(KainosTerminalHeight) : 0;
             }
         }
@@ -100,6 +100,7 @@ namespace Thetis
         {
             kainosTermPlaceDock(_rttyPane, _rttyOpen, RttyPopped);
             kainosTermPlaceDock(_cwPane, _cwOpen, CwPopped);
+            kainosPlaceModulePanes();       // consoleKainosModules.cs
         }
 
         // after a switch between Classic and Kainos layout
@@ -107,6 +108,7 @@ namespace Thetis
         {
             if (_rttyOpen) rttyPlace();
             if (_cwOpen) cwPlace();
+            kainosModulePanesPlace();
         }
     }
 }

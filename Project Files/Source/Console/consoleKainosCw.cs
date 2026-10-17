@@ -101,6 +101,8 @@ namespace Thetis
                 _cwUiTimer.Tick += (s, e) => cwUiTick();
             }
             if (_rttyOpen) RttyClose();     // one terminal at a time (they share the receive tap)
+            kainosModulesLoseTap();         // consoleKainosModules.cs: a module's pane too
+            KainosTerminalOpening(_cwPane);
             if (!_cwEchoHooked)
             {
                 _cwEchoHooked = true;
