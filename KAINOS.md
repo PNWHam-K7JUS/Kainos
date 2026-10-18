@@ -18,6 +18,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **Setup > Modules** lists add-on features you can download when you want them, instead of everyone getting them in the installer. Install one and Kainos downloads it from GitHub and checks it before installing. Turn it on or off, or remove it, from the same page. **Install from file...** is there for testing a module before it's published.
 - The RTTY, CW and module windows docked under the panadapter can be **made taller or shorter**: drag the bar between them and the panadapter (the panadapter and waterfall give up or take back the height). Double-click the bar for the standard height. The height is remembered.
 - A module's window lives where the RTTY and CW terminals do: docked under the panadapter, or popped out into its own window. It appears in the **Modes** menu.
+- **One digital mode at a time.** RTTY, CW and the modules (FT8 / FT4, SSTV) share the receiver's audio, so opening one closes whichever had it.
 - A module can draw part of its window **at the screen's own resolution**. At 125 % / 150 % display scaling Windows enlarges Kainos as a picture, which blurs fine detail; the FT8/FT4 waterfall is now sharp.
 - The first module, **Digital Modes (FT8 / FT4)**, is being tested and isn't published yet. It decodes with WSJT-X's own decoder and sends straight through Kainos, with no virtual audio cables or CAT. It has band activity, automatic QSO sequencing and an ADIF log.
 
