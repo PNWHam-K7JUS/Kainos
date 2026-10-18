@@ -1,4 +1,4 @@
-/*  setupKainosUI.cs
+﻿/*  setupKainosUI.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 Kainos is based on Thetis : https://github.com/ramdor/Thetis
@@ -53,7 +53,7 @@ namespace Thetis
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
         private ComboBoxTS comboKainosFlagOpacity, comboKainosWheel;
         private TextBoxTS txtKainosFlags;
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact, txtKainosVst;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact, txtKainosVst, txtKainosTermHeight;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -176,6 +176,9 @@ namespace Thetis
             tpAppearanceKainos.Controls.Add(txtKainosCompact);
             txtKainosVst = new TextBoxTS { Name = "txtKainosVst", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosVst);
+            // the docked terminal's height (RTTY, CW, modules), dragged with the bar above it
+            txtKainosTermHeight = new TextBoxTS { Name = "txtKainosTermHeight", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosTermHeight);
             addKainosWizardControls(tpAppearanceKainos);       // setupKainosWizard.cs
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
@@ -214,6 +217,7 @@ namespace Thetis
                     txtKainosCompact.Text = console.KainosCompactSettings;
                     txtKainosVst.Text = KainosVst.Settings;
                     txtKainosFlags.Text = console.KainosFlagSettings;
+                    txtKainosTermHeight.Text = console.KainosTermHeightSetting;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -246,6 +250,7 @@ namespace Thetis
                 if (KainosVst.Available) KainosVst.LoadSettings(console, txtKainosVst.Text);
             }
             console.KainosFlagSettings = txtKainosFlags.Text;
+            console.KainosTermHeightSetting = txtKainosTermHeight.Text;
             console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
@@ -253,6 +258,7 @@ namespace Thetis
             comboKainosBackdropLogo.Enabled = chkKainosBackdrop.Checked;
             console.KainosPanColours = chkKainosPanColours.Checked;
             applyKainosCiv();               // setupKainosCiv.cs: the amplifier link, from the saved settings
+            applyKainosModules();           // setupKainosModules.cs: the installed modules (they start once the console is shown)
             kainosLicenceToCombos();        // setupKainosWizard.cs: the band plan lists from the saved licence, and the band plan to the console
             int pct;
             if (int.TryParse(comboKainosUIScale.Text.TrimEnd('%'), out pct)) KainosUI.SetScalePercent(pct);

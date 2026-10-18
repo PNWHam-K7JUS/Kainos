@@ -387,6 +387,14 @@
 		</Component>
 		
       <Component Guid="*">
+        <File Id="KainosModuleApiDLL"
+              Source="$(var.FilesPath)Kainos.ModuleApi.dll"
+              KeyPath="yes"
+			  Checksum="yes"
+              />
+      </Component>
+
+      <Component Guid="*">
         <File Id="Midi2CatDLL"
               Source="$(var.FilesPath)Midi2Cat.dll"
               KeyPath="yes"

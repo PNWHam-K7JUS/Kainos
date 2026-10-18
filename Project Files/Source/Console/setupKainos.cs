@@ -71,6 +71,7 @@ namespace Thetis
             addRadeTab();
             addKainosUITab();      // setupKainosUI.cs
             addKainosCivTab();     // setupKainosCiv.cs: amplifier band switching over CI-V
+            addKainosModulesTab(); // setupKainosModules.cs: downloadable modules
         }
 
         #region AetherVoice

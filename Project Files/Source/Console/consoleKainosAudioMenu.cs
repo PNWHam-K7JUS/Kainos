@@ -98,6 +98,7 @@ namespace Thetis
             kainosAudioMenuCreate();
             _kainosAudioMenu.Visible = _kainosModesMenu.Visible = _kainosToolsMenu.Visible = on;
             foreach (ToolStripItem i in kainosGroupedItems) if (i != null) i.Visible = !on;
+            foreach (ToolStripItem i in _kainosModuleClassicItems) i.Visible = !on;        // modules' items (consoleKainosModules.cs)
         }
 
         private void kainosOpenPluginPage()

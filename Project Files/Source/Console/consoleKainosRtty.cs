@@ -113,6 +113,8 @@ namespace Thetis
                 _rttyUiTimer.Tick += (s, e) => rttyUiTick();
             }
             if (_cwOpen) CwClose();         // one terminal at a time (they share the receive tap)
+            kainosModulesLoseTap();         // consoleKainosModules.cs: a module's pane too
+            KainosTerminalOpening(_rttyPane);
             _rttyOpen = true;
             rttyToolStripMenuItem.Checked = true;
             rttyPlace();

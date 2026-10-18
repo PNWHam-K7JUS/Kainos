@@ -753,6 +753,15 @@
     <Compile Include="KainosKiwi.cs" />
     <Compile Include="KainosAudioScope.cs" />
     <Compile Include="KainosVst.cs" />
+    <Compile Include="KainosModules.cs" />
+    <Compile Include="consoleKainosModules.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="setupKainosModules.cs">
+      <DependentUpon>setup.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="KainosCiv.cs" />
     <Compile Include="consoleKainosCiv.cs">
       <DependentUpon>console.cs</DependentUpon>
@@ -1462,6 +1471,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ModuleApi\Kainos.ModuleApi.csproj">
+      <Project>{5b1e8d3a-7c2f-4e61-9a0b-2d4f6c8e1a37}</Project>
+      <Name>Kainos.ModuleApi</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Midi2Cat\Midi2Cat.csproj">
       <Project>{66ade184-31ba-4f5b-8007-f39ef1b90f95}</Project>
       <Name>Midi2Cat</Name>

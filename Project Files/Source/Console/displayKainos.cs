@@ -38,13 +38,19 @@ namespace Thetis
             if (console == null || W <= 0 || _d2dRenderTarget == null) return;
             double[] tones;
             try { tones = console.KainosDigiMarkers(rx); } catch { return; }
-            if (tones == null || console.MOX) return;
 
             int low = rx == 1 ? rx_display_low : rx2_display_low;
             int high = rx == 1 ? rx_display_high : rx2_display_high;
             int fDiff = rx == 1 ? freq_diff : rx2_freq_diff;
             float width = high - low;
             if (width <= 0) return;
+
+            if (tones == null)
+            {
+                drawKainosModuleMarkersDX2D(rx, W, H, nVerticalShift, low, fDiff, width);
+                return;
+            }
+            if (console.MOX) return;
 
             SharpDX.Direct2D1.Brush[] brushes =
             {
@@ -65,6 +71,31 @@ namespace Thetis
                 bool leftSide = x < xs[1 - i];
                 float ly = bottom - 40, lx = leftSide ? x - 13 : x + 3;
                 _d2dRenderTarget.DrawText(labels[i], fontDX2d_callout, new SharpDX.Mathematics.Interop.RawRectangleF(lx, ly, lx + 16, ly + 16), brushes[i], DrawTextOptions.None);
+            }
+        }
+
+        // A module's markers (IKainosHost.SetMarkers): a line each in its colour, labelled near the bottom; shown while
+        // transmitting too (a digital-mode module marks where it sends)
+        private static void drawKainosModuleMarkersDX2D(int rx, int W, int H, int nVerticalShift, int low, int fDiff, float width)
+        {
+            Kainos.Modules.KainosMarker[] ms;
+            try { ms = console.KainosModuleMarkers(rx); } catch { return; }
+            if (ms == null) return;
+            float top = nVerticalShift + 18, bottom = nVerticalShift + H;
+            for (int i = 0; i < ms.Length; i++)
+            {
+                Kainos.Modules.KainosMarker m = ms[i];
+                if (m == null) continue;
+                float x = (float)((m.OffsetHz - low - fDiff) / width * W);
+                if (x < 0 || x > W) continue;
+                SharpDX.Direct2D1.Brush b = getDXBrushForColour(m.Colour.IsEmpty ? Color.FromArgb(0xd4, 0xad, 0x6a) : m.Colour, 220);
+                if (b == null) continue;
+                drawLineDX2D(b, x, top, x, bottom, 2f);
+                if (!string.IsNullOrEmpty(m.Label))
+                {
+                    float ly = bottom - 40 - (i % 2) * 16, lx = x + 3;
+                    _d2dRenderTarget.DrawText(m.Label, fontDX2d_callout, new SharpDX.Mathematics.Interop.RawRectangleF(lx, ly, lx + 60, ly + 16), b, DrawTextOptions.None);
+                }
             }
         }
 

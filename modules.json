@@ -1,0 +1,4 @@
+{
+  "about": "The modules Setup > Modules offers. Each entry comes from a module's build (dist/registry-entry.json); see Documentation/Modules.md.",
+  "modules": []
+}
