@@ -87,6 +87,7 @@ namespace Thetis
 		private static IOBoard theSingleton = null; 
         private static Console console;
 		public byte hardwareVersion { set;  get; } = 0;
+		public string KainosVersionReply = "";      // Kainos: the last hardware-version reply (readResponse)
 
 		private byte[] registers = new byte[256];
 		private int lastReadRequest = 0;
@@ -150,6 +151,10 @@ namespace Thetis
 			byte[] read_data = new byte[4];
 
             byte returnCode = (byte) NetworkIO.I2CResponse(read_data);
+
+			// Kainos (GitHub #7): what the last read answered, for the power-on check's log line
+			if (returnCode != 1)
+				KainosVersionReply = "code " + returnCode + ", bytes " + BitConverter.ToString(read_data);
 
 			if( returnCode == 0)
 			{

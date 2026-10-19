@@ -338,6 +338,20 @@ namespace Thetis
             SetupForm.KainosSetAltRx(RX1Band, on);
         }
 
+        // the I/O board check at power-on (UpdateIOBoard) when it fails, in KainosErrors.txt: what came back from the
+        // board's hardware-version register and its controller, so "unticked at power-on" can be told apart (no reply,
+        // nothing on the bus, or a board of another version)
+        private void kainosIoBoardLog(string what)
+        {
+            if (HardwareSpecific.Model != HPSDRModel.HERMESLITE) return;
+            try
+            {
+                System.IO.File.AppendAllText(System.IO.Path.Combine(AppDataPath, "KainosErrors.txt"),
+                    DateTime.Now.ToString("u") + "  I/O board check at power-on: " + what + Environment.NewLine);
+            }
+            catch { }
+        }
+
         internal string KainosAntText(int rx)
         {
             if (KainosAltRxOn) return "ALT RX";

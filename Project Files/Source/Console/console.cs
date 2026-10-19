@@ -25860,13 +25860,14 @@ namespace Thetis
             int status = 0;
 
             ioBoard = IOBoard.getIOBoard(this);
+            ioBoard.KainosVersionReply = "";
 
             // Read the hardware revision on bus 2 at address 0x41, register 0
 
             while (0 != ioBoard.readRequest(IOBoard.Registers.HardwareVersion))
             {
                 await Task.Delay(1);
-                if (timeout++ >= 20) return;
+                if (timeout++ >= 20) { kainosIoBoardLog("the read request wasn't accepted within 20 ms"); return; }
             }
 
             timeout = 0;
@@ -25874,8 +25875,36 @@ namespace Thetis
             do
             {
                 await Task.Delay(1);
-                if (timeout++ >= 20) return;
+                if (timeout++ >= 20) { kainosIoBoardLog("no reply within 20 ms"); return; }
             } while (1 == ioBoard.readResponse());
+
+            // Kainos (GitHub #7): what the check found, so a board that isn't recognised can be told from one not there
+            // not recognised: the reply, and is the board's controller (0x1d) there at all? Its firmware version
+            // (registers 9 and 10). All FF from both: nothing on the HL2's I2C bus answers.
+            if (ioBoard.hardwareVersion != (byte)IOBoard.HardwareVersion.Version_1)
+            {
+                kainosIoBoardLog("reply " + ioBoard.KainosVersionReply + ", version " + ioBoard.hardwareVersion + " (expected 1: not recognised)");
+                ioBoard.KainosVersionReply = "";
+                byte t = 0;
+                bool asked = true;
+                while (0 != ioBoard.readRequest(IOBoard.Registers.REG_FIRMWARE_MAJOR))
+                {
+                    await Task.Delay(1);
+                    if (t++ >= 20) { asked = false; break; }
+                }
+                t = 0;
+                bool answered = asked;
+                if (asked)
+                    do
+                    {
+                        await Task.Delay(1);
+                        if (t++ >= 20) { answered = false; break; }
+                    } while (1 == ioBoard.readResponse());
+                kainosIoBoardLog(!asked ? "controller (0x1d): the read request wasn't accepted" :
+                                 !answered ? "controller (0x1d): no reply within 20 ms" :
+                                 "controller (0x1d): reply " + ioBoard.KainosVersionReply + ", firmware " +
+                                 ioBoard.readRegister(IOBoard.Registers.REG_FIRMWARE_MAJOR) + "." + ioBoard.readRegister(IOBoard.Registers.REG_FIRMWARE_MINOR));
+            }
 
             if (ioBoard.hardwareVersion == (byte) IOBoard.HardwareVersion.Version_1)   // Expect to find version 1 of the IO board
             {
