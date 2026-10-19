@@ -796,6 +796,7 @@ namespace Thetis
         }
         private static void SetupButtonImages(Button ctrl)
         {
+            if (kainosNoImageList(ctrl)) return;
             string skey = "";
             for (int i = 0; i < 8; i++)
             {
@@ -1007,8 +1008,19 @@ namespace Thetis
             }
         }
 
+        // Kainos (GitHub #22): an ImageList holds images up to 256 x 256, and the Kainos layout can make a button wider
+        // than that (279 px at 125 % display scaling), which threw and stopped the rest of the skin loading. Such a
+        // button goes without skin images; Kainos draws its own look on top. True if it was too big.
+        private static bool kainosNoImageList(ButtonBase ctrl)
+        {
+            if (ctrl.Width >= 1 && ctrl.Width <= 256 && ctrl.Height >= 1 && ctrl.Height <= 256) return false;
+            ctrl.ImageList = new ImageList();
+            return true;
+        }
+
         private static void SetupCheckBoxImages(CheckBox ctrl)
         {
+            if (kainosNoImageList(ctrl)) return;
             string skey = "";
             for (int i=0; i<8; i++)
             {
@@ -1517,6 +1529,7 @@ namespace Thetis
 
         private static void SetupRadioButtonImages(RadioButton ctrl)
         {
+            if (kainosNoImageList(ctrl)) return;
             string skey = "";
             for (int i = 0; i < 8; i++)
             {

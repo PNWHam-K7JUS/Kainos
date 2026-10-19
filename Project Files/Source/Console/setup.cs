@@ -12860,7 +12860,10 @@ namespace Thetis
 
             if (Directory.Exists(_skinPath + "\\" + comboAppSkin.Text))
             {
-                Skin.Restore(comboAppSkin.Text, _skinPath, console);
+                // Kainos (GitHub #22): a skin that fails part-way is logged, not thrown. Thrown, it left _skinChanging set
+                // (no skin change worked again) and, at start-up, stopped the settings after it in ForceAllEvents.
+                try { Skin.Restore(comboAppSkin.Text, _skinPath, console); }
+                catch (Exception ex) { Common.LogException(ex); }
                 console.UpdateAndromedaSkins();
                 console.KainosApplyTheme(); // Kainos: consoleKainosLayout.cs (a skin brings back its own background)
             }
