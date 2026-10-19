@@ -26076,6 +26076,7 @@ namespace Thetis
             {
                 if (radePollTick()) { await Task.Delay(1); continue; } // Kainos: consoleRade.cs (RADE end-of-over)
                 int dotdashptt = NetworkIO.nativeGetDotDashPTT();
+                kainosPttWatch(dotdashptt);     // Kainos: consoleKainosPtt.cs (GitHub #23 diagnostic; only watches)
                 DSPMode tx_mode = chkVFOBTX.Checked && chkRX2.Checked ? _rx2_dsp_mode : _rx1_dsp_mode;
 
                 if (!_manual_mox && !_disable_ptt && !_rx_only && !_tx_inhibit && !QSKEnabled && !_ganymede_pa_issue)
