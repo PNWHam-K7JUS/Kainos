@@ -49,8 +49,20 @@ namespace Thetis
         // Kainos UI scale (Setup > Appearance > Kainos): sizes Kainos's own controls on top of Windows's display
         // scaling (Thetis isn't DPI-aware, so Windows already scales the whole program)
         private static float _scale = 1f;
-        public static float Scale { get { return _scale; } }
+        public static float Scale { get { return _cap > 0 ? Math.Min(_scale, _cap) : _scale; } }
         public static event EventHandler ScaleChanged;
+
+        // the bar under the panadapter stops growing at 125 %: its controls lay out and draw inside Capped(1.25f).
+        // Per thread, so the panadapter's own drawing (on its render thread) never sees the cap.
+        [ThreadStatic] private static float _cap;
+        public const float BarMaxScale = 1.25f;
+        private sealed class CapScope : IDisposable
+        {
+            private readonly float _was;
+            public CapScope(float max) { _was = _cap; _cap = max > 0 && (_cap <= 0 || max < _cap) ? max : _cap; }
+            public void Dispose() { _cap = _was; }
+        }
+        public static IDisposable Capped(float max) { return new CapScope(max); }
 
         public static void SetScalePercent(int percent)
         {
@@ -80,7 +92,7 @@ namespace Thetis
             _onMouseClick.Invoke(c, new object[] { new MouseEventArgs(MouseButtons.Left, 1, Math.Max(1, c.Width / 2), Math.Max(1, c.Height / 2), 0) });
         }
 
-        public static int S(float designPx) { return (int)Math.Round(designPx * _scale); }
+        public static int S(float designPx) { return (int)Math.Round(designPx * Scale); }
 
         public static GraphicsPath RoundedRect(RectangleF r, float radius)
         {

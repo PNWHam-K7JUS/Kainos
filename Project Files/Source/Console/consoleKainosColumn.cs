@@ -1560,10 +1560,17 @@ namespace Thetis
             }
         }
 
+        // the most UI scale it's drawn at (0: no limit); the bar under the panadapter stops at KainosUI.BarMaxScale
+        public float MaxScale;
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            Graphics g = e.Graphics;
+            using (KainosUI.Capped(MaxScale)) paintDropDown(e.Graphics);
+        }
+
+        private void paintDropDown(Graphics g)
+        {
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             RectangleF r = new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f);
@@ -1730,9 +1737,17 @@ namespace Thetis
             return c != null && c.Checked;
         }
 
+        // the most UI scale it's drawn at (0: no limit); the bar under the panadapter stops at KainosUI.BarMaxScale
+        public float MaxScale;
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
+            using (KainosUI.Capped(MaxScale)) paintGrid(e);
+        }
+
+        private void paintGrid(PaintEventArgs e)
+        {
             List<Cell> cells = shownCells();
             float gap = KainosUI.S(4), h = Math.Min(KainosUI.S(26), Height), w = (Width - gap * (_columns - 1)) / (float)_columns;
             foreach (Cell c in _cells) c.Rect = RectangleF.Empty;

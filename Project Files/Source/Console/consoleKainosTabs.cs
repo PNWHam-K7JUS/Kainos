@@ -384,9 +384,17 @@ namespace Thetis
             return rows == 0 ? 0 : rows * KainosUI.S(26) + (rows - 1) * KainosUI.S(4);
         }
 
+        // the most UI scale it's drawn at (0: no limit); the bar under the panadapter stops at KainosUI.BarMaxScale
+        public float MaxScale;
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
+            using (KainosUI.Capped(MaxScale)) paintActions(e);
+        }
+
+        private void paintActions(PaintEventArgs e)
+        {
             float gap = KainosUI.S(4), h = KainosUI.S(26), w = (Width - gap * (_columns - 1)) / (float)_columns;
             for (int i = 0; i < _items.Count; i++)
             {

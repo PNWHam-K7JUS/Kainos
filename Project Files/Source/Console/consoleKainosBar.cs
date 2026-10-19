@@ -69,6 +69,10 @@ namespace Thetis
                 _kb3D = new KainosActionGrid(1);
                 _kb3D.Add("3D", () => Display.Kainos3D, () => { Display.Kainos3D = !Display.Kainos3D; kainos3DSave(); }, KainosUI.Tone.Gold, kainos3DMenu);
                 _kainosBar.Controls.AddRange(new Control[] { _kbPan, _kbCenter, _kbPanMain, _kbPanSub, _kbRx, _kbMode, _kbDisp, _kb3D, _kbZoom, _kbZoomButtons });
+                // drawn at no more than 125 %, like the bar's layout (positionKainosBar)
+                foreach (KainosSlider c in new[] { _kbPan, _kbPanMain, _kbPanSub, _kbZoom }) c.MaxScale = KainosUI.BarMaxScale;
+                foreach (KainosButtonGrid c in new[] { _kbCenter, _kbRx, _kbDisp, _kbZoomButtons }) c.MaxScale = KainosUI.BarMaxScale;
+                _kbMode.MaxScale = _kb3D.MaxScale = KainosUI.BarMaxScale;
             }
             _kbCenter.SetTargets(new ButtonBase[] { btnDisplayPanCenter });
             _kbRx.SetTargets(new ButtonBase[] { chkEnableMultiRX, chkPanSwap });
@@ -195,6 +199,12 @@ namespace Thetis
         private void positionKainosBar()
         {
             if (_kainosBar == null || !_kainosBar.Visible) return;
+            // the bar stops growing at 125 % UI scale: past that it only took room from the panadapter
+            using (KainosUI.Capped(KainosUI.BarMaxScale)) positionKainosBarCapped();
+        }
+
+        private void positionKainosBarCapped()
+        {
             int h = KainosUI.S(24);
             int top = Math.Max(0, panelDisplay.Height - h - 2);
             if (infoBar != null && infoBar.Visible && infoBar.Bottom <= top + 2) top = Math.Max(top, infoBar.Bottom + 1);

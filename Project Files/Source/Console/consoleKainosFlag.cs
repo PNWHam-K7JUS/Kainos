@@ -1234,10 +1234,17 @@ namespace Thetis
 
         private float norm { get { int span = Math.Max(1, _target.Maximum - _target.Minimum); return (_target.Value - _target.Minimum) / (float)span; } }
 
+        // the most UI scale it's drawn at (0: no limit); the bar under the panadapter stops at KainosUI.BarMaxScale
+        public float MaxScale;
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            Graphics g = e.Graphics;
+            using (KainosUI.Capped(MaxScale)) paintSlider(e.Graphics);
+        }
+
+        private void paintSlider(Graphics g)
+        {
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             if (_compact)
@@ -1268,7 +1275,8 @@ namespace Thetis
 
         private void setFromX(int x)
         {
-            RectangleF t = track;
+            RectangleF t;
+            using (KainosUI.Capped(MaxScale)) t = track;
             float n = Math.Max(0, Math.Min(1, (x - t.X) / t.Width));
             setValue(_target.Minimum + (int)Math.Round(n * (_target.Maximum - _target.Minimum)));
         }
