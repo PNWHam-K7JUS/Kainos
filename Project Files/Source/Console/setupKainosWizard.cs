@@ -28,6 +28,7 @@ namespace Thetis
     {
         private TextBoxTS txtKainosWizard, txtKainosLicence;
         private CheckBoxTS chkKainosModelChecked;       // the one-time radio model check has run (KainosCheckRadioModel)
+        private CheckBoxTS chkKainosVacMuteChecked;     // the one-time "mute will mute VAC" switch-on has run (KainosCheckVacMute)
         // light mode (consoleKainosSupport.cs): the box, and the frame rate and 3D it replaced; the update check's
         // "last=yyyy-mm-dd;skip=version"
         private CheckBoxTS chkKainosLightMode;
@@ -42,6 +43,8 @@ namespace Thetis
             page.Controls.Add(txtKainosLicence);
             chkKainosModelChecked = new CheckBoxTS { Name = "chkKainosModelChecked", Visible = false, Checked = false };
             page.Controls.Add(chkKainosModelChecked);
+            chkKainosVacMuteChecked = new CheckBoxTS { Name = "chkKainosVacMuteChecked", Visible = false, Checked = false };
+            page.Controls.Add(chkKainosVacMuteChecked);
 
             ButtonTS run = new ButtonTS { Name = "btnKainosWizard", Text = "Run setup wizard...", Location = new Point(8, 316), Size = new Size(160, 26) };
             toolTip1.SetToolTip(run, "Set Kainos up for your Hermes Lite 2: callsign, grid square, licence class and which boards the HL2 has.");
@@ -174,6 +177,17 @@ namespace Thetis
             bool change = comboRadioModel.Text == "HERMES";
             if (change) select(comboRadioModel, "HERMES LITE");     // saved with the options as usual (it runs during start-up)
             return change && comboRadioModel.Text == "HERMES LITE";
+        }
+
+        // Once (GitHub #19): an HL2 is usually heard through VAC, and Thetis's "Mute will mute VAC 1/2" options start off,
+        // so MUTE (the VFO flags, the audio tab, anywhere) left the audio playing. New installs now start with both on;
+        // this switches them on once for existing installs, after which unticking them in Setup > Audio > Options sticks.
+        internal void KainosCheckVacMute()
+        {
+            if (chkKainosVacMuteChecked == null || chkKainosVacMuteChecked.Checked) return;
+            chkKainosVacMuteChecked.Checked = true;
+            chkVAC1WillMute.Checked = true;     // saved with the options as usual (it runs during start-up)
+            chkVAC2WillMute.Checked = true;
         }
 
         internal KainosWizardAnswers KainosWizardRead()

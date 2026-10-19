@@ -30750,6 +30750,8 @@
             // chkVAC2WillMute
             // 
             this.chkVAC2WillMute.AutoSize = true;
+            this.chkVAC2WillMute.Checked = true;
+            this.chkVAC2WillMute.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkVAC2WillMute.Image = null;
             this.chkVAC2WillMute.Location = new System.Drawing.Point(31, 122);
             this.chkVAC2WillMute.Name = "chkVAC2WillMute";
@@ -30850,6 +30852,8 @@
             // chkVAC1WillMute
             // 
             this.chkVAC1WillMute.AutoSize = true;
+            this.chkVAC1WillMute.Checked = true;
+            this.chkVAC1WillMute.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkVAC1WillMute.Image = null;
             this.chkVAC1WillMute.Location = new System.Drawing.Point(31, 99);
             this.chkVAC1WillMute.Name = "chkVAC1WillMute";

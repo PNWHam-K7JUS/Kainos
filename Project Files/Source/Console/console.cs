@@ -2077,6 +2077,7 @@ namespace Thetis
             // Kainos: an install still on HERMES (Kainos 1.0.0 - 1.0.9's first-run default) becomes HERMES LITE here, before
             // the HL2's own start-up below (attenuator range, menus, antenna labels) and GetState; the message comes later
             _kainosModelChanged = SetupForm.KainosCheckRadioModel();
+            SetupForm.KainosCheckVacMute();     // GitHub #19: MUTE also mutes VAC, switched on once
 
             BuildTXProfileCombos(); // MW0LGE_21k9rc4b build them, so that GetState can apply the combobox text
 
