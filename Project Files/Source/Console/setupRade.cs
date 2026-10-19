@@ -39,12 +39,13 @@ namespace Thetis
         public TextBoxTS Grid, ReporterMessage;                     // FreeDV Reporter
         public CheckBoxTS Reporting, IgnoreQsy, ReporterUtc;
         public CheckBoxTS OverlayRX1, OverlayRX2, OverlayTX;        // panadapter status overlay
+        public ComboBoxTS Mode;                                     // DIGU / DIGL, or USB / LSB (GitHub #21)
 
         public Control[] All
         {
             get
             {
-                return new Control[] { Callsign, Version, VersionRX2, MicLevel, RxLevel, RxLevelRX2, MicRNNoise, MicAGC, MicEQ, MicAGCTarget,
+                return new Control[] { Callsign, Version, VersionRX2, Mode, MicLevel, RxLevel, RxLevelRX2, MicRNNoise, MicAGC, MicEQ, MicAGCTarget,
                                        BassFreq, BassGain, MidFreq, MidGain, MidQ, TrebleFreq, TrebleGain, EQVol,
                                        Grid, ReporterMessage, Reporting, IgnoreQsy, ReporterUtc, OverlayRX1, OverlayRX2, OverlayTX };
             }
@@ -67,7 +68,7 @@ namespace Thetis
             };
             RadeSetupControls r = _rade = new RadeSetupControls();
 
-            GroupBoxTS grp = new GroupBoxTS { Name = "grpRade", Text = "RADE digital voice", Location = new Point(8, 8), Size = new Size(430, 158) };
+            GroupBoxTS grp = new GroupBoxTS { Name = "grpRade", Text = "RADE digital voice", Location = new Point(8, 8), Size = new Size(430, 186) };
             r.Callsign = new TextBoxTS { Name = "txtRadeCallsign", Location = new Point(120, 22), Size = new Size(110, 20), CharacterCasing = CharacterCasing.Upper, MaxLength = 8 };
             toolTip1.SetToolTip(r.Callsign, "Your callsign. It is sent in the end-of-over frame at the end of every RADE over,\r\n" +
                 "so the other station sees who was transmitting.");
@@ -91,14 +92,23 @@ namespace Thetis
             grp.Controls.Add(r.VersionRX2);
             grp.Controls.Add(avLabel("RX2 level (dB)", 250, 83));
             grp.Controls.Add(r.RxLevelRX2);
+            r.Mode = new ComboBoxTS { Name = "comboRadeMode", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(120, 108), Size = new Size(150, 21) };
+            r.Mode.Items.AddRange(new object[] { "Digital (DIGU / DIGL)", "Voice (USB / LSB)" });
+            r.Mode.SelectedIndex = 0;
+            toolTip1.SetToolTip(r.Mode, "The mode the receiver is put in while RADE is on (upper sideband from 10 MHz up and on 60 m,\r\n" +
+                "lower below). Voice is for radios whose own mic jack isn't used in the digital modes, such as the\r\n" +
+                "ANAN G2: the mic then reaches the encoder. Either way the TX compressor, CFC and EQ are bypassed\r\n" +
+                "during RADE overs. Takes effect the next time RADE is switched on.");
+            grp.Controls.Add(avLabel("Mode", 14, 111));
+            grp.Controls.Add(r.Mode);
             LabelTS how = avLabel("Switch RADE on for RX1 or RX2 in the FreeDV window (FreeDV on the menu bar); the receiver changes " +
-                "to DIGU or DIGL while it is on. The TX compressor, CFC and EQ are bypassed during RADE overs.", 14, 110);
+                "to the mode above while it is on. The TX compressor, CFC and EQ are bypassed during RADE overs.", 14, 138);
             how.AutoSize = false;
             how.Size = new Size(404, 42);
             grp.Controls.Add(how);
             tpDSPRade.Controls.Add(grp);
 
-            GroupBoxTS mic = new GroupBoxTS { Name = "grpRadeMic", Text = "Mic processing before the encoder (as in FreeDV-GUI)", Location = new Point(8, 174), Size = new Size(430, 200) };
+            GroupBoxTS mic = new GroupBoxTS { Name = "grpRadeMic", Text = "Mic processing before the encoder (as in FreeDV-GUI)", Location = new Point(8, 202), Size = new Size(430, 200) };
             r.MicRNNoise = new CheckBoxTS { Name = "chkRadeMicRNNoise", Text = "Noise reduction (RNNoise)", Location = new Point(14, 22), AutoSize = true };
             r.MicAGC = new CheckBoxTS { Name = "chkRadeMicAGC", Text = "AGC, target (LUFS)", Location = new Point(14, 48), AutoSize = true };
             r.MicAGCTarget = avUpDown("udRadeMicAGCTarget", -30, 0, -23, 1, 0, 160, 46, "Loudness the AGC holds your mic audio at (ITU-R BS.1770), with a peak limiter.");
@@ -274,6 +284,7 @@ namespace Thetis
             console.RadeMeasureRx2 = r.OverlayRX2.Checked;
             console.RadeMeasureTx = r.OverlayTX.Checked;
             console.RadeReporterTimesUtc = r.ReporterUtc.Checked;
+            console.RadeVoiceModes = r.Mode.SelectedIndex == 1;
             FreeDVReporter.FreeDVReporterManager.Configure(console, r.Callsign.Text, r.Grid.Text, r.ReporterMessage.Text, r.Reporting.Checked);
             try
             {

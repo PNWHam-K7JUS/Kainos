@@ -104,6 +104,9 @@ namespace Thetis
 
         public bool RadeAnyEnabled { get { return RadeEnabledOn(0) || RadeEnabledOn(1); } }
 
+        // Setup > DSP > FreeDV (RADE) > Mode: RADE puts the receiver in USB / LSB instead of DIGU / DIGL (GitHub #21)
+        public bool RadeVoiceModes;
+
         public bool SetRadeEnabled(bool on) { return SetRadeEnabled(0, on); }
 
         // RADE is the operating mode for a receiver while it is on: it goes to DIGL below 10 MHz and DIGU above
@@ -133,7 +136,10 @@ namespace Thetis
                 reapplyAF(rx);
 
                 double f = rx == 0 ? VFOAFreq : VFOBFreq;
-                DSPMode want = (f >= 5.0 && f < 5.5) || f >= 10.0 ? DSPMode.DIGU : DSPMode.DIGL;
+                bool upper = (f >= 5.0 && f < 5.5) || f >= 10.0;
+                // USB / LSB instead when asked (GitHub #21): some radios (the ANAN G2's own mic jack) take no mic audio
+                // in the digital modes. RADE's overs bypass the voice processing either way (kainosRade.cs).
+                DSPMode want = RadeVoiceModes ? (upper ? DSPMode.USB : DSPMode.LSB) : (upper ? DSPMode.DIGU : DSPMode.DIGL);
                 _radeForcedMode[rx] = want;
                 if (rxMode(rx) != want)
                 {

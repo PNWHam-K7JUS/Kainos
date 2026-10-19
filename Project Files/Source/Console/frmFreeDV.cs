@@ -130,7 +130,7 @@ namespace Thetis
             _tips.SetToolTip(_btnRX2, "Show and control RADE on RX2 (RX2 must be on). A VFO B over with RX2 on is sent from RX2's RADE.");
             Controls.Add(_btnRX1);
             Controls.Add(_btnRX2);
-            _tips.SetToolTip(_btnOn, "Turn RADE on or off for the receiver shown. On: it changes to DIGU or DIGL, received RADE is decoded to speech,\r\n" +
+            _tips.SetToolTip(_btnOn, "Turn RADE on or off for the receiver shown. On: it changes to DIGU / DIGL (or USB / LSB, Setup > DSP > FreeDV), received RADE is decoded to speech,\r\n" +
                                      "and your overs from it are sent as RADE. Off: it goes back to the mode it was in.");
             _tips.SetToolTip(_btnV1, "RADE V1: what most stations use. Both ends must use the same version.");
             _tips.SetToolTip(_btnV2, "RADE V2. Both ends must use the same version. V2 does not send or receive callsigns.");
