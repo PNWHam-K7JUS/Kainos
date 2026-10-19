@@ -190,6 +190,23 @@ namespace Thetis
             chkVAC2WillMute.Checked = true;
         }
 
+        // Alt RX, the HL2 I/O board's receive-only input, for a band (GitHub #7): the band's "Alt Rx" box on Setup >
+        // General > Ant/Filters > Antenna. Ticking it runs Thetis's own handler (ProcessAlexAntCheckBox), which sets
+        // the band's receive-only antenna and switches the I/O board through Alex.UpdateAlexAntSelection.
+        private CheckBoxTS kainosAltRxBox(Band band)
+        {
+            int idx = (int)band - (int)Band.B160M;
+            if (_AlexRxOnlyAntCheckBoxes == null || idx < 0 || idx >= _AlexRxOnlyAntCheckBoxes.Length) return null;
+            return _AlexRxOnlyAntCheckBoxes[idx][0];
+        }
+        internal bool KainosHasAltRx(Band band) { CheckBoxTS c = kainosAltRxBox(band); return c != null && c.Enabled; }
+        internal bool KainosAltRx(Band band) { CheckBoxTS c = kainosAltRxBox(band); return c != null && c.Checked; }
+        internal void KainosSetAltRx(Band band, bool on)
+        {
+            CheckBoxTS c = kainosAltRxBox(band);
+            if (c != null && c.Checked != on) c.Checked = on;
+        }
+
         internal KainosWizardAnswers KainosWizardRead()
         {
             string[] lic = (txtKainosLicence.Text ?? "").Split('|');

@@ -316,8 +316,31 @@ namespace Thetis
             return string.Join(" ", on);
         }
 
+        // Alt RX (GitHub #7): an HL2 with the I/O board can receive on the board's receive-only input, band by band
+        // (Setup > General > Ant/Filters > Antenna, "Alt Rx"); clicking the antenna on VFO A's flag switches the band
+        // between that and the main antenna. The HL2 has one receiver input, so it's the same for RX2. Transmit stays
+        // on the main antenna (Alex.UpdateAlexAntSelection drops the receive-only input while transmitting).
+        internal bool KainosAltRxAvailable
+        {
+            get
+            {
+                return HardwareSpecific.Model == HPSDRModel.HERMESLITE && !IsSetupFormNull && SetupForm.HL2IOBoardPresent &&
+                       SetupForm.KainosHasAltRx(RX1Band);
+            }
+        }
+        // on for this band, and not overridden by "Tx Ant" (receive on the transmit antenna)
+        internal bool KainosAltRxOn { get { return KainosAltRxAvailable && SetupForm.KainosAltRx(RX1Band) && !chkRxAnt.Checked; } }
+        internal void KainosToggleAltRx()
+        {
+            if (!KainosAltRxAvailable || _mox) return;
+            bool on = !KainosAltRxOn;
+            if (on && chkRxAnt.Checked) chkRxAnt.Checked = false;      // "Tx Ant" would hide it
+            SetupForm.KainosSetAltRx(RX1Band, on);
+        }
+
         internal string KainosAntText(int rx)
         {
+            if (KainosAltRxOn) return "ALT RX";
             string t = toolStripStatusLabelRXAnt.Text ?? "";      // the HL2 has the one receive antenna for both
             return t.Replace("Rx ", "").Replace("RX ", "").Trim().ToUpperInvariant().Replace(" ", "");
         }
@@ -696,7 +719,7 @@ namespace Thetis
         private readonly List<KeyValuePair<RectangleF, long>> _digits = new List<KeyValuePair<RectangleF, long>>();
         private readonly RectangleF[] _tabRects = new RectangleF[Tabs.Length];
         private int _hoverTab = -1;
-        private RectangleF _txRect, _freqRect, _listenRect;
+        private RectangleF _txRect, _freqRect, _listenRect, _antRect;
         private bool _hoverListen;
         private bool _hoverTx;
         public string OpenTab;
@@ -811,7 +834,10 @@ namespace Thetis
             float x = pad + badge + 7 * s;
             using (Font f = new Font("Segoe UI", 11 * s, FontStyle.Bold, GraphicsUnit.Pixel))
             {
-                x = drawItem(g, f, _console.KainosAntText(_rx), tone, x, y, badge);
+                // the antenna: on VFO A with the HL2's I/O board, a click switches the band to or from Alt RX (GitHub #7)
+                float antX = x;
+                x = drawItem(g, f, _console.KainosAntText(_rx), _rx == 1 && _console.KainosAltRxOn ? KainosUI.IceHi : tone, x, y, badge);
+                _antRect = _rx == 1 && _console.KainosAltRxAvailable && x > antX ? new RectangleF(antX - 2 * s, y, x - antX, badge) : RectangleF.Empty;
                 x = drawItem(g, f, _console.KainosFilterText(_rx), KainosUI.Dim, x, y, badge);
             }
             using (Font f = new Font("Segoe UI", 10 * s, FontStyle.Regular, GraphicsUnit.Pixel))
@@ -1072,7 +1098,7 @@ namespace Thetis
             bool overListen = _listenRect.Contains(e.Location);
             if (overListen != _hoverListen) { _hoverListen = overListen; Invalidate(); }
             if (overListen) { Cursor = Cursors.Hand; return; }
-            Cursor = h >= 0 || overTx || _pinRect.Contains(e.Location) ? Cursors.Hand : overDigit ? Cursors.IBeam : inDragArea(e.Location) ? Cursors.SizeAll : Cursors.Default;
+            Cursor = h >= 0 || overTx || _pinRect.Contains(e.Location) || _antRect.Contains(e.Location) ? Cursors.Hand : overDigit ? Cursors.IBeam : inDragArea(e.Location) ? Cursors.SizeAll : Cursors.Default;
             if (h != _hoverTab || overTx != _hoverTx) { _hoverTab = h; _hoverTx = overTx; Invalidate(); }
         }
 
@@ -1086,6 +1112,7 @@ namespace Thetis
             if (_listenRect.Contains(e.Location)) { _console.KainosToggleListenB(); Invalidate(); return; }      // hear VFO B in split
             if (_pinRect.Contains(e.Location)) { PinClicked?.Invoke(); return; }                               // back on its VFO
             if (_txRect.Contains(e.Location)) { _console.KainosSetTxVfo(_rx); Invalidate(); return; }
+            if (_antRect.Contains(e.Location)) { _console.KainosToggleAltRx(); Invalidate(); return; }       // main antenna / Alt RX
             if (_freqRect.Contains(e.Location)) { beginEdit(); return; }
             if (inDragArea(e.Location)) { _dragY = Cursor.Position.Y; _dragX = Cursor.Position.X; Capture = true; return; }
             if (!tabRow) return;
