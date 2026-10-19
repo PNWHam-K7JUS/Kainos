@@ -41,11 +41,12 @@ namespace Thetis
         {
             _scopeView = new KainosScopeView { RxRate = () => Audio.OutRate, TxRate = () => Audio.OutRateTX, AfInfo = scopeAfInfo };
             _scopeView.MenuWanted += p => scopeMenu(p);
-            _scopeButtons = new KainosActionGrid(4) { Name = "kainosScopeButtons" };
-            for (int i = 0; i < 4; i++)
+            // quick timebases, from a single cycle to speech (the rest are on the right-click menu)
+            _scopeButtons = new KainosActionGrid(KainosScopeView.ButtonTimebases.Length) { Name = "kainosScopeButtons" };
+            foreach (int tb in KainosScopeView.ButtonTimebases)
             {
-                int t = KainosScopeView.Timebases[i];
-                _scopeButtons.Add(t + " ms", () => _scopeView.Timebase == t, () => { _scopeView.Timebase = t; scopeSave(); }, KainosUI.Tone.Ice);
+                int t = tb;
+                _scopeButtons.Add(KainosScopeView.TimebaseText(t), () => _scopeView.Timebase == t, () => { _scopeView.Timebase = t; scopeSave(); }, KainosUI.Tone.Ice);
             }
             _kainosColumn.Viewport.Controls.Add(_scopeButtons);
             _kainosColumn.Viewport.Controls.Add(_scopeView);
@@ -160,10 +161,10 @@ namespace Thetis
             foreach (int t in KainosScopeView.Timebases)
             {
                 int tt = t;
-                tb.DropDownItems.Add(item(t + " ms", v.Timebase == t, () => { v.Timebase = tt; _scopeButtons.Invalidate(); }));
+                tb.DropDownItems.Add(item(KainosScopeView.TimebaseText(t), v.Timebase == t, () => { v.Timebase = tt; _scopeButtons.Invalidate(); }));
             }
             menu.Items.Add(tb);
-            menu.Items.Add(item("Trigger (hold the wave still)", v.Trigger, () => v.Trigger = !v.Trigger));
+            menu.Items.Add(item("Trigger (hold the wave still; up to 100 ms)", v.Trigger, () => v.Trigger = !v.Trigger));
 
             ToolStripMenuItem ch = new ToolStripMenuItem("Channels") { ForeColor = KainosUI.Text };
             ch.DropDownItems.Add(item("Left and right", v.Channel == KainosScopeView.Channels.Both, () => v.Channel = KainosScopeView.Channels.Both));

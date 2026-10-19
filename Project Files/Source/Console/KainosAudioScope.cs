@@ -34,7 +34,7 @@ namespace Thetis
         // set by the console while the tab is on screen; cmaster keeps the tap running while it is
         public static volatile bool Wanted;
 
-        private const int Size = 32768;                 // a power of two: about 0.68 s at 48 kHz
+        private const int Size = 131072;                // a power of two: about 2.7 s at 48 kHz (the 2 s timebase)
         private static readonly float[] _left = new float[Size], _right = new float[Size];
         private static int _write;                      // the next sample to write (total written, wraps)
         private static bool _tx;
@@ -56,19 +56,23 @@ namespace Thetis
             }
         }
 
-        // the latest n samples, oldest first; tx: they're the transmit signal (I and Q) rather than receive audio
+        // the latest n samples, oldest first, into the last n places of left / right (the rest is left as it was);
+        // tx: they're the transmit signal (I and Q) rather than receive audio
         public static void Latest(float[] left, float[] right, int n, out bool tx)
         {
-            n = Math.Min(n, Size);
+            n = Math.Min(Math.Min(n, Size), left.Length);
+            int at = left.Length - n;
             lock (_lock)
             {
                 tx = _tx;
                 int start = (_write - n) & (Size - 1);
-                for (int i = 0; i < n; i++)
+                int first = Math.Min(n, Size - start);          // up to the end of the ring, then from its start
+                Array.Copy(_left, start, left, at, first);
+                Array.Copy(_right, start, right, at, first);
+                if (first < n)
                 {
-                    int r = (start + i) & (Size - 1);
-                    left[i] = _left[r];
-                    right[i] = _right[r];
+                    Array.Copy(_left, 0, left, at + first, n - first);
+                    Array.Copy(_right, 0, right, at + first, n - first);
                 }
             }
         }
@@ -91,7 +95,12 @@ namespace Thetis
         public enum Channels { Both, Left, Right }
         public enum Themes { Standard, Kainos, Phosphor, Heat, Spectrum }
         public static readonly string[] ThemeNames = { "Standard", "Kainos (glow)", "Phosphor (CRT afterglow)", "Heat (by level)", "Spectrum (by frequency)" };
-        public static readonly int[] Timebases = { 2, 5, 10, 20, 50, 100 };        // ms across; the first four have buttons
+        // ms across. From RollFrom up (GitHub #25: speech, as AetherSDR shows it) the view rolls, newest at the right,
+        // with no trigger, and is drawn as the signal's envelope
+        public static readonly int[] Timebases = { 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000 };
+        public static readonly int[] ButtonTimebases = { 2, 10, 50, 200, 1000 };
+        public const int RollFrom = 200;
+        public static string TimebaseText(int ms) { return ms >= 1000 ? (ms / 1000) + " s" : ms + " ms"; }
         public static readonly int[] FullScales = { 0, -10, -20, -30, -40, -50 };   // fixed full scale, dBFS
 
         private const int FftSize = 4096;               // about 12 Hz a bin at 48 kHz
@@ -118,7 +127,7 @@ namespace Thetis
         [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr hdc);
 
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")] private static extern int DwmFlush();
-        private readonly float[] _l = new float[16384], _r = new float[16384];
+        private readonly float[] _l = new float[131072], _r = new float[131072];      // the tap's size: up to 2 s
         private float[] _shownL = new float[0], _shownR = new float[0];
         private bool _shownTx, _stereo;
         private float _gainPeak = 1e-4f, _peak;
@@ -276,19 +285,33 @@ namespace Thetis
         private void capture()
         {
             bool tx;
-            int rate = 48000;
-            KainosScopeTap.Latest(_l, _r, _l.Length, out tx);
+            // only what this frame needs (the latest samples go at the arrays' ends): the spectrum's FFT, and the
+            // waveform's view (two with the trigger, to find one with a whole view after it). The rate is the one of the
+            // previous frame, which only matters for the frame after a TX / RX change.
+            int rate = _shownTx ? _txRate : _rxRate;
+            int need = Show != Shows.Scope ? FftSize : 0;
+            if (Show != Shows.Af) need = Math.Max(need, scopeView(rate) * (rolling ? 1 : 2));
+            KainosScopeTap.Latest(_l, _r, Math.Min(_l.Length, need + 16), out tx);
             rate = tx ? _txRate : _rxRate;
             _shownTx = tx;
             if (Show != Shows.Af) captureScope(rate, tx);
             if (Show != Shows.Scope) captureAf(rate, tx);
         }
 
+        // the long timebases roll: newest at the right, no trigger, drawn as the envelope (GitHub #25)
+        private bool rolling { get { return _timebase >= RollFrom; } }
+
+        // samples across the view: two views' worth must fit to trigger, one to roll
+        private int scopeView(int rate)
+        {
+            return Math.Max(16, Math.Min(rolling ? _l.Length : _l.Length / 2, (int)((long)rate * _timebase / 1000)));
+        }
+
         private void captureScope(int rate, bool tx)
         {
-            // two views' worth, so a trigger can be found with a whole view after it
-            int view = Math.Max(16, Math.Min(_l.Length / 2, rate * _timebase / 1000));
-            int span = view * 2, first = _l.Length - span;
+            // two views' worth, so a trigger can be found with a whole view after it (one when rolling)
+            int view = scopeView(rate);
+            int span = rolling ? view : view * 2, first = _l.Length - span;
             float[] trig = !tx && Channel == Channels.Right ? _r : _l;
 
             float peak = 0, diff = 0;
@@ -306,7 +329,7 @@ namespace Thetis
             // the latest rising zero crossing that still has a whole view after it (armed below -10% of the peak);
             // none (noise, silence) or the trigger off: the latest view as it is
             int start = _l.Length - view;
-            if (Trigger)
+            if (Trigger && !rolling)
             {
                 float arm = -0.1f * peak;
                 for (int i = _l.Length - view; i > first; i--)
@@ -578,6 +601,7 @@ namespace Thetis
         {
             if (s.Length < 2) { brush?.Dispose(); return; }
             float w = r.Width;
+            if (s.Length > w * 3) { drawEnvelope(g, r, s, c, scale, mid, brush); return; }
             // at most about two points a pixel
             int step = Math.Max(1, s.Length / Math.Max(1, (int)(w * 2)));
             int n = (s.Length - 1) / step + 1;
@@ -590,6 +614,29 @@ namespace Thetis
                 using (Pen glow = new Pen(Color.FromArgb(50, c), width * 4) { LineJoin = LineJoin.Bevel }) g.DrawLines(glow, thin(pts));
             using (Pen p = brush != null ? new Pen(brush, width + 0.4f) : new Pen(c, width)) g.DrawLines(p, pts);
             brush?.Dispose();
+        }
+
+        // many samples a pixel (the long timebases, GitHub #25): each pixel column filled from its lowest sample to its
+        // highest, so speech shows as its envelope. Picking every so many samples instead, as a line does, misses the
+        // peaks and draws a different scribble each frame.
+        private void drawEnvelope(Graphics g, RectangleF r, float[] s, Color c, float scale, float mid, Brush brush)
+        {
+            int cols = Math.Max(2, (int)r.Width);
+            PointF[] poly = new PointF[cols * 2];
+            for (int x = 0; x < cols; x++)
+            {
+                int a = (int)((long)x * s.Length / cols), b = Math.Max(a + 1, (int)((long)(x + 1) * s.Length / cols));
+                float lo = s[a], hi = s[a];
+                for (int i = a + 1; i < b && i < s.Length; i++) { if (s[i] < lo) lo = s[i]; else if (s[i] > hi) hi = s[i]; }
+                float px = r.Left + x * (r.Width - 1) / (cols - 1);
+                float top = Math.Max(r.Top, Math.Min(r.Bottom, mid - hi * scale)), bottom = Math.Max(r.Top, Math.Min(r.Bottom, mid - lo * scale));
+                if (bottom - top < 1) { top -= 0.5f; bottom += 0.5f; }          // silence still shows as a line
+                poly[x] = new PointF(px, top);
+                poly[cols * 2 - 1 - x] = new PointF(px, bottom);
+            }
+            if ((Theme == Themes.Kainos || Theme == Themes.Phosphor) && !_light)
+                using (Pen glow = new Pen(Color.FromArgb(40, c), Math.Max(1f, KainosUI.S(1.5f)) * 3) { LineJoin = LineJoin.Round }) g.DrawPolygon(glow, poly);
+            using (Brush fill = brush ?? new SolidBrush(Color.FromArgb(210, c))) g.FillPolygon(fill, poly);
         }
 
         // a wide, soft glow doesn't need every point: about one every 3 px is several times quicker to draw
