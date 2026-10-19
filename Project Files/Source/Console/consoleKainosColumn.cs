@@ -784,7 +784,7 @@ namespace Thetis
                 uc.LocationChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
                 uc.SizeChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
             }
-            MeterManager.enableContainer(KainosMeterId, _kainosColumn.IsOn("meters"));
+            kainosMeterEnable(_kainosColumn.IsOn("meters"));
             positionKainosDock();       // and the column
         }
 
@@ -815,7 +815,14 @@ namespace Thetis
         private void kainosDetachMeter()
         {
             if (_kainosMeter != null && !string.IsNullOrEmpty(KainosMeterId))
-                MeterManager.enableContainer(KainosMeterId, false);
+                kainosMeterEnable(false);
+        }
+
+        // the METERS tab's container on or off. Off, MeterManager is told not to bring it back on TX / RX (GitHub #26)
+        private void kainosMeterEnable(bool on)
+        {
+            MeterManager.KainosHoldOff(KainosMeterId, !on);
+            if (_kainosMeter == null || _kainosMeter.MeterEnabled != on) MeterManager.enableContainer(KainosMeterId, on);
         }
 
         private int kainosMetersMeasure(int w)
@@ -832,7 +839,7 @@ namespace Thetis
         {
             if (_kainosMeter == null || string.IsNullOrEmpty(KainosMeterId)) return;
             bool on = _kainosColumn.IsOn("meters") && _kainosColumn.Visible;
-            if (_kainosMeter.MeterEnabled != on) MeterManager.enableContainer(KainosMeterId, on);
+            kainosMeterEnable(on);
             if (!on) return;
             _kainosHiddenMeters.Remove(_kainosMeter);
             if (!_kainosMeter.Visible) _kainosMeter.Visible = true;        // never one of the Thetis containers hidden above

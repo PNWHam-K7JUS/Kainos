@@ -3136,6 +3136,19 @@ namespace Thetis
                 }
             }
         }
+        // Kainos (GitHub #26): containers Kainos has switched off (the METERS tab off, or Classic). OnMox shows a
+        // disabled container that's set to show on TX / RX, which brought the METERS tab's meter up at the top left
+        // on every key-down; it leaves these alone.
+        private static readonly HashSet<string> _kainosHeldOff = new HashSet<string>();
+        public static void KainosHoldOff(string sId, bool off)
+        {
+            if (string.IsNullOrEmpty(sId)) return;
+            lock (_metersLock)
+            {
+                if (off) _kainosHeldOff.Add(sId); else _kainosHeldOff.Remove(sId);
+            }
+        }
+
         public static void enableContainer(string sId, bool enabled, bool undo_hidden_by_macro = false)
         {
             //if loc_sze_id is provided, attempt to place at same loc, size, ontop of it
@@ -5448,6 +5461,10 @@ namespace Thetis
                         if (uc.HiddenByMacro)
                         {
                             to_hide.Add(m.ID);
+                        }
+                        else if (_kainosHeldOff.Contains(m.ID))
+                        {
+                            // Kainos: switched off by Kainos, so not shown on TX / RX (GitHub #26)
                         }
                         else
                         {
