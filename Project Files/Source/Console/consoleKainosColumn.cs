@@ -149,7 +149,9 @@ namespace Thetis
                     }
 
                 Shown += (s, e) => { _kainosShown = true; if (_kainosLayout) BeginInvoke(new Action(kainosAttachMeter)); };
-                KainosUI.ScaleChanged += (s, e) => { kainosUnfitPanels(); positionKainosColumn(); };
+                // and everything drawn once more: a Kainos control that keeps its place and size (the info bar's Blobs /
+                // Peak buttons) isn't repainted by the layout, and kept its old-scale picture (GitHub #27)
+                KainosUI.ScaleChanged += (s, e) => { kainosUnfitPanels(); positionKainosColumn(); Invalidate(true); };
             }
             _kainosColumn.TabState = KainosColumnTabs;
             kainosUnfitPanels();        // a skin load can have set the mode panels' layout again
@@ -1738,7 +1740,9 @@ namespace Thetis
             {
                 Cell c = cells[i];
                 c.Rect = new RectangleF((i % _columns) * (w + gap), (i / _columns) * (h + gap), w, h);
-                KainosUI.DrawButton(e.Graphics, c.Rect, LabelFor(c.Target), isOn(c.Target), c.Target.Enabled, c == _hover, _tone, Math.Max(9f, KainosUI.S(12)));
+                // the label no taller than the button allows: one laid over a Thetis button (the info bar's Blobs / Peak)
+                // keeps Thetis's height while the UI scale grows (GitHub #27)
+                KainosUI.DrawButton(e.Graphics, c.Rect, LabelFor(c.Target), isOn(c.Target), c.Target.Enabled, c == _hover, _tone, Math.Min(Math.Max(9f, KainosUI.S(12)), Math.Max(7f, h * 0.6f)));
             }
         }
 

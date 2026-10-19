@@ -210,6 +210,7 @@ namespace Thetis
             }
 
             // hang the flag to the left of the line, or to the right when there's no room on the left
+            flag.FitToScale();
             Size size = flag.PreferredSize2();
             int gap = KainosUI.S(6);
             int left = x - gap - size.Width;
@@ -600,6 +601,24 @@ namespace Thetis
             if (compact && _drawerTab != null) toggleDrawer(_drawerTab);      // closes it
             View.Compact = compact;
             _console.KainosFlagCompacted(_rx, compact);
+            layoutFlag();
+            Size = PreferredSize2();
+            Invalidate(true);
+        }
+
+        // after a UI scale change (GitHub #27): the face is sized for the new scale, and an open tab's drawer is built
+        // again at it. Only the window used to follow the scale, so at 75 % the face (still 100 % wide) was cut off at
+        // its right, and at 125 % / 150 % it sat in a corner of a bigger, empty window.
+        public void FitToScale()
+        {
+            if (View.Size == View.PreferredFlagSize()) return;
+            if (_drawerTab != null)
+            {
+                string tab = _drawerTab;
+                toggleDrawer(tab);      // closes it
+                toggleDrawer(tab);      // and opens it again, built at the new scale
+                return;
+            }
             layoutFlag();
             Size = PreferredSize2();
             Invalidate(true);
