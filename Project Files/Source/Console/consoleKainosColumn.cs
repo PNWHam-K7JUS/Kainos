@@ -413,11 +413,32 @@ namespace Thetis
             if (_kainosColumn.Gliding && kainosStandIn(c, viewportRect)) return;
             Rectangle vp = _kainosColumn.Viewport.Bounds;
             if (sizeToWidth && c.Width != viewportRect.Width) c.Width = viewportRect.Width;
-            bool inView = viewportRect.Top >= 0 && viewportRect.Top + c.Height <= vp.Height && _kainosColumn.Visible;
+            // the part of the panel inside the viewport: a panel lies over the column, so the column can't clip it. It
+            // used to be hidden whenever any of it was out of view, so scrolling down to the AUDIO SCOPE took the TX
+            // tab's mode panel away while its top was still on screen (GitHub #20); now it's cut to the visible part.
+            // The meter still goes all or nothing: it's a DirectX surface, which a window region may not clip.
+            int top = viewportRect.Top, visTop = Math.Max(0, top), visBottom = Math.Min(vp.Height, top + c.Height);
+            bool whole = top >= 0 && top + c.Height <= vp.Height && _kainosColumn.Visible;
+            bool part = c != _kainosMeter && _kainosColumn.Visible && visBottom > visTop;
+            bool inView = whole || part;
+            kainosClip(c, whole || !part ? Rectangle.Empty : new Rectangle(0, visTop - top, c.Width, visBottom - visTop));
             Point p = inView ? new Point(_kainosColumn.Left + vp.Left + viewportRect.Left, _kainosColumn.Top + vp.Top + viewportRect.Top)
                              : new Point(-20000, -20000);
             if (c.Location != p) c.Location = p;
             if (inView) c.BringToFront();
+        }
+
+        // a pinned panel's clip (kainosPin); Empty takes it off
+        private readonly Dictionary<Control, Rectangle> _kainosClips = new Dictionary<Control, Rectangle>();
+        private void kainosClip(Control c, Rectangle clip)
+        {
+            Rectangle old;
+            if (!_kainosClips.TryGetValue(c, out old)) old = Rectangle.Empty;
+            if (old == clip) return;
+            Region was = c.Region;
+            c.Region = clip.IsEmpty ? null : new Region(clip);
+            if (was != null) was.Dispose();
+            if (clip.IsEmpty) _kainosClips.Remove(c); else _kainosClips[c] = clip;
         }
 
         // While the column glides, a pinned panel (the meter, VFO SYNC, the TX tab's mode panel) is a picture of itself
@@ -443,7 +464,10 @@ namespace Thetis
             foreach (Control c in kainosModePanels.Concat(new Control[] { grpVFOBetween, _kainosMeter }))
             {
                 if (c == null || !c.Visible || c.Left < -10000 || c.Width <= 0 || c.Height <= 0 || !c.IsHandleCreated) continue;
-                Point mid = c.PointToScreen(new Point(c.Width / 2, c.Height / 2));
+                // the middle of the part that shows: a panel cut at the column's edge (kainosClip) may not show its own middle
+                Rectangle shows;
+                if (!_kainosClips.TryGetValue(c, out shows)) shows = new Rectangle(0, 0, c.Width, c.Height);
+                Point mid = c.PointToScreen(new Point(shows.Left + shows.Width / 2, shows.Top + shows.Height / 2));
                 Control top = Control.FromChildHandle(kainosWindowFromPoint(mid));
                 bool ours = false;
                 for (Control t = top; t != null; t = t.Parent) if (t == c) { ours = true; break; }
@@ -510,6 +534,7 @@ namespace Thetis
         private void kainosUnpin(Control c)
         {
             // Thetis places these itself; a resize puts them back
+            kainosClip(c, Rectangle.Empty);
             if (c.Left < -10000) c.Location = new Point(0, 0);
         }
 
@@ -635,6 +660,7 @@ namespace Thetis
             Control p = kainosModePanel;
             int rows = kainosRowsHeight(kainosTxRows);
             if (p == panelModeSpecificPhone) return rows + KainosUI.S(8) + kainosPhoneLayout(w, false);     // consoleKainosPhone.cs
+            if (p == panelModeSpecificDigital) return rows + KainosUI.S(8) + kainosDigitalLayout(w, false); // consoleKainosDigital.cs
             if (p != null) kainosFitPanel(p, w);
             return rows + (p != null ? KainosUI.S(8) + p.Height : 0);
         }
@@ -649,6 +675,7 @@ namespace Thetis
                 if (p == shown)
                 {
                     if (p == panelModeSpecificPhone) kainosPhoneLayout(r.Width, true);
+                    else if (p == panelModeSpecificDigital) kainosDigitalLayout(r.Width, true);
                     else kainosFitPanel(p, r.Width);
                     kainosPin(p, new Rectangle(r.Left, y, r.Width, p.Height), false);
                 }
@@ -714,6 +741,7 @@ namespace Thetis
             }
             _kainosFits.Clear();
             kainosPhoneRestore();
+            kainosDigitalRestore();
             kainosSyncRestore();
         }
 
