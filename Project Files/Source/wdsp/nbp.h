@@ -27,6 +27,7 @@ warren@wpratt.com
 #ifndef _nbp_h
 #define _nbp_h
 #include "firmin.h"
+#define KAINOS_MAX_AUTONOTCH 32
 typedef struct _notchdb
 {
 	int master_run;
@@ -39,11 +40,18 @@ typedef struct _notchdb
 	double* nlow;
 	double* nhigh;
 	int maxnotches;
+	// Kainos auto-notch: notches found by the console (consoleKainosAutoNotch.cs), kept apart from the manual
+	// list above so Thetis's notch pages never see them, and applied whether or not the manual notches are on
+	int kn;
+	double kcenter[KAINOS_MAX_AUTONOTCH];
+	double kwidth[KAINOS_MAX_AUTONOTCH];
 } notchdb, *NOTCHDB;
 
 extern NOTCHDB create_notchdb (int master_run, int maxnotches);
 
 extern void destroy_notchdb (NOTCHDB b);
+
+extern __declspec (dllexport) void KainosNBPSetAutoNotches (int channel, int n, double* fcenter, double* fwidth);
 
 typedef struct _nbp
 {

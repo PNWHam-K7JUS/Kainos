@@ -223,6 +223,7 @@
     <ClInclude Include="emph.h" />
     <ClInclude Include="eq.h" />
     <ClInclude Include="aethervoice.h" />
+    <ClInclude Include="kntap.h" />
     <ClInclude Include="aetherstrip.h" />
     <ClInclude Include="aethersdr\ClientGate.h" />
     <ClInclude Include="aethersdr\ClientDeEss.h" />
@@ -304,6 +305,7 @@
     <ClCompile Include="emph.c" />
     <ClCompile Include="eq.c" />
     <ClCompile Include="aethervoice.c" />
+    <ClCompile Include="kntap.c" />
     <ClCompile Include="aetherstrip.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>

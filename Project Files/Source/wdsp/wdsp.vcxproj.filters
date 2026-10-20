@@ -42,6 +42,9 @@
     <ClInclude Include="aethervoice.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="kntap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="aetherstrip.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -276,6 +279,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="aethervoice.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kntap.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="aetherstrip.cpp">

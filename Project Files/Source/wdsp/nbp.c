@@ -181,19 +181,65 @@ int make_nbp (int nn, int* active, double* center, double* width, double* nlow, 
 	return nbp;
 }
 
+// Kainos: the notches a filter design uses: the manual ones while they're switched on (fnfrun), then the
+// auto-notches. Returns how many; the arrays are allocated here and freed with nbp_free_notches.
+static int nbp_gather_notches (NBP a, NOTCHDB b, int** act, double** cen, double** wid, double** lo, double** hi)
+{
+	int i, n = 0;
+	int cap = (a->fnfrun ? b->nn : 0) + b->kn;
+	if (cap > a->maxpb - 1) cap = a->maxpb - 1;
+	if (cap < 1) cap = 1;
+	*act = (int *)    malloc0 (cap * sizeof (int));
+	*cen = (double *) malloc0 (cap * sizeof (double));
+	*wid = (double *) malloc0 (cap * sizeof (double));
+	*lo  = (double *) malloc0 (cap * sizeof (double));
+	*hi  = (double *) malloc0 (cap * sizeof (double));
+	if (a->fnfrun)
+		for (i = 0; i < b->nn && n < cap; i++, n++)
+		{
+			(*act)[n] = b->active[i];
+			(*cen)[n] = b->fcenter[i];
+			(*wid)[n] = b->fwidth[i];
+			(*lo)[n]  = b->nlow[i];
+			(*hi)[n]  = b->nhigh[i];
+		}
+	for (i = 0; i < b->kn && n < cap; i++, n++)
+	{
+		(*act)[n] = 1;
+		(*cen)[n] = b->kcenter[i];
+		(*wid)[n] = b->kwidth[i];
+		(*lo)[n]  = b->kcenter[i] - 0.5 * b->kwidth[i];
+		(*hi)[n]  = b->kcenter[i] + 0.5 * b->kwidth[i];
+	}
+	return n;
+}
+
+static void nbp_free_notches (int* act, double* cen, double* wid, double* lo, double* hi)
+{
+	_aligned_free (hi);
+	_aligned_free (lo);
+	_aligned_free (wid);
+	_aligned_free (cen);
+	_aligned_free (act);
+}
+
 void calc_nbp_lightweight (NBP a)
 {	// calculate and set new impulse response; used when changing tune freq or shift freq
 	int i;
 	double fl, fh;
 	double offset;
 	NOTCHDB b = *a->ptraddr;
-	if (a->fnfrun)
+	if (a->fnfrun || b->kn > 0)											// Kainos: or auto-notches
 	{
+		int nn, *act;
+		double *cen, *wid, *lo, *hi;
 		offset = b->tunefreq + b->shift;
 		fl = a->flow  + offset;
 		fh = a->fhigh + offset;
-		a->numpb = make_nbp (b->nn, b->active, b->fcenter, b->fwidth, b->nlow, b->nhigh, 
+		nn = nbp_gather_notches (a, b, &act, &cen, &wid, &lo, &hi);
+		a->numpb = make_nbp (nn, act, cen, wid, lo, hi, 
 			min_notch_width (a), a->autoincr, fl, fh, a->bplow, a->bphigh, &a->havnotch);
+		nbp_free_notches (act, cen, wid, lo, hi);
 		// when tuning, no need to recalc filter if there were not and are not any notches in passband
 		if (a->hadnotch || a->havnotch)
 		{
@@ -220,13 +266,17 @@ void calc_nbp_impulse (NBP a)
 	double fl, fh;
 	double offset;
 	NOTCHDB b = *a->ptraddr;
-	if (a->fnfrun)
+	if (a->fnfrun || b->kn > 0)											// Kainos: or auto-notches
 	{
+		int nn, *act;
+		double *cen, *wid, *lo, *hi;
 		offset = b->tunefreq + b->shift;
 		fl = a->flow  + offset;
 		fh = a->fhigh + offset;
-		a->numpb = make_nbp (b->nn, b->active, b->fcenter, b->fwidth, b->nlow, b->nhigh, 
+		nn = nbp_gather_notches (a, b, &act, &cen, &wid, &lo, &hi);
+		a->numpb = make_nbp (nn, act, cen, wid, lo, hi, 
 			min_notch_width (a), a->autoincr, fl, fh, a->bplow, a->bphigh, &a->havnotch);
+		nbp_free_notches (act, cen, wid, lo, hi);
 		for (i = 0; i < a->numpb; i++)
 		{
 			a->bplow[i]  -=	offset;
@@ -356,6 +406,27 @@ void UpdateNBPFilters(int channel)
 	{
 		recalc_bpsnba_filter (b, 1);
 	}
+}
+
+// Kainos: replace the channel's auto-notches (RF Hz, like the manual ones) and redesign its notch filters
+PORT
+void KainosNBPSetAutoNotches (int channel, int n, double* fcenter, double* fwidth)
+{
+	NOTCHDB b = rxa[channel].ndb.p;
+	NBP a = rxa[channel].nbp0.p;
+	int i;
+	if (n < 0) n = 0;
+	if (n > KAINOS_MAX_AUTONOTCH) n = KAINOS_MAX_AUTONOTCH;
+	for (i = 0; i < n; i++)
+	{
+		b->kcenter[i] = fcenter[i];
+		b->kwidth[i] = fwidth[i];
+	}
+	b->kn = n;
+	calc_nbp_impulse (a);
+	setImpulse_fircore (a->p, a->impulse, 1);
+	_aligned_free (a->impulse);
+	recalc_bpsnba_filter (rxa[channel].bpsnba.p, 1);
 }
 
 PORT
