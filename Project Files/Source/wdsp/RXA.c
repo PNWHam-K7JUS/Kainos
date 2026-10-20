@@ -662,6 +662,7 @@ void xrxa (int channel)
 	xresample (rxa[channel].rsmpin.p);
 	xgen (rxa[channel].gen0.p);
 	xmeter (rxa[channel].adcmeter.p);
+	xkntap (channel);									// Kainos: auto-notch tap, before the notches (kntap.c)
 	xbpsnbain (rxa[channel].bpsnba.p, 0);
 	xnbp (rxa[channel].nbp0.p, 0);
 	xmeter (rxa[channel].smeter.p);

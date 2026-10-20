@@ -699,6 +699,10 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="consoleKainosAutoNotch.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="KainosRtty.cs" />
     <Compile Include="displayKainos.cs" />
     <Compile Include="KainosCw.cs" />

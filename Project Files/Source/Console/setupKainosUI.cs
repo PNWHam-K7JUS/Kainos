@@ -53,7 +53,7 @@ namespace Thetis
         // saved with the options: which right-column tabs are on, and the METERS tab's meter container
         private ComboBoxTS comboKainosFlagOpacity, comboKainosWheel;
         private TextBoxTS txtKainosFlags;
-        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact, txtKainosVst, txtKainosTermHeight;
+        private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact, txtKainosVst, txtKainosTermHeight, txtKainosAutoNotch;
         private bool _kainosSettingsHooked;
 
         private void addKainosUITab()
@@ -179,6 +179,9 @@ namespace Thetis
             // the docked terminal's height (RTTY, CW, modules), dragged with the bar above it
             txtKainosTermHeight = new TextBoxTS { Name = "txtKainosTermHeight", Visible = false, Text = "" };
             tpAppearanceKainos.Controls.Add(txtKainosTermHeight);
+            // AUTO NOTCH on / off per receiver (consoleKainosAutoNotch.cs)
+            txtKainosAutoNotch = new TextBoxTS { Name = "txtKainosAutoNotch", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosAutoNotch);
             addKainosWizardControls(tpAppearanceKainos);       // setupKainosWizard.cs
 
             tcAppearance.Controls.Add(tpAppearanceKainos);
@@ -218,6 +221,7 @@ namespace Thetis
                     txtKainosVst.Text = KainosVst.Settings;
                     txtKainosFlags.Text = console.KainosFlagSettings;
                     txtKainosTermHeight.Text = console.KainosTermHeightSetting;
+                    txtKainosAutoNotch.Text = console.KainosAutoNotchSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -226,6 +230,8 @@ namespace Thetis
             console.KainosFtdxOffered = txtKainosFtdxOffered.Text == "1";
             console.KainosRttySettings = txtKainosRtty.Text;
             console.RttyLoadSettings();
+            console.KainosAutoNotchSettings = txtKainosAutoNotch.Text;
+            console.KainosAutoNotchLoad();
             console.KainosCwSettings = txtKainosCw.Text;
             console.CwLoadSettings();
             console.KainosRttyMacros = txtKainosRttyMacros.Text;

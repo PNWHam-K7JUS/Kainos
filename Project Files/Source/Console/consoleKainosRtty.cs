@@ -56,7 +56,7 @@ namespace Thetis
 
         internal int RttyRx = 0;
         internal double RttyShift = 170, RttyBaud = 45.45;
-        internal bool RttyReverse, RttyUnshiftOnSpace = true, RttyAfc = true;
+        internal bool RttyReverse, RttyUnshiftOnSpace = true, RttyAfc = true, RttyPeak;
         internal readonly NumericUpDown RttySql = new NumericUpDown { Minimum = 0, Maximum = 60, Increment = 5, Value = 15 };
         internal readonly NumericUpDown RttyLevel = new NumericUpDown { Minimum = -40, Maximum = 0, Increment = 1, Value = -10 };
         private bool _rttyPopped;
@@ -86,6 +86,7 @@ namespace Thetis
                     case "rev": RttyReverse = p[1] == "1"; break;
                     case "usos": RttyUnshiftOnSpace = p[1] != "0"; break;
                     case "afc": RttyAfc = p[1] != "0"; break;
+                    case "peak": RttyPeak = p[1] == "1"; break;
                     case "sql": if (num) RttySql.Value = (decimal)Math.Max(0, Math.Min(60, d)); break;
                     case "lvl": if (num) RttyLevel.Value = (decimal)Math.Max(-40, Math.Min(0, d)); break;
                     case "pop": _rttyPopped = p[1] == "1"; break;
@@ -95,12 +96,12 @@ namespace Thetis
 
         private void rttySave()
         {
-            KainosRttySettings = string.Format(CultureInfo.InvariantCulture, "rx={0};shift={1};baud={2};rev={3};usos={4};sql={5};lvl={6};pop={7};afc={8}",
-                RttyRx, RttyShift, RttyBaud, RttyReverse ? 1 : 0, RttyUnshiftOnSpace ? 1 : 0, RttySql.Value, RttyLevel.Value, _rttyPopped ? 1 : 0, RttyAfc ? 1 : 0);
+            KainosRttySettings = string.Format(CultureInfo.InvariantCulture, "rx={0};shift={1};baud={2};rev={3};usos={4};sql={5};lvl={6};pop={7};afc={8};peak={9}",
+                RttyRx, RttyShift, RttyBaud, RttyReverse ? 1 : 0, RttyUnshiftOnSpace ? 1 : 0, RttySql.Value, RttyLevel.Value, _rttyPopped ? 1 : 0, RttyAfc ? 1 : 0, RttyPeak ? 1 : 0);
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        internal void RttyChanged() { rttySave(); if (_rttyPane != null) _rttyPane.Invalidate(true); }
+        internal void RttyChanged() { rttySave(); rttyPeakSync(); if (_rttyPane != null) _rttyPane.Invalidate(true); }
 
         // ---- opening, docking, popping out ----
 
@@ -127,6 +128,7 @@ namespace Thetis
         {
             if (_rttyTx) RttyAbort();
             _rttyOpen = false;
+            rttyPeakSync();                 // the receiver's Dolly filter back to its Setup state
             rttyToolStripMenuItem.Checked = false;
             rttyStopEngine();
             if (_rttyUiTimer != null) _rttyUiTimer.Stop();
@@ -201,6 +203,54 @@ namespace Thetis
             double mark = RttyReverse ^ upper ? c + h : c - h, space = RttyReverse ^ upper ? c - h : c + h;
             return upper ? new[] { mark, space } : new[] { -mark, -space };
         }
+
+        // ---- PEAK: WDSP's two-peak filter (Dolly, mpeak) on the mark and space tones ----
+        // While the terminal is open with PEAK on, the receiver's Dolly filter follows the decoder's tones (AFC included),
+        // so the speaker and the decoder (its tap is after WDSP) hear the two tones with the QRM between and around them cut.
+        // Whatever Setup had (DSP > Audio, Dolly) is put back when PEAK lets go of the receiver.
+        private int _rttyPeakRx = -1;                     // RX index (0 / 1); its WDSP thread is twice that (radio.cs)
+        private bool _rttyPeakPrevRun;
+        private double _rttyPeakPrevF0, _rttyPeakPrevF1;
+
+        private void rttyPeakSync()
+        {
+            int want = _rttyOpen && RttyPeak && RttyModeOk ? RttyRx : -1;
+            if (_rttyPeakRx >= 0 && _rttyPeakRx != want)
+            {
+                RadioDSPRX old = radio.GetDSPRX(_rttyPeakRx, 0);
+                WDSP.SetRXAmpeakFilBw(WDSP.id((uint)_rttyPeakRx * 2, 0), 0, 75.0);    // WDSP's defaults (Setup doesn't set the widths)
+                WDSP.SetRXAmpeakFilBw(WDSP.id((uint)_rttyPeakRx * 2, 0), 1, 75.0);
+                old.RXADollyFreq0 = _rttyPeakPrevF0;
+                old.RXADollyFreq1 = _rttyPeakPrevF1;
+                old.RXADollyRun = _rttyPeakPrevRun;
+                _rttyPeakRx = -1;
+            }
+            if (want < 0) return;
+
+            RadioDSPRX dsp = radio.GetDSPRX(want, 0);
+            RttyDemod d = _rttyDemod;
+            double c = d != null ? d.Center : RttyCenter, h = RttyShift / 2;
+            double bw = Math.Max(60.0, RttyBaud * 1.6);        // 73 Hz at 45.45 Bd, 120 at 75
+            if (_rttyPeakRx != want)
+            {
+                _rttyPeakPrevRun = dsp.RXADollyRun;
+                _rttyPeakPrevF0 = dsp.RXADollyFreq0;
+                _rttyPeakPrevF1 = dsp.RXADollyFreq1;
+                _rttyPeakRx = want;
+                _rttyPeakBw = 0;
+            }
+            if (bw != _rttyPeakBw)
+            {
+                WDSP.SetRXAmpeakFilBw(WDSP.id((uint)want * 2, 0), 0, bw);
+                WDSP.SetRXAmpeakFilBw(WDSP.id((uint)want * 2, 0), 1, bw);
+                _rttyPeakBw = bw;
+            }
+            // audio tones: the same on LSB and USB, only which one is mark changes
+            if (Math.Abs(dsp.RXADollyFreq0 - (c - h)) > 2) dsp.RXADollyFreq0 = c - h;
+            if (Math.Abs(dsp.RXADollyFreq1 - (c + h)) > 2) dsp.RXADollyFreq1 = c + h;
+            if (!dsp.RXADollyRun) dsp.RXADollyRun = true;
+        }
+        private double _rttyPeakBw;
 
         private int _rttyTapRx = -1;
         private void rttyStartEngine()
@@ -340,6 +390,7 @@ namespace Thetis
 
         private void rttyUiTick()
         {
+            rttyPeakSync();
             // the sent text and decoded text into the terminal
             if (_rttyPane != null)
             {
@@ -395,7 +446,7 @@ namespace Thetis
             BackColor = KainosUI.Surface;
             Name = "kainosRttyPane";
 
-            _top = new KainosActionGrid(7);
+            _top = new KainosActionGrid(8);
             _top.Add("RX1", () => _console.RttyRx == 0, () => { _console.RttyRx = 0; _console.RttyChanged(); }, KainosUI.Tone.Gold);
             _top.Add("RX2", () => _console.RttyRx == 1, () => { _console.RttyRx = 1; _console.RttyChanged(); }, KainosUI.Tone.Violet);
             _top.Add("170 Hz", () => false, () => { _console.RttyShift = next(Shifts, _console.RttyShift); _console.RttyChanged(); }, KainosUI.Tone.Ice);
@@ -403,6 +454,7 @@ namespace Thetis
             _top.Add("REV", () => _console.RttyReverse, () => { _console.RttyReverse = !_console.RttyReverse; _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.Add("USOS", () => _console.RttyUnshiftOnSpace, () => { _console.RttyUnshiftOnSpace = !_console.RttyUnshiftOnSpace; _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.Add("AFC", () => _console.RttyAfc, () => { _console.RttyAfc = !_console.RttyAfc; _console.RttyChanged(); }, KainosUI.Tone.Ice);
+            _top.Add("PEAK", () => _console.RttyPeak, () => { _console.RttyPeak = !_console.RttyPeak; _console.RttyChanged(); }, KainosUI.Tone.Ice);
             _top.LabelFor = (i, l) => i == 2 ? _console.RttyShift.ToString(CultureInfo.InvariantCulture) + " Hz" : i == 3 ? _console.RttyBaud.ToString(CultureInfo.InvariantCulture) + " Bd" : l;
 
             _tune = new KainosRttyTune(console);
@@ -586,7 +638,7 @@ namespace Thetis
             int pad = KainosUI.S(6), gap = KainosUI.S(6), row = KainosUI.S(26), y = pad, w = ClientSize.Width - pad * 2;
 
             // settings row
-            int topW = KainosUI.S(390), tuneW = KainosUI.S(200), udW = KainosUI.S(150), winW = KainosUI.S(210);
+            int topW = KainosUI.S(446), tuneW = KainosUI.S(200), udW = KainosUI.S(150), winW = KainosUI.S(210);
             int x = pad;
             _top.SetBounds(x, y, topW, row); x += topW + gap;
             _tune.SetBounds(x, y, tuneW, row); x += tuneW + gap;

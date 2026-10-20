@@ -313,6 +313,7 @@ namespace Thetis
                 foreach (CheckBox c in panelRX2DSP.Controls.OfType<CheckBox>().Where(c => c.Checked && c.Text.Length > 0).OrderBy(c => c.Top).ThenBy(c => c.Left))
                     on.Add(c.Text);
             }
+            if (KainosAutoNotchOn(rx)) on.Add("AN");
             return string.Join(" ", on);
         }
 
@@ -445,6 +446,11 @@ namespace Thetis
                         g.SetTargets(panel.Controls.OfType<ButtonBase>().Where(c => c != chkMUT && c != chkRX2Mute)
                                          .OrderBy(c => c.Top).ThenBy(c => c.Left));
                         rows.Add(g);
+                        // Kainos's multi-carrier notch (consoleKainosAutoNotch.cs), with how many it has notched
+                        KainosActionGrid an = new KainosActionGrid(1);
+                        an.Add("AUTO NOTCH", () => KainosAutoNotchOn(rx), () => KainosToggleAutoNotch(rx), KainosUI.Tone.Ice);
+                        an.LabelFor = (i, l) => KainosAutoNotchOn(rx) && KainosAutoNotchCount(rx) > 0 ? "AUTO NOTCH · " + KainosAutoNotchCount(rx) : l;
+                        rows.Add(an);
                         if (rx == 2 && !KainosSplitB)
                         {
                             // RX2's AGC and AGC gain (the column's RX tab has RX1's)
