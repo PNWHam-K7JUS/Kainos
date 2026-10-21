@@ -20,7 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
+using Kainos.Modules;
 using System.Windows.Forms;
 
 namespace Thetis
@@ -57,7 +60,7 @@ namespace Thetis
                         StartPosition = FormStartPosition.Manual,
                         BackColor = KainosUI.Bg,
                         Size = new Size(KainosUI.S(1120), KainosUI.S(320)),
-                        MinimumSize = new Size(KainosUI.S(1080), KainosUI.S(240)),      // the settings row fits
+                        MinimumSize = new Size(KainosUI.S(1080), KainosUI.S(kainosPaneWindowMin(pane))),      // the settings row fits
                         Location = new Point(Left + 80, Top + Height / 2),
                         Icon = Icon,
                     };
@@ -79,6 +82,13 @@ namespace Thetis
             return window;
         }
 
+        // a popped-out pane's window: 240 design px at least, or less for a module pane that's short (IKainosPaneHeight)
+        private static int kainosPaneWindowMin(Control pane)
+        {
+            IKainosPaneHeight ph = pane.Controls.Count > 0 ? pane.Controls[0] as IKainosPaneHeight : null;
+            return ph != null ? Math.Min(240, Math.Max(40, ph.MinimumHeight) + 40) : 240;
+        }
+
         private void kainosTermPlaceDock(Control pane, bool open, bool popped)
         {
             if (pane == null || !open || popped || pane.Parent != this) return;
@@ -90,19 +100,70 @@ namespace Thetis
 
         internal const int KainosTermGap = 6;               // the bar's height (px): the gap between panadapter and terminal
         private const int KainosTermMinHeight = 140;        // design px
-        private int _kainosTermHeight = KainosTerminalHeight;
         private KainosTermGrip _kainosTermGrip;
 
-        // saved with the options (a hidden Setup box): the height in design px, "" for the default
+        // Each docked terminal keeps its own height (design px): "rtty", "cw", and "m.<module id>" for a module's pane,
+        // so a short one (the Voice Keyer) and a tall one (SSTV) don't share. One that hasn't been sized has the
+        // standard height.
+        private readonly Dictionary<string, int> _kainosTermHeights = new Dictionary<string, int>();
+
+        // the terminal docked now (null: none)
+        private string kainosTermKey
+        {
+            get
+            {
+                if (_rttyOpen && _rttyPane != null && !RttyPopped) return "rtty";
+                if (_cwOpen && _cwPane != null && !CwPopped) return "cw";
+                return kainosModulePaneDockedKey;       // consoleKainosModules.cs
+            }
+        }
+
+        private int kainosTermHeightFor(string key)
+        {
+            int h;
+            return key != null && _kainosTermHeights.TryGetValue(key, out h) ? Math.Max(kainosTermMinFor(key), h) : kainosTermDefaultFor(key);
+        }
+
+        // a module's pane can ask for its own (IKainosPaneHeight: the Voice Keyer is one row of buttons)
+        private int kainosTermDefaultFor(string key)
+        {
+            IKainosPaneHeight ph = key != null ? KainosModulePaneHeights(key) : null;
+            return ph != null ? Math.Max(kainosTermMinFor(key), Math.Min(1200, ph.PreferredHeight)) : KainosTerminalHeight;
+        }
+
+        internal int kainosTermMinFor(string key)
+        {
+            IKainosPaneHeight ph = key != null ? KainosModulePaneHeights(key) : null;
+            return ph != null ? Math.Max(40, Math.Min(KainosTermMinHeight, ph.MinimumHeight)) : KainosTermMinHeight;
+        }
+
+        internal int KainosTermMinNow { get { return kainosTermMinFor(kainosTermKey); } }
+        internal int KainosTermDefaultNow { get { return kainosTermDefaultFor(kainosTermKey); } }
+
+        // saved with the options (a hidden Setup box): "rtty=300;m.sstv=480" ("" when none has been sized). Before 1.0.12
+        // it was one height for every terminal: that's given to the terminals there were then (RTTY, CW, SSTV, FT8).
         public string KainosTermHeightSetting
         {
-            get { return _kainosTermHeight == KainosTerminalHeight ? "" : _kainosTermHeight.ToString(); }
+            get { return string.Join(";", _kainosTermHeights.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value)); }
             set
             {
+                Dictionary<string, int> d = new Dictionary<string, int>();
                 int h;
-                h = int.TryParse(value, out h) ? Math.Max(KainosTermMinHeight, Math.Min(1200, h)) : KainosTerminalHeight;
-                if (h == _kainosTermHeight) return;         // Setup applies its settings often: only a change moves anything
-                _kainosTermHeight = h;
+                string v = (value ?? "").Trim();
+                if (int.TryParse(v, out h))
+                {
+                    foreach (string k in new[] { "rtty", "cw", "m.sstv", "m.digimodes" }) d[k] = h;
+                }
+                else
+                    foreach (string kv in v.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string[] p = kv.Split('=');
+                        if (p.Length == 2 && int.TryParse(p[1], out h)) d[p[0].Trim()] = h;
+                    }
+                foreach (string k in d.Keys.ToList()) d[k] = Math.Max(40, Math.Min(1200, d[k]));     // each terminal's own minimum is applied when it's used
+                if (d.Count == _kainosTermHeights.Count && d.All(kv => _kainosTermHeights.ContainsKey(kv.Key) && _kainosTermHeights[kv.Key] == kv.Value)) return;   // Setup applies its settings often: only a change moves anything
+                _kainosTermHeights.Clear();
+                foreach (KeyValuePair<string, int> kv in d) _kainosTermHeights[kv.Key] = kv.Value;
                 if (_kainosLayout && kainosTermDockHeight > 0) positionKainosColumn();
             }
         }
@@ -119,14 +180,17 @@ namespace Thetis
 
         internal int KainosTermHeight { get { return kainosTermHeightNow; } }
 
-        // the saved height, less whatever a smaller window can't spare
-        private int kainosTermHeightNow { get { return Math.Min(_kainosTermHeight, KainosTermMaxHeight); } }
+        // the docked terminal's saved height, less whatever a smaller window can't spare
+        private int kainosTermHeightNow { get { return Math.Min(kainosTermHeightFor(kainosTermKey), KainosTermMaxHeight); } }
 
+        // the docked terminal's height (the bar dragged, or double-clicked for the standard height)
         internal void KainosSetTermHeight(int designPx)
         {
-            int h = Math.Max(KainosTermMinHeight, Math.Min(KainosTermMaxHeight, designPx));
-            if (h == _kainosTermHeight) return;
-            _kainosTermHeight = h;
+            string key = kainosTermKey;
+            if (key == null) return;
+            int h = Math.Max(kainosTermMinFor(key), Math.Min(KainosTermMaxHeight, designPx));
+            if (h == kainosTermHeightFor(key) && _kainosTermHeights.ContainsKey(key)) return;
+            if (h == kainosTermDefaultFor(key)) _kainosTermHeights.Remove(key); else _kainosTermHeights[key] = h;
             positionKainosColumn();
             KainosRaiseSettingsChanged();
         }
@@ -242,9 +306,9 @@ namespace Thetis
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             base.OnMouseDoubleClick(e);
-            _c.KainosSetTermHeight(Console.KainosTerminalHeight);
+            _c.KainosSetTermHeight(_c.KainosTermDefaultNow);         // the standard height (or the module pane's own)
         }
 
-        private int clampHeight(int h) { return Math.Max(140, Math.Min(_c.KainosTermMaxHeight, h)); }
+        private int clampHeight(int h) { return Math.Max(_c.KainosTermMinNow, Math.Min(_c.KainosTermMaxHeight, h)); }
     }
 }

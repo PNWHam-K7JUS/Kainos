@@ -880,6 +880,13 @@ namespace Thetis
         private Point _pressAt;
         private int _dropAt = -1;
         public event EventHandler TabsChanged;
+        // the tabs on one row: as many as fit, in their order, then a chip saying how many more ("+4"); clicking it, or
+        // the chevron chip after the last tab when they're all showing, switches. Saved with the tab state.
+        private bool _oneRow;
+        private RectangleF _toggleRect;
+        private int _hidden;
+        private bool _hoverToggle;
+        private const string OneRowToken = "!onerow";
 
         public KainosColumn(Console console)
         {
@@ -1002,10 +1009,12 @@ namespace Thetis
         // not listed (new in this version of Kainos) starts as its section says, after the others
         public string TabState
         {
-            get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key)); }
+            get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key).Concat(_oneRow ? new[] { OneRowToken } : new string[0])); }
             set
             {
                 string[] items = (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                _oneRow = items.Contains(OneRowToken);
+                items = items.Where(i => i != OneRowToken).ToArray();
                 foreach (Section s in _sections)
                     s.On = items.Contains(s.Key) || (!items.Contains("-" + s.Key) && s.DefaultOn);
                 _order = items.Select(i => i.TrimStart('-')).ToList();
@@ -1019,6 +1028,7 @@ namespace Thetis
             layoutTabs();
             float bottom = 0;
             foreach (Section s in _sections) bottom = Math.Max(bottom, s.TabRect.Bottom);
+            bottom = Math.Max(bottom, _toggleRect.Bottom);
             return (int)bottom + KainosUI.S(8);
         }
 
@@ -1027,13 +1037,52 @@ namespace Thetis
             float pad = KainosUI.S(8), gap = KainosUI.S(4), h = KainosUI.S(24), x = pad, y = pad;
             using (Graphics g = CreateGraphics())
             using (Font f = tabFont())
-                foreach (Section s in _sections)
+            {
+                float[] widths = _sections.Select(s => g.MeasureString(s.Title, f).Width + KainosUI.S(16)).ToArray();
+                _hidden = 0;
+                if (_oneRow)
                 {
-                    float w = g.MeasureString(s.Title, f).Width + KainosUI.S(16);
+                    // as many as fit, leaving room for the "+N" chip if any are left over
+                    float more = g.MeasureString("+" + _sections.Count + " \u25BE", f).Width + KainosUI.S(14);
+                    bool all = widths.Sum() + gap * Math.Max(0, widths.Length - 1) + gap + KainosUI.S(30) <= Width - 2 * pad;
+                    for (int i = 0; i < _sections.Count; i++)
+                    {
+                        float room = Width - pad - (all ? KainosUI.S(30) + gap : more + gap);
+                        if (_hidden == 0 && (x + widths[i] <= room || x == pad))
+                        {
+                            _sections[i].TabRect = new RectangleF(x, y, widths[i], h);
+                            x += widths[i] + gap;
+                        }
+                        else { _sections[i].TabRect = RectangleF.Empty; _hidden++; }
+                    }
+                    float tw = _hidden > 0 ? more : KainosUI.S(30);
+                    _toggleRect = new RectangleF(x, y, tw, h);
+                    return;
+                }
+                for (int i = 0; i < _sections.Count; i++)
+                {
+                    float w = widths[i];
                     if (x + w > Width - pad && x > pad) { x = pad; y += h + gap; }
-                    s.TabRect = new RectangleF(x, y, w, h);
+                    _sections[i].TabRect = new RectangleF(x, y, w, h);
                     x += w + gap;
                 }
+                // the chevron that puts them on one row, after the last tab
+                float cw = KainosUI.S(30);
+                if (x + cw > Width - pad && x > pad) { x = pad; y += h + gap; }
+                _toggleRect = new RectangleF(x, y, cw, h);
+            }
+        }
+
+        public bool TabsOnOneRow
+        {
+            get { return _oneRow; }
+            set
+            {
+                if (_oneRow == value) return;
+                _oneRow = value;
+                Invalidate();
+                TabsChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         private static Font tabFont() { return new Font("Segoe UI", Math.Max(8f, KainosUI.S(10)), FontStyle.Bold, GraphicsUnit.Pixel); }
@@ -1183,7 +1232,8 @@ namespace Thetis
                 }
             }
             Section h = _sections.Find(s => s.TabRect.Contains(e.Location));
-            if (h != _hoverTab) { _hoverTab = h; Cursor = h != null ? Cursors.Hand : Cursors.Default; Invalidate(); }
+            bool ht = _toggleRect.Contains(e.Location);
+            if (h != _hoverTab || ht != _hoverToggle) { _hoverTab = h; _hoverToggle = ht; Cursor = h != null || ht ? Cursors.Hand : Cursors.Default; Invalidate(); }
         }
 
         // where a dragged chip would go: before the chip under the pointer (after it, past its middle), or at the
@@ -1194,9 +1244,10 @@ namespace Thetis
             for (int i = 0; i < _sections.Count; i++)
             {
                 RectangleF r = _sections[i].TabRect;
+                if (r.IsEmpty) continue;                // hidden (the tabs on one row)
                 if (p.Y < r.Top - KainosUI.S(4) || p.Y > r.Bottom + KainosUI.S(4)) continue;
                 if (p.X < r.Left + r.Width / 2) return i;
-                bool lastOnRow = i == _sections.Count - 1 || _sections[i + 1].TabRect.Top > r.Top;
+                bool lastOnRow = i == _sections.Count - 1 || _sections[i + 1].TabRect.IsEmpty || _sections[i + 1].TabRect.Top > r.Top;
                 if (lastOnRow) return i + 1;
             }
             return p.Y < (_sections.Count > 0 ? _sections[0].TabRect.Top : 0) ? 0 : _sections.Count;
@@ -1277,6 +1328,10 @@ namespace Thetis
             add("Move to the bottom", i < _sections.Count - 1, () => moveTab(s, _sections.Count));
             menu.Items.Add(new ToolStripSeparator());
             add("Reset the order", _order.Count > 0, resetOrder);
+            menu.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem one = new ToolStripMenuItem("Tabs on one row") { Checked = _oneRow, ForeColor = KainosUI.Text };
+            one.Click += (o, a) => TabsOnOneRow = !_oneRow;
+            menu.Items.Add(one);
             menu.Closed += (o, a) => BeginInvoke(new Action(menu.Dispose));
             menu.Show(this, at);
         }
@@ -1287,6 +1342,7 @@ namespace Thetis
         {
             base.OnMouseDown(e);
             Focus();
+            if (_toggleRect.Contains(e.Location) && e.Button == MouseButtons.Left) { TabsOnOneRow = !_oneRow; return; }
             Section s = _sections.Find(x => x.TabRect.Contains(e.Location));
             if (s == null) return;
             if (e.Button == MouseButtons.Right) { tabMenu(s, e.Location); return; }
@@ -1308,6 +1364,7 @@ namespace Thetis
             {
                 foreach (Section s in _sections)
                 {
+                    if (s.TabRect.IsEmpty) continue;        // hidden (the tabs on one row)
                     Color border = s.On ? KainosUI.Gold : KainosUI.Line, fore = s.On ? KainosUI.GoldHi : (s == _hoverTab ? KainosUI.Dim : KainosUI.Faint);
                     using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(s.TabRect, s.TabRect.Height / 2f))
                     {
@@ -1316,10 +1373,22 @@ namespace Thetis
                     }
                     using (Brush b = new SolidBrush(s == _dragging ? KainosUI.Faint : fore)) g.DrawString(s.Title, f, b, s.TabRect, sf);
                 }
+                if (!_toggleRect.IsEmpty)
+                {
+                    // "+4 \u25BE" (more hidden: click to show them all), "\u25BE" on one row with none hidden, "\u25B4" all showing
+                    string t = _oneRow ? (_hidden > 0 ? "+" + _hidden + " \u25BE" : "\u25BE") : "\u25B4";
+                    bool lit = _oneRow && _sections.Any(x => x.On && x.TabRect.IsEmpty);      // an open tab is among the hidden
+                    using (System.Drawing.Drawing2D.GraphicsPath path = KainosUI.RoundedRect(_toggleRect, _toggleRect.Height / 2f))
+                    {
+                        if (_hoverToggle) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillPath(b, path);
+                        using (Pen p = new Pen(lit ? KainosUI.Gold : KainosUI.Line)) g.DrawPath(p, path);
+                    }
+                    using (Brush b = new SolidBrush(lit ? KainosUI.GoldHi : _hoverToggle ? KainosUI.Text : KainosUI.Dim)) g.DrawString(t, f, b, _toggleRect, sf);
+                }
                 if (_dragging != null && _dropAt >= 0 && _sections.Count > 0)
                 {
                     // after the chip before the gap when the gap ends a row, otherwise before the chip after it
-                    bool after = _dropAt > 0 && (_dropAt == _sections.Count || _sections[_dropAt].TabRect.Top > _sections[_dropAt - 1].TabRect.Top);
+                    bool after = _dropAt > 0 && (_dropAt == _sections.Count || _sections[_dropAt].TabRect.IsEmpty || _sections[_dropAt].TabRect.Top > _sections[_dropAt - 1].TabRect.Top);
                     RectangleF r = after ? _sections[_dropAt - 1].TabRect : _sections[_dropAt].TabRect;
                     float x = after ? r.Right + KainosUI.S(2) : r.Left - KainosUI.S(2);
                     using (Pen p = new Pen(KainosUI.GoldHi, Math.Max(2f, KainosUI.S(2)))) g.DrawLine(p, x, r.Top - 1, x, r.Bottom + 1);

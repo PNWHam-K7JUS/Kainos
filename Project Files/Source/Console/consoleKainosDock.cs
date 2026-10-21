@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 
@@ -60,6 +61,7 @@ namespace Thetis
                             dockItem(btnVFOSwap, KainosUI.Tone.Ice), dockItem(btnZeroBeat, KainosUI.Tone.Ice), dockItem(btnIFtoVFO, KainosUI.Tone.Ice) },
                     new[] { dockItem(ckQuickRec, KainosUI.Tone.Tx, "REC"), dockItem(ckQuickPlay, KainosUI.Tone.Gold, "PLAY") },
                     new[] { dockItem(chkVAC1, KainosUI.Tone.Ice, "VAC1"), dockItem(chkVAC2, KainosUI.Tone.Ice, "VAC2") },
+                    kainosToolTargets.Select(t => dockItem(t, KainosUI.Tone.Gold)).ToArray(),      // modules' tools (IKainosDock): hidden until claimed
                 });
                 Controls.Add(_kainosDock);
                 // Thetis moves these panels on every resize, and shows / hides them in its collapsed layouts
@@ -94,6 +96,32 @@ namespace Thetis
             if (_kainosDock != null) _kainosDock.Visible = false;
             kainosRestoreDisplayLocation();
             kainosStatusOff();
+        }
+
+        // Buttons a module puts in the dock (IKainosDock, consoleKainosModules.cs): spare targets of Kainos's own, hidden
+        // until one is claimed. A click runs the module's action (kept in Tag); Checked lights the button.
+        internal const int KainosToolSlots = 4;
+        private CheckBox[] _kainosToolTargets;
+        internal CheckBox[] kainosToolTargets
+        {
+            get
+            {
+                if (_kainosToolTargets == null)
+                {
+                    _kainosToolTargets = new CheckBox[KainosToolSlots];
+                    for (int i = 0; i < KainosToolSlots; i++)
+                    {
+                        CheckBox t = new CheckBox { Appearance = Appearance.Button, AutoCheck = false, Visible = false, Name = "chkKainosTool" + i };
+                        t.Click += (s, e) =>
+                        {
+                            Action a = t.Tag as Action;
+                            if (a != null) try { a(); } catch (Exception ex) { kainosModuleError("dock " + t.Text, ex); }
+                        };
+                        _kainosToolTargets[i] = t;
+                    }
+                }
+                return _kainosToolTargets;
+            }
         }
 
         private static KainosDock.Item dockItem(ButtonBase target, KainosUI.Tone tone, string label = null)

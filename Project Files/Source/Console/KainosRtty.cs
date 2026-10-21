@@ -41,6 +41,15 @@ namespace Thetis
         [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiTxWrite(float[] src, int n);
         [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiTxQueued();
         [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void KDigiTxClear();
+        // voice (modules): the mic, and a preview mixed into RX1's audio
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void KDigiMicTap(int on);
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiMicRate();
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiMicRead(float[] dst, int max);
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void KDigiPreviewEnable(int on);
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiPreviewRate();
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiPreviewWrite(float[] src, int n);
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern int KDigiPreviewQueued();
+        [DllImport("ChannelMaster.dll", CallingConvention = CallingConvention.Cdecl)] public static extern void KDigiPreviewClear();
     }
 
     internal static class Baudot

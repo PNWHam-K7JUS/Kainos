@@ -26993,6 +26993,7 @@ namespace Thetis
         {
             if (Common.ShiftKeyDown) Display.DisplayShiftKeyDown = true;
             if (KainosTypingInOwnBox) return;       // Kainos: typing in a Kainos text box (consoleKainosSupport.cs)
+            if (KainosModuleKey(e)) { e.Handled = true; e.SuppressKeyPress = true; return; }    // Kainos: a module's F-keys (a voice keyer)
 
             if (e.Alt == true) // ke9ns add
             {

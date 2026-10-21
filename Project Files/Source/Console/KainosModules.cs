@@ -100,6 +100,7 @@ namespace Thetis
             public KainosModuleHost Host;
             public string Problem;                  // why it isn't running (failed to load, incompatible...)
             public string PendingVersion;           // unpacked, used from the next start
+            public string PendingFolder;            // ... in this folder (under Modules\<id>)
         }
 
         private readonly Console _console;
@@ -133,7 +134,7 @@ namespace Thetis
             JObject o = new JObject();
             JObject mods = new JObject();
             foreach (Installed i in _installed.Values)
-                mods[i.Info.Id] = new JObject { ["version"] = i.PendingVersion ?? i.Info.Version, ["enabled"] = i.Enabled };
+                mods[i.Info.Id] = new JObject { ["version"] = i.PendingVersion ?? i.Info.Version, ["folder"] = i.PendingFolder ?? Path.GetFileName(i.Folder), ["enabled"] = i.Enabled };
             o["modules"] = mods;
             JObject set = new JObject();
             foreach (KeyValuePair<string, Dictionary<string, string>> kv in _settings) set[kv.Key] = JObject.FromObject(kv.Value);
@@ -156,7 +157,7 @@ namespace Thetis
                 foreach (KeyValuePair<string, JToken> kv in mods)
                 {
                     string id = kv.Key, ver = (string)kv.Value["version"] ?? "";
-                    string folder = Path.Combine(_root, id, ver);
+                    string folder = Path.Combine(_root, id, (string)kv.Value["folder"] ?? ver);        // "0.2.0", or "0.2.0-2" (reinstalled while running)
                     KainosModuleInfo info = readModuleJson(folder);
                     if (info == null || info.Id != id) continue;          // removed by hand, or damaged
                     _installed[id] = new Installed { Info = info, Folder = folder, Enabled = (bool?)kv.Value["enabled"] ?? false };
@@ -300,6 +301,7 @@ namespace Thetis
         {
             progress?.Report("Unpacking...");
             KainosModuleInfo info;
+            string dest;
             using (ZipArchive z = ZipFile.OpenRead(zip))
             {
                 ZipArchiveEntry mj = z.GetEntry("module.json");
@@ -311,13 +313,11 @@ namespace Thetis
                 if (why != null) return "This module " + why + ".";
                 if (info.Entry.Length == 0 || z.GetEntry(info.Entry) == null) return "The module's DLL (" + info.Entry + ") isn't in it.";
 
-                string dest = Path.Combine(_root, info.Id, info.Version);
+                // Modules\<id>\<version>; if that folder is in use (this version running, its DLL locked), the next free
+                // "<version>-2", "-3" ..., used from the next start (the old one is cleaned up then)
+                dest = freeFolder(info.Id, info.Version);
+                if (dest == null) return "Kainos couldn't make a folder for it (restart Kainos and try again).";
                 string full = Path.GetFullPath(dest).TrimEnd('\\') + "\\";
-                Installed cur = Get(info.Id);
-                bool sameFolderLoaded = cur != null && _loadedOnce.Contains(info.Id) &&
-                    string.Equals(Path.GetFullPath(cur.Folder).TrimEnd('\\') + "\\", full, StringComparison.OrdinalIgnoreCase);
-                if (sameFolderLoaded) return "This version is already installed and running.";
-                if (Directory.Exists(dest)) tryDelete(dest);
                 Directory.CreateDirectory(dest);
                 foreach (ZipArchiveEntry e in z.Entries)
                 {
@@ -334,18 +334,35 @@ namespace Thetis
             {
                 // running (or ran) this session: its DLL stays loaded, so the new version starts next time
                 was.PendingVersion = info.Version;
+                was.PendingFolder = Path.GetFileName(dest);
                 raiseState();
                 raiseChanged();
                 progress?.Report(info.Name + " " + info.Version + " is installed. Restart Kainos to use it.");
                 return null;
             }
-            Installed now = new Installed { Info = info, Folder = Path.Combine(_root, info.Id, info.Version), Enabled = was != null ? was.Enabled : true };
+            Installed now = new Installed { Info = info, Folder = dest, Enabled = was != null ? was.Enabled : true };
             _installed[info.Id] = now;
             if (was != null && !string.Equals(was.Folder, now.Folder, StringComparison.OrdinalIgnoreCase)) tryDelete(was.Folder);
             raiseState();
             if (now.Enabled && _started) startOne(now);
             raiseChanged();
             progress?.Report(info.Name + " " + info.Version + " is installed.");
+            return null;
+        }
+
+        // a folder for a version that isn't in use: its own name, or with "-2", "-3" ... after it (a folder of a module
+        // that ran this session can't be emptied: its DLL is loaded until Kainos closes)
+        private string freeFolder(string id, string version)
+        {
+            Installed cur = Get(id);
+            for (int n = 1; n <= 20; n++)
+            {
+                string d = Path.Combine(_root, id, n == 1 ? version : version + "-" + n);
+                bool inUse = cur != null && string.Equals(Path.GetFullPath(cur.Folder).TrimEnd('\\'), Path.GetFullPath(d).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+                if (inUse) continue;
+                if (Directory.Exists(d)) tryDelete(d);
+                if (!Directory.Exists(d)) return d;
+            }
             return null;
         }
 

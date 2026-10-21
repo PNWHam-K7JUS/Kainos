@@ -210,6 +210,7 @@ void xpipe (int stream, int pos, double** buffs)
 					for (j = 0; j < n; j++) buffs[0][j] *= gd;
 				}
 			}
+			xkdigi_preview(rx, buffs[0]);														// Kainos: a module's preview, heard with RX1 (kdigi.c)
 			memcpy (ppip->rbuff[rx], buffs[0], pcm->rcvr[rx].ch_outsize * sizeof (complex));
 			for (i = 1; i < pcm->cmSubRCVR; i++)
 				for (j = 0; j < 2 * pcm->rcvr[rx].ch_outsize; j++)
@@ -267,6 +268,7 @@ void xpipe (int stream, int pos, double** buffs)
 				if (pip.xmtr[0].txvac == 0)  { xvacIN(0, buff, 0);  xvacIN(1, buff, 1); }
 				if (pip.xmtr[0].txvac == 1)  { xvacIN(1, buff, 0);  xvacIN(0, buff, 1); }
 			}
+			xkdigi_mic(buff);																	// Kainos: the mic for modules (a voice keyer's recordings; kdigi.c)
 			xradae_tx(buff);																	// [v2.10.3.16] FreeDV RADEV1 TX splice (no-op when disabled)
 			xkdigi_tx(buff);																	// Kainos: RTTY transmit audio in place of the mic (kdigi.c; no-op when off)
 			xrecordwave(0, 1, 0, buff);															// wav recorder 0 //[2.10.3.6]MW0LGE moved after vac
