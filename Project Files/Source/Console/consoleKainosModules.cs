@@ -85,7 +85,8 @@ namespace Thetis
 
         private readonly List<ToolStripMenuItem> _kainosModuleClassicItems = new List<ToolStripMenuItem>();
 
-        internal KainosModuleMenuItem KainosAddModuleMenuItem(string text, string tip, Action click)
+        // tools: in the Tools menu rather than Modes (a module's dock button, IKainosDock)
+        internal KainosModuleMenuItem KainosAddModuleMenuItem(string text, string tip, Action click, bool tools = false)
         {
             kainosAudioMenuCreate();
             ToolStripMenuItem modes = new ToolStripMenuItem(text) { ToolTipText = tip };
@@ -93,7 +94,7 @@ namespace Thetis
             EventHandler h = (s, e) => { try { click(); } catch (Exception ex) { kainosModuleError("menu " + text, ex); } };
             modes.Click += h;
             classic.Click += h;
-            ToolStripItemCollection dd = _kainosModesMenu.DropDownItems;
+            ToolStripItemCollection dd = (tools ? _kainosToolsMenu : _kainosModesMenu).DropDownItems;
             if (!dd.OfType<ToolStripSeparator>().Any(x => (string)x.Tag == "modules")) dd.Add(new ToolStripSeparator { Tag = "modules" });
             dd.Add(modes);
             int at = menuStrip1.Items.IndexOf(cwToolStripMenuItem);
@@ -105,6 +106,7 @@ namespace Thetis
 
         internal void KainosRemoveModuleMenuItem(ToolStripMenuItem modes, ToolStripMenuItem classic)
         {
+            if (_kainosToolsMenu != null) _kainosToolsMenu.DropDownItems.Remove(modes);
             if (_kainosModesMenu != null)
             {
                 _kainosModesMenu.DropDownItems.Remove(modes);
@@ -144,6 +146,23 @@ namespace Thetis
         }
 
         private bool kainosModulePaneDocked { get { return _kainosModulePanes.Any(p => p.IsOpen && !p.PoppedNow); } }
+
+        // a module pane's own heights (IKainosPaneHeight), by its height key; null: Kainos's
+        internal IKainosPaneHeight KainosModulePaneHeights(string key)
+        {
+            KainosModulePane p = _kainosModulePanes.FirstOrDefault(x => "m." + x.ModuleId == key);
+            return p != null ? p.Content as IKainosPaneHeight : null;
+        }
+
+        // the docked module pane's key for its height (consoleKainosTerminal.cs): "m.<module id>"
+        private string kainosModulePaneDockedKey
+        {
+            get
+            {
+                KainosModulePane p = _kainosModulePanes.FirstOrDefault(x => x.IsOpen && !x.PoppedNow);
+                return p != null ? "m." + p.ModuleId : null;
+            }
+        }
 
         private void kainosPlaceModulePanes()
         {
@@ -195,6 +214,29 @@ namespace Thetis
             _kainosTapOwner = null;
             _kainosTapRx = -1;
             h.TapTakenAway();
+        }
+
+        // ---- dock buttons for modules (IKainosDock) ----
+
+        internal KainosModuleDockItem KainosAddModuleDockButton(string label, string menuText, string tip, Action click)
+        {
+            CheckBox t = kainosToolTargets.FirstOrDefault(x => x.Tag == null);
+            if (t == null) return null;
+            t.Text = label;
+            t.Tag = click;
+            t.Checked = false;
+            t.Visible = true;
+            KainosModuleMenuItem m = KainosAddModuleMenuItem(menuText, tip, click, true);
+            positionKainosDock();
+            return new KainosModuleDockItem(this, t, m);
+        }
+
+        internal void KainosRemoveModuleDockButton(CheckBox t)
+        {
+            t.Visible = false;
+            t.Checked = false;
+            t.Tag = null;
+            positionKainosDock();
         }
 
         // ---- keys for modules (IKainosVoice.SetKeyHandler): F1 - F12 and Esc, no Ctrl / Alt / Shift ----
@@ -265,6 +307,21 @@ namespace Thetis
         public void Remove() { ui(() => _c.KainosRemoveModuleMenuItem(_modes, _classic)); }
     }
 
+    // A module's dock button and its Tools menu item
+    internal class KainosModuleDockItem : IKainosMenuItem
+    {
+        private readonly Console _c;
+        private readonly CheckBox _t;
+        private readonly KainosModuleMenuItem _menu;
+        public KainosModuleDockItem(Console c, CheckBox t, KainosModuleMenuItem menu) { _c = c; _t = t; _menu = menu; }
+
+        private void ui(Action a) { if (_c.InvokeRequired) _c.BeginInvoke(a); else a(); }
+        public bool Checked { get { return _t.Checked; } set { ui(() => _t.Checked = value); _menu.Checked = value; } }
+        public bool Enabled { get { return _t.Enabled; } set { ui(() => _t.Enabled = value); _menu.Enabled = value; } }
+        public string Text { get { return _menu.Text; } set { _menu.Text = value; } }      // the menu item's; the button keeps its label
+        public void Remove() { ui(() => _c.KainosRemoveModuleDockButton(_t)); _menu.Remove(); }
+    }
+
     // the pane's panel is a terminal (IKainosTerminal): the panadapter's layout looks past it, as past RTTY's and CW's
     internal class KainosModulePanePanel : Panel, IKainosTerminal { }
 
@@ -288,8 +345,11 @@ namespace Thetis
             Panel = new KainosModulePanePanel { BackColor = KainosUI.Bg, Visible = false, Name = "kainosModulePane_" + host.ModuleId + "_" + Guid.NewGuid().ToString("N").Substring(0, 6) };
             content.Dock = DockStyle.Fill;
             Panel.Controls.Add(content);
+            Content = content;
             _popped = host.GetSetting("pane.popped." + title, "0") == "1";
         }
+
+        internal readonly Control Content;
 
         public bool IsOpen { get { return _open; } }
         internal bool PoppedNow { get { return _popped || !_c.KainosLayoutOn; } }
@@ -334,6 +394,8 @@ namespace Thetis
 
         internal void Place() { _window = _c.KainosPlaceModulePane(Panel, _window, _title, _open, PoppedNow, () => closeNow(true)); }
 
+        internal string ModuleId { get { return _host.ModuleId; } }
+
         internal void Dispose()
         {
             closeNow(false);
@@ -344,7 +406,7 @@ namespace Thetis
     }
 
     // What one running module sees of Kainos (IKainosHost)
-    internal class KainosModuleHost : IKainosHost, IKainosRadio, IKainosAudio, IKainosVoice
+    internal class KainosModuleHost : IKainosHost, IKainosRadio, IKainosAudio, IKainosVoice, IKainosDock
     {
         private readonly Console _c;
         private readonly KainosModuleManager _mgr;
@@ -380,6 +442,16 @@ namespace Thetis
             KainosModuleMenuItem m = onUi(() => _c.KainosAddModuleMenuItem(text, toolTip, click));
             lock (_menus) _menus.Add(m);
             return m;
+        }
+
+        // IKainosDock (Kainos 1.0.12)
+        private readonly List<KainosModuleDockItem> _docks = new List<KainosModuleDockItem>();
+        public IKainosMenuItem AddDockButton(string label, string menuText, string toolTip, Action click)
+        {
+            if (_gone) return null;
+            KainosModuleDockItem d = onUi(() => _c.KainosAddModuleDockButton(label, menuText, toolTip, click));
+            if (d != null) lock (_docks) _docks.Add(d);
+            return d;
         }
 
         public IKainosPane CreatePane(string title, Control content)
@@ -550,6 +622,7 @@ namespace Thetis
                     for (int rx = 0; rx < 2; rx++) _c.KainosSetModuleMarkers(rx, null);
                     lock (_panes) { foreach (KainosModulePane p in _panes) p.Dispose(); _panes.Clear(); }
                     lock (_menus) { foreach (KainosModuleMenuItem m in _menus) m.Remove(); _menus.Clear(); }
+                    lock (_docks) { foreach (KainosModuleDockItem d in _docks) d.Remove(); _docks.Clear(); }
                 });
             }
             catch (Exception ex) { Log("shutdown: " + ex.Message); }

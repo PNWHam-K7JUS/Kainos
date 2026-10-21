@@ -11,12 +11,22 @@ Newest first. Each version's section is written to be copied straight into a Git
 **New**
 - The tabs along the top of the right-hand column can be **put on one row**, to give the column more room: click the small **▴** chip after the last tab (or right-click a tab, **Tabs on one row**). As many tabs as fit are shown, in your order (drag your favourites to the front), then a **+4 ▾** chip saying how many more there are. Click it to show them all again. The chip is outlined in gold when an open tab is among the hidden ones. It's remembered.
 
+- **Each docked window remembers its own height** (RTTY, CW and each module's). A short one like the Voice Keyer and a tall one like SSTV no longer share. The height you had carries over to RTTY, CW, SSTV and FT8; a window opened for the first time has the standard height, or its own if it's a short one (the Voice Keyer is one row of buttons). Double-click the bar above it to put it back.
+
+- Technical (docked heights): `_kainosTermHeights` (consoleKainosTerminal.cs), keyed "rtty", "cw" or "m.<module id>" (`kainosTermKey`, the one docked now); `KainosSetTermHeight` sets the docked one's (the standard height is kept as no entry). Saved in `txtKainosTermHeight` as "rtty=300;m.sstv=480"; a plain number from before 1.0.12 is given to rtty, cw, m.sstv and m.digimodes. A module pane's content can implement `IKainosPaneHeight` (new in 1.0.12): its `PreferredHeight` is its default (and what a double-click on the bar goes back to), its `MinimumHeight` how short it may be dragged (40 - 140), and its popped-out window may be that short too (`kainosPaneWindowMin`).
 - Technical (tabs on one row): `KainosColumn.layoutTabs` (consoleKainosColumn.cs) places the chips that fit and gives the rest an empty `TabRect` (not drawn, clicked or dropped on), then `_toggleRect` for the chip that switches; `TabsOnOneRow` raises `TabsChanged`, so the console saves it and lays out again. Saved as `!onerow` at the end of the tab state (`txtKainosColumnTabs`), which an older Kainos ignores.
 
 **New: for modules**
 - Modules can now record your mic, play a preview through your speakers and use the F-keys, for the coming **Voice Keyer** module. Nothing changes for the modules you have.
+- A module that's a tool rather than a mode can put a button at the bottom of the **left-hand dock** (the Voice Keyer's **DVK**), with an item in the **Tools** menu (on the menu bar in the Classic layout). The button lights while the tool is open.
 
 - Technical (module voice API): `IKainosVoice` in `Kainos.ModuleApi.dll`, a new interface beside the unchanged ones (API version stays 1; a module asks with `host as IKainosVoice` and sets `minKainos` 1.0.12). `kdigi.c`: `xkdigi_mic` copies the transmit input in `xpipe` (TX position 0) after VAC and before `xradae_tx` / `xkdigi_tx` (`KDigiMicTap` / `Rate` / `Read`); `xkdigi_preview` adds a ring to RX1's audio before it's copied to `rbuff` (`KDigiPreviewEnable` / `Rate` / `Write` / `Queued` / `Clear`). `Console_KeyDown` offers F1 - F12 and Esc without modifiers to `KainosModuleKey` (consoleKainosModules.cs) after the Kainos text-box check; the newest handler first. A stopping module's mic tap, preview and keys are released in `KainosModuleHost.Shutdown`.
+- Technical (module dock buttons): `IKainosDock.AddDockButton(label, menuText, tip, click)`, also new in 1.0.12. The dock (consoleKainosDock.cs) has a last group of `KainosToolSlots` (4) hidden check boxes of Kainos's own (`kainosToolTargets`); `KainosAddModuleDockButton` (consoleKainosModules.cs) claims a free one (its action in `Tag`, shown), and adds a menu item through `KainosAddModuleMenuItem(..., tools: true)`, which goes in the Tools menu. `KainosModuleDockItem` lights the button and ticks the item together; it's null when all slots are taken, and the module falls back to `AddMenuItem`. Removed with the module.
+
+**Fixed**
+- Installing a module again at the version Kainos is already running (Setup > Modules > Install from file) failed with "the file is being used by another process". It's now installed like an update, and used from the next start.
+
+- Technical (module reinstall): `KainosModuleManager.installZip` unpacks into `freeFolder` (KainosModules.cs): Modules\<id>\<version>, or "<version>-2", "-3" ... when that's the folder in use (its DLL is loaded until Kainos closes); the state saves the folder name beside the version (`"folder"`, read back by `Load`, the version used when it's missing), and `cleanUp` removes the old one at the next start.
 
 ### Kainos 1.0.11 (not yet released)
 

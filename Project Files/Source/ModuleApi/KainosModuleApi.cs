@@ -147,6 +147,16 @@ namespace Kainos.Modules
         void SetKeyHandler(Func<Keys, bool> handler);
     }
 
+    // The dock: a button down the left-hand side, for a module that's a tool rather than a mode (the Voice Keyer).
+    // Added in Kainos 1.0.12, like IKainosVoice: ask with `host as IKainosDock` (null on an older Kainos). The button
+    // goes in the dock's tools group (Kainos layout), with an item in the Tools menu (the menu bar in Classic layout).
+    // Its Checked lights the button and ticks the item. A few slots are kept for modules: null when they're all taken,
+    // so fall back to AddMenuItem.
+    public interface IKainosDock
+    {
+        IKainosMenuItem AddDockButton(string label, string menuText, string toolTip, Action click);
+    }
+
     // Kainos's look, so a module's windows match the console
     public interface IKainosTheme
     {
@@ -178,6 +188,14 @@ namespace Kainos.Modules
         bool Enabled { get; set; }
         string Text { get; set; }
         void Remove();
+    }
+
+    // A pane's content can implement this (Kainos 1.0.12; an older Kainos ignores it): the height (design px) it's
+    // docked at until the user drags it, and how short it may be dragged. Without it: 236, and 140 at least.
+    public interface IKainosPaneHeight
+    {
+        int PreferredHeight { get; }
+        int MinimumHeight { get; }
     }
 
     public interface IKainosPane
