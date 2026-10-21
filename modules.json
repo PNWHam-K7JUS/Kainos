@@ -1,4 +1,50 @@
 {
   "about": "The modules Setup > Modules offers. Each entry comes from a module's build (dist/registry-entry.json); see Documentation/Modules.md.",
-  "modules": []
+  "modules": [
+    {
+      "id": "digimodes",
+      "name": "Digital Modes (FT8 / FT4 / FT2 / JT65 / JT9 / WSPR)",
+      "description": "FT8, FT4, FT2 (experimental), JT65, JT9 and WSPR inside Kainos: band activity, automatic QSO sequencing and an ADIF log, in the Kainos look. Decoding by WSJT-X's jt9 (included).",
+      "version": "0.10.2",
+      "api": 1,
+      "minKainos": "1.0.12",
+      "entry": "Kainos.DigiModes.dll",
+      "author": "Justin Cron K7JUS",
+      "license": "GPL-3.0-or-later",
+      "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-digimodes",
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-digimodes/releases/download/v0.10.2/kainos-digimodes-0.10.2.zip",
+      "sha256": "444d0683b21637c1dd314edbf569ece9a6ccfde9fe616d983738d7a82bbb6f7c",
+      "size": 7460565
+    },
+    {
+      "id": "sstv",
+      "name": "SSTV (slow-scan TV)",
+      "description": "Slow-scan TV inside Kainos: receive Martin, Scottie, Robot 36 and PD pictures (found automatically, slant-corrected, with the sender's callsign and a gallery), and send them: a one-time station setup makes your CQ, Reply and 73 pictures, and Reply answers in the sender's mode.",
+      "version": "0.5.0",
+      "api": 1,
+      "minKainos": "1.0.12",
+      "entry": "Kainos.Sstv.dll",
+      "author": "Justin Cron K7JUS",
+      "license": "GPL-3.0-or-later",
+      "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-sstv",
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-sstv/releases/download/v0.5.0/kainos-sstv-0.5.0.zip",
+      "sha256": "5aa7f01b5034b0f2e0b99d7f9dd3f382602d45b2355210389b711ebeca014c72",
+      "size": 84303
+    },
+    {
+      "id": "dvk",
+      "name": "Voice Keyer (DVK)",
+      "description": "A digital voice keyer: 12 recordings on F1 - F12, recorded from your mic and sent through your whole transmit chain so they sound like you. Preview, repeat CQ with a listening gap, WAV import and export.",
+      "version": "0.2.1",
+      "api": 1,
+      "minKainos": "1.0.12",
+      "entry": "Kainos.Dvk.dll",
+      "author": "Justin Cron K7JUS",
+      "license": "GPL-3.0-or-later",
+      "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-dvk",
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-dvk/releases/download/v0.2.1/kainos-dvk-0.2.1.zip",
+      "sha256": "afb15eea3ddff069458456c4a296d2a56f636c2aa51504d3e058a8f67038ff17",
+      "size": 34413
+    }
+  ]
 }
