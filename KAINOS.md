@@ -6,6 +6,18 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.12 (not yet released)
+
+**New**
+- The tabs along the top of the right-hand column can be **put on one row**, to give the column more room: click the small **▴** chip after the last tab (or right-click a tab, **Tabs on one row**). As many tabs as fit are shown, in your order (drag your favourites to the front), then a **+4 ▾** chip saying how many more there are. Click it to show them all again. The chip is outlined in gold when an open tab is among the hidden ones. It's remembered.
+
+- Technical (tabs on one row): `KainosColumn.layoutTabs` (consoleKainosColumn.cs) places the chips that fit and gives the rest an empty `TabRect` (not drawn, clicked or dropped on), then `_toggleRect` for the chip that switches; `TabsOnOneRow` raises `TabsChanged`, so the console saves it and lays out again. Saved as `!onerow` at the end of the tab state (`txtKainosColumnTabs`), which an older Kainos ignores.
+
+**New: for modules**
+- Modules can now record your mic, play a preview through your speakers and use the F-keys, for the coming **Voice Keyer** module. Nothing changes for the modules you have.
+
+- Technical (module voice API): `IKainosVoice` in `Kainos.ModuleApi.dll`, a new interface beside the unchanged ones (API version stays 1; a module asks with `host as IKainosVoice` and sets `minKainos` 1.0.12). `kdigi.c`: `xkdigi_mic` copies the transmit input in `xpipe` (TX position 0) after VAC and before `xradae_tx` / `xkdigi_tx` (`KDigiMicTap` / `Rate` / `Read`); `xkdigi_preview` adds a ring to RX1's audio before it's copied to `rbuff` (`KDigiPreviewEnable` / `Rate` / `Write` / `Queued` / `Clear`). `Console_KeyDown` offers F1 - F12 and Esc without modifiers to `KainosModuleKey` (consoleKainosModules.cs) after the Kainos text-box check; the newest handler first. A stopping module's mic tap, preview and keys are released in `KainosModuleHost.Shutdown`.
+
 ### Kainos 1.0.11 (not yet released)
 
 **New: a new look for Setup**
