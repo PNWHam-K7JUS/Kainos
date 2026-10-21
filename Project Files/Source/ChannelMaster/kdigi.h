@@ -36,6 +36,8 @@ extern "C" {
 /* splices, called from xpipe (pipe.c) */
 void xkdigi_rx(int rx, double* audio);      /* receiver audio (interleaved L/R doubles), read only */
 void xkdigi_tx(double* mic_io);             /* mic audio (interleaved I/Q doubles), replaced while the feed is on */
+void xkdigi_mic(double* mic);               /* mic audio, read only (before xkdigi_tx) */
+void xkdigi_preview(int rx, double* audio); /* RX1's audio: the preview added */
 
 /* receive tap: the left channel as floats, in a ring the console reads */
 PORT void KDigiRxTap(int rx, int on);
@@ -49,6 +51,15 @@ PORT int  KDigiTxRate(void);
 PORT int  KDigiTxWrite(const float* src, int n);
 PORT int  KDigiTxQueued(void);
 PORT void KDigiTxClear(void);
+/* voice (modules): the mic (the transmit input after VAC), and a preview mixed into RX1's audio */
+PORT void KDigiMicTap(int on);
+PORT int  KDigiMicRate(void);
+PORT int  KDigiMicRead(float* dst, int max);
+PORT void KDigiPreviewEnable(int on);
+PORT int  KDigiPreviewRate(void);
+PORT int  KDigiPreviewWrite(const float* src, int n);
+PORT int  KDigiPreviewQueued(void);
+PORT void KDigiPreviewClear(void);
 
 #ifdef __cplusplus
 }

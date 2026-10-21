@@ -140,3 +140,109 @@ PORT void KDigiTxClear(void)
     if (_InterlockedAnd(&tx_on, 1)) InterlockedExchange(&tx_clear, 1);       /* the audio thread empties it */
     else InterlockedExchange(&tx_r, InterlockedCompareExchange(&tx_w, 0, 0));  /* nothing is reading it */
 }
+
+/* ---- voice (modules, Kainos 1.0.12): the mic as Kainos has it, and a preview mixed into what you hear ----
+   The mic tap copies the transmit input after VAC (so a sound-card or VAC mic counts) and before the transmit feed
+   above replaces it: what a voice keyer records is what it later plays back in the same place, so the mic gain and
+   the whole transmit chain (EQ, Kainos Audio, AetherVoice) treat it as they treat the live voice. The preview is
+   added to RX1's audio before it's mixed to the speakers (and so also reaches VAC and TCI's receive audio). */
+
+static float         mic_ring[KDIGI_RING];
+static volatile LONG mic_w, mic_r, mic_on;
+static float         pv_ring[KDIGI_RING];
+static volatile LONG pv_w, pv_r, pv_on, pv_clear;
+
+void xkdigi_mic(double* mic)
+{
+    int i, n;
+    LONG w;
+    if (!pcm || !_InterlockedAnd(&mic_on, 1)) return;
+    n = pcm->xcm_insize[inid(1, 0)];
+    if (n <= 0) return;
+    w = InterlockedCompareExchange(&mic_w, 0, 0);
+    for (i = 0; i < n; i++)
+        mic_ring[(w + i) & KDIGI_MASK] = (float)mic[2 * i];
+    InterlockedExchange(&mic_w, w + n);
+}
+
+PORT void KDigiMicTap(int on)
+{
+    if (on) InterlockedExchange(&mic_r, InterlockedCompareExchange(&mic_w, 0, 0));     /* start from now */
+    InterlockedExchange(&mic_on, on ? 1 : 0);
+}
+
+PORT int KDigiMicRate(void)
+{
+    if (!pcm) return 0;
+    return pcm->xcm_inrate[inid(1, 0)];
+}
+
+PORT int KDigiMicRead(float* dst, int max)
+{
+    LONG w, r, have;
+    int i;
+    if (!dst || max <= 0) return 0;
+    w = InterlockedCompareExchange(&mic_w, 0, 0);
+    r = InterlockedCompareExchange(&mic_r, 0, 0);
+    have = w - r;
+    if (have > KDIGI_RING - 4096) { r = w - (KDIGI_RING - 4096); have = w - r; }       /* fell behind: newest data */
+    if (have > max) have = max;
+    for (i = 0; i < have; i++) dst[i] = mic_ring[(r + i) & KDIGI_MASK];
+    InterlockedExchange(&mic_r, r + have);
+    return (int)have;
+}
+
+void xkdigi_preview(int rx, double* audio)
+{
+    int i, n;
+    LONG w, r;
+    if (rx != 0 || !pcm || !_InterlockedAnd(&pv_on, 1)) return;
+    n = pcm->rcvr[rx].ch_outsize;
+    if (n <= 0) return;
+    w = InterlockedCompareExchange(&pv_w, 0, 0);
+    r = InterlockedCompareExchange(&pv_r, 0, 0);
+    if (InterlockedExchange(&pv_clear, 0)) r = w;
+    for (i = 0; i < n && r != w; i++, r++)
+    {
+        double s = (double)pv_ring[r & KDIGI_MASK];
+        audio[2 * i] += s;
+        audio[2 * i + 1] += s;
+    }
+    InterlockedExchange(&pv_r, r);
+}
+
+PORT void KDigiPreviewEnable(int on)
+{
+    InterlockedExchange(&pv_on, on ? 1 : 0);
+}
+
+PORT int KDigiPreviewRate(void)
+{
+    if (!pcm) return 0;
+    return pcm->rcvr[0].ch_outrate;
+}
+
+PORT int KDigiPreviewWrite(const float* src, int n)
+{
+    LONG w, r, room;
+    int i;
+    if (!src || n <= 0) return 0;
+    w = InterlockedCompareExchange(&pv_w, 0, 0);
+    r = InterlockedCompareExchange(&pv_r, 0, 0);
+    room = (KDIGI_RING - 1) - (w - r);
+    if (n > room) n = (int)room;
+    for (i = 0; i < n; i++) pv_ring[(w + i) & KDIGI_MASK] = src[i];
+    InterlockedExchange(&pv_w, w + n);
+    return n;
+}
+
+PORT int KDigiPreviewQueued(void)
+{
+    return (int)(InterlockedCompareExchange(&pv_w, 0, 0) - InterlockedCompareExchange(&pv_r, 0, 0));
+}
+
+PORT void KDigiPreviewClear(void)
+{
+    if (_InterlockedAnd(&pv_on, 1)) InterlockedExchange(&pv_clear, 1);      /* the audio thread empties it */
+    else InterlockedExchange(&pv_r, InterlockedCompareExchange(&pv_w, 0, 0));
+}

@@ -121,6 +121,32 @@ namespace Kainos.Modules
         void TxStop();
     }
 
+    // Voice: what a voice keyer needs. Added in Kainos 1.0.12 alongside the interfaces above (which are unchanged, so
+    // modules built for them keep working): a module asks for it with `host as IKainosVoice`, which is null on an
+    // older Kainos, and sets minKainos to 1.0.12 if it can't do without it.
+    public interface IKainosVoice
+    {
+        // The mic as Kainos has it: the transmit input after VAC (radio mic, sound card, VAC or ASIO), before the mic
+        // gain and the transmit chain. Played back through IKainosAudio's transmit feed, which goes in at the same
+        // place, a recording gets the mic gain, EQ, Kainos Audio and AetherVoice exactly as the live voice does.
+        void MicStart();
+        void MicStop();
+        int MicRate { get; }                // samples a second (48000 usually)
+        int ReadMic(float[] dst, int max);  // what has arrived since the last read, mono, about +-1.0
+
+        // Preview: audio mixed into RX1's audio, so it's heard wherever the radio is (and on VAC / TCI receive audio)
+        int PreviewRate { get; }
+        void PreviewStart();
+        int PreviewWrite(float[] src, int n);   // returns how many were taken (the queue is ~2.7 s)
+        int PreviewQueued { get; }
+        void PreviewClear();
+        void PreviewStop();
+
+        // F1 - F12 and Esc pressed in Kainos's main window without Ctrl, Alt or Shift (and not while typing in a text
+        // box). The handler runs on the UI thread and returns true if it used the key. Null stops.
+        void SetKeyHandler(Func<Keys, bool> handler);
+    }
+
     // Kainos's look, so a module's windows match the console
     public interface IKainosTheme
     {

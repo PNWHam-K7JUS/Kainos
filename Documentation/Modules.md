@@ -65,9 +65,13 @@ A module adds a feature to Kainos that not everyone needs, such as FT8/FT4. Modu
 - **Look.** `Theme` gives the Kainos palette, the UI scale, `DrawButton`, `Font` and `Style` (which applies the dark look to a window).
 - **Station.** `Callsign` and `Grid` are the user's own, from Setup > DSP > FreeDV (RADE).
 - **Crisp drawing.** `KainosCrispHost` (a control, not part of `IKainosHost`) shows a module's control at the screen's own resolution while Kainos stays DPI-unaware. Put `new KainosCrispHost(content)` in the pane where the content would go. At 125 % / 150 % the content then lives in a borderless per-monitor-aware window of its own, kept over the placeholder, and Windows doesn't stretch it. The content works in screen pixels and multiplies its design sizes by `KainosCrispHost.DpiScale(this)`. It should invalidate whole rather than by rectangle, and give any `ToolTip` `ShowAlways = true`. The file's header has the details. Windows can't host a per-monitor-aware child inside Kainos's DPI-unaware window, even with mixed DPI hosting, which is why it uses a window of its own. Added in 1.0.11, so a module that uses it sets `minKainos`.
+- **Voice** (`IKainosVoice`, added in 1.0.12). A module asks for it with `host as IKainosVoice`; it's null on an older Kainos, so a module that needs it sets `minKainos` to 1.0.12. The interfaces above are unchanged, so the API version stays 1.
+  - `MicStart` and `ReadMic` give the mic as Kainos has it: the transmit input after VAC (radio mic, sound card, VAC or ASIO), before the mic gain. Played back through `TxWrite`, which goes in at the same place, a recording gets the mic gain and the whole transmit chain (EQ, Kainos Audio, AetherVoice) as the live voice does.
+  - Between `PreviewStart` and `PreviewStop`, audio written with `PreviewWrite` is mixed into RX1's audio, so it's heard wherever the radio is (and on VAC and TCI receive audio).
+  - `SetKeyHandler` passes F1 - F12 and Esc, pressed in the main window without Ctrl, Alt or Shift and not while typing in a text box, to the module (on the UI thread); it returns true if it used the key. Ctrl+F1 - F10 stay CWX's.
 - **UI thread.** `BeginInvoke` runs an action on the UI thread. Any host member that touches the window marshals to the UI thread itself.
 
-When a module stops, Kainos cleans up after it. It removes the module's menu items and panes, releases the audio tap and markers, stops TX, and un-keys the radio if the module had keyed it.
+When a module stops, Kainos cleans up after it. It removes the module's menu items and panes, releases the audio tap and markers, stops TX, the mic tap, the preview and its keys, and un-keys the radio if the module had keyed it.
 
 ## Updating and removing
 

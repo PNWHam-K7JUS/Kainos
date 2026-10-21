@@ -197,6 +197,26 @@ namespace Thetis
             h.TapTakenAway();
         }
 
+        // ---- keys for modules (IKainosVoice.SetKeyHandler): F1 - F12 and Esc, no Ctrl / Alt / Shift ----
+
+        private readonly List<KainosModuleHost> _kainosKeyHosts = new List<KainosModuleHost>();
+
+        internal void KainosSetModuleKeys(KainosModuleHost host, bool on)
+        {
+            _kainosKeyHosts.Remove(host);
+            if (on) _kainosKeyHosts.Add(host);         // the newest first in line
+        }
+
+        // from Console_KeyDown (after a Kainos text box has had its say)
+        internal bool KainosModuleKey(KeyEventArgs e)
+        {
+            if (_kainosKeyHosts.Count == 0 || e.Control || e.Alt || e.Shift) return false;
+            if (!(e.KeyCode == Keys.Escape || (e.KeyCode >= Keys.F1 && e.KeyCode <= Keys.F12))) return false;
+            for (int i = _kainosKeyHosts.Count - 1; i >= 0; i--)
+                if (_kainosKeyHosts[i].Key(e.KeyCode)) return true;
+            return false;
+        }
+
         // ---- panadapter markers ----
 
         private readonly KainosMarker[][] _kainosModuleMarkers = new KainosMarker[2][];
@@ -324,7 +344,7 @@ namespace Thetis
     }
 
     // What one running module sees of Kainos (IKainosHost)
-    internal class KainosModuleHost : IKainosHost, IKainosRadio, IKainosAudio
+    internal class KainosModuleHost : IKainosHost, IKainosRadio, IKainosAudio, IKainosVoice
     {
         private readonly Console _c;
         private readonly KainosModuleManager _mgr;
@@ -471,6 +491,45 @@ namespace Thetis
             KDigi.KDigiTxEnable(0);
         }
 
+        // ---- IKainosVoice (Kainos 1.0.12) ----
+
+        private bool _micOn, _pvOn;
+        private Func<Keys, bool> _keys;
+
+        public void MicStart() { if (_gone) return; KDigi.KDigiMicTap(1); _micOn = true; }
+        public void MicStop() { if (!_micOn) return; _micOn = false; KDigi.KDigiMicTap(0); }
+        public int MicRate { get { return KDigi.KDigiMicRate(); } }
+        public int ReadMic(float[] dst, int max) { return _micOn && dst != null ? KDigi.KDigiMicRead(dst, Math.Min(max, dst.Length)) : 0; }
+
+        public int PreviewRate { get { return KDigi.KDigiPreviewRate(); } }
+        public void PreviewStart() { if (_gone) return; KDigi.KDigiPreviewClear(); KDigi.KDigiPreviewEnable(1); _pvOn = true; }
+        public int PreviewWrite(float[] src, int n) { return _pvOn && src != null ? KDigi.KDigiPreviewWrite(src, Math.Min(n, src.Length)) : 0; }
+        public int PreviewQueued { get { return _pvOn ? KDigi.KDigiPreviewQueued() : 0; } }
+        public void PreviewClear() { if (_pvOn) KDigi.KDigiPreviewClear(); }
+        public void PreviewStop()
+        {
+            if (!_pvOn) return;
+            _pvOn = false;
+            KDigi.KDigiPreviewClear();
+            KDigi.KDigiPreviewEnable(0);
+        }
+
+        public void SetKeyHandler(Func<Keys, bool> handler)
+        {
+            if (_gone && handler != null) return;
+            _keys = handler;
+            onUi(() => _c.KainosSetModuleKeys(this, handler != null));
+        }
+
+        // UI thread (KainosModuleKey)
+        internal bool Key(Keys k)
+        {
+            Func<Keys, bool> h = _keys;
+            if (h == null || _gone) return false;
+            try { return h(k); }
+            catch (Exception ex) { Log("key handler: " + ex); return false; }
+        }
+
         // ---- when the module stops ----
 
         internal void Shutdown()
@@ -478,11 +537,15 @@ namespace Thetis
             if (_gone) return;
             bool wasTx = _txOn;
             TxStop();
+            MicStop();
+            PreviewStop();
+            _keys = null;
             try
             {
                 onUi(() =>
                 {
                     if (wasTx && _c.MOX) _c.MOX = false;
+                    _c.KainosSetModuleKeys(this, false);
                     _c.KainosModuleReleaseTap(this);
                     for (int rx = 0; rx < 2; rx++) _c.KainosSetModuleMarkers(rx, null);
                     lock (_panes) { foreach (KainosModulePane p in _panes) p.Dispose(); _panes.Clear(); }
