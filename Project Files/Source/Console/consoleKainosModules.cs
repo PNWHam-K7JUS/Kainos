@@ -137,7 +137,10 @@ namespace Thetis
         {
             if (_rttyOpen && opening != (object)_rttyPane) RttyClose();
             if (_cwOpen && opening != (object)_cwPane) CwClose();
-            foreach (KainosModulePane p in _kainosModulePanes.ToList()) if (p != opening && p.IsOpen) p.Close();
+            // a module's pane closed to make room is closed as the user's close would: its Closed tells the module, which
+            // stops and un-ticks its menu item (a quiet Close left FT8 ticked and running when SSTV opened, and would have
+            // left the Voice Keyer's F-keys live)
+            foreach (KainosModulePane p in _kainosModulePanes.ToList()) if (p != opening && p.IsOpen) p.CloseForAnother();
         }
 
         internal Form KainosPlaceModulePane(Control pane, Form window, string title, bool open, bool popped, Action close)
@@ -383,6 +386,10 @@ namespace Thetis
         }
 
         public void Close() { ui(() => closeNow(false)); }
+
+        // another terminal or module pane is opening in its place: closed, and the module told (Closed), as when the user
+        // closes it
+        internal void CloseForAnother() { ui(() => closeNow(true)); }
 
         private void closeNow(bool byUser)
         {
