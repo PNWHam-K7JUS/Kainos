@@ -143,6 +143,7 @@ namespace Thetis
             _kainosEdgeAway[side] = 0;
             if (f.Visible) return;
             kainosPlaceEdges();
+            f.ActiveControl = f.FocusSink;      // a click that activates it mustn't focus the VFO SYNC box (GitHub #32)
             f.Show(this);
             if (side == 1) { _kainosColumn.ArrangeSections(); kainosCompactPinIn(); }
             else _kainosDock.Invalidate();
@@ -257,8 +258,16 @@ namespace Thetis
     // A borderless window owned by the console for the dock or the column in the compact view
     internal class KainosEdgeForm : Form
     {
+
+        // where focus goes in this window when it's activated (by a click), instead of the first control that takes it:
+        // that was the VFO SYNC panel's wheel-tune box, whose Thetis handler sends focus to a button in the console,
+        // which took the activation straight back and lost the click (GitHub #32)
+        public readonly Button FocusSink = new Button { Name = "kainosEdgeFocusSink", Size = new Size(1, 1), Location = new Point(-10, -10), TabStop = false };
+
         public KainosEdgeForm()
         {
+            Controls.Add(FocusSink);
+            ActiveControl = FocusSink;
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
