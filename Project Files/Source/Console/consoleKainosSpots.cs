@@ -100,7 +100,8 @@ namespace Thetis
             _spotTimer = new System.Windows.Forms.Timer { Interval = 1000 };
             _spotTimer.Tick += (s, e) => kainosSpotsTick();
             _spotTimer.Start();
-            if (KainosSpotting.ClusterOn || KainosSpotting.PotaOn) kainosShowSpotsOnPanadapter(true);
+            // not turned on here: whether spots show on the panadapter is the user's (Setup > TCI's Show spots, the Pan
+            // button), and saved; forcing it on at every start undid turning it off (GitHub #29)
             KainosSpotting.Start();
         }
 
@@ -173,8 +174,8 @@ namespace Thetis
             _spotStatusDx = new KainosTextLine(() => "DX: " + KainosSpotting.ClusterStatus, () => KainosSpotting.ClusterStatus.StartsWith("Connected") ? KainosUI.Text : KainosUI.Dim);
             _spotStatusPota = new KainosTextLine(() => "POTA: " + KainosSpotting.PotaStatus, () => KainosSpotting.PotaStatus.Contains("on the air") ? KainosUI.Text : KainosUI.Dim);
             _spotButtons = new KainosActionGrid(4);
-            _spotButtons.Add("DX", () => KainosSpotting.ClusterOn, () => { KainosSpotting.ClusterOn = !KainosSpotting.ClusterOn; kainosSpotsChanged(); }, KainosUI.Tone.Ice);
-            _spotButtons.Add("POTA", () => KainosSpotting.PotaOn, () => { KainosSpotting.PotaOn = !KainosSpotting.PotaOn; kainosSpotsChanged(); }, KainosUI.Tone.Ice);
+            _spotButtons.Add("DX", () => KainosSpotting.ClusterOn, () => { KainosSpotting.ClusterOn = !KainosSpotting.ClusterOn; kainosSpotsChanged(KainosSpotting.ClusterOn); }, KainosUI.Tone.Ice);
+            _spotButtons.Add("POTA", () => KainosSpotting.PotaOn, () => { KainosSpotting.PotaOn = !KainosSpotting.PotaOn; kainosSpotsChanged(KainosSpotting.PotaOn); }, KainosUI.Tone.Ice);
             _spotButtons.Add("Pan", () => Display.ShowTCISpots, () => kainosShowSpotsOnPanadapter(!Display.ShowTCISpots), KainosUI.Tone.Gold);
             _spotButtons.Add("Band", () => SpotBandOnly, () => { SpotBandOnly = !SpotBandOnly; kainosSpotsSave(); _spotList.Invalidate(); }, KainosUI.Tone.Gold);
             _spotList = new KainosSpotList(this);
@@ -191,9 +192,11 @@ namespace Thetis
             });
         }
 
-        private void kainosSpotsChanged()
+        // turnedOn: the user has just turned DX or POTA on, so the spots are shown on the panadapter (once; turning them
+        // off there with the Pan button or Setup then sticks)
+        private void kainosSpotsChanged(bool turnedOn)
         {
-            if (KainosSpotting.ClusterOn || KainosSpotting.PotaOn) kainosShowSpotsOnPanadapter(true);
+            if (turnedOn) kainosShowSpotsOnPanadapter(true);
             if (!KainosSpotting.ClusterOn) SpotManager2.ClearAllSpots(true, false);
             kainosSpotsSave();
             KainosSpotting.Kick();

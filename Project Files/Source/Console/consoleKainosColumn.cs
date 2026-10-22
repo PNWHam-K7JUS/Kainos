@@ -1212,7 +1212,7 @@ namespace Thetis
             }
         }
 
-        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); if (KainosWheelFilter.ColumnScrolls()) ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -1505,6 +1505,17 @@ namespace Thetis
 
     partial class KainosWheelFilter
     {
+        // A wheel turn that reaches the column's own area after the control under the pointer had it (Windows passes a
+        // wheel message a control leaves unhandled up to its parent, and the sliders leave it): the column scrolls
+        // only if the filter above would have scrolled it, so Ctrl+wheel on a slider (or the wheel, with "adjust
+        // first") moves the slider and not the column as well (GitHub #32)
+        internal static bool ColumnScrolls()
+        {
+            bool ctrl = (Control.ModifierKeys & Keys.Control) != 0;
+            bool adjust = ctrl != AdjustFirst;          // Ctrl adjusts, or (adjust first) the wheel alone does
+            return !(adjust && usesWheel(Control.FromChildHandle(WindowFromPoint(Cursor.Position))));
+        }
+
         // a control (or the control it's part of, like a number box's text) that does something with the wheel
         private static bool usesWheel(Control c)
         {
@@ -1546,7 +1557,7 @@ namespace Thetis
             Cursor = _column.HeaderBusy ? Cursors.SizeNS : _column.OverHeader(e.Location) ? Cursors.SizeAll : Cursors.Default;
         }
 
-        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); _column.ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
+        protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); if (KainosWheelFilter.ColumnScrolls()) _column.ScrollBy(e.Delta); if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true; }
     }
 
     // A drop-down bound to a set of Thetis buttons (band, mode or filter): it shows its caption and the button

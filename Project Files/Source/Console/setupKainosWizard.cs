@@ -32,6 +32,13 @@ namespace Thetis
         // light mode (consoleKainosSupport.cs): the box, and the frame rate and 3D it replaced; the update check's
         // "last=yyyy-mm-dd;skip=version"
         private CheckBoxTS chkKainosLightMode;
+        private CheckBoxTS chkKainosFahrenheit;          // the HL2's temperature in the status bar in °F (GitHub #28)
+
+        internal bool KainosFahrenheit
+        {
+            get { return chkKainosFahrenheit != null && chkKainosFahrenheit.Checked; }
+            set { if (chkKainosFahrenheit != null) chkKainosFahrenheit.Checked = value; }
+        }
         private TextBoxTS txtKainosLightSaved, txtKainosUpdate;
 
         // called from the Kainos appearance page's setup (setupKainosUI.cs)
@@ -50,6 +57,11 @@ namespace Thetis
             toolTip1.SetToolTip(run, "Set Kainos up for your Hermes Lite 2: callsign, grid square, licence class and which boards the HL2 has.");
             run.Click += (s, e) => console.KainosRunWizard(false);
             page.Controls.Add(run);
+
+            chkKainosFahrenheit = new CheckBoxTS { Name = "chkKainosFahrenheit", Text = "Temperature in °F (the radio's, in the status bar)", Location = new Point(180, 344), AutoSize = true };
+            toolTip1.SetToolTip(chkKainosFahrenheit, "Shows the Hermes Lite 2's temperature in the status bar in Fahrenheit rather than Celsius.\r\n" +
+                "A click on the temperature in the status bar switches it too.");
+            page.Controls.Add(chkKainosFahrenheit);
 
             chkKainosLightMode = new CheckBoxTS { Name = "chkKainosLightMode", Text = "Light mode (for slower PCs: no 3D, 20 frames a second)", Location = new Point(180, 320), AutoSize = true };
             toolTip1.SetToolTip(chkKainosLightMode, "Turns the 3D panadapter off and lowers the display to 20 frames a second, so Kainos runs well on an\r\n" +
