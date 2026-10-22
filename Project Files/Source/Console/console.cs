@@ -31112,6 +31112,11 @@ namespace Thetis
 
         private void HideFocus(object sender, EventArgs e)
         {
+            // Kainos: in the compact view's edge window (the VFO SYNC panel's wheel-tune box goes there), focus stays in
+            // that window: btnHidden is in the console, and focusing it took the activation back from the edge window as
+            // a click activated it, so the click was lost (GitHub #32)
+            KainosEdgeForm edge = (sender as Control)?.FindForm() as KainosEdgeForm;
+            if (edge != null) { edge.FocusSink.Focus(); return; }
             btnHidden.Focus();
         }
 
