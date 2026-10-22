@@ -62,7 +62,7 @@ namespace Thetis
             new[] { 18.068, 18.168 }, new[] { 21.000, 21.450 }, new[] { 24.890, 24.990 }, new[] { 28.000, 29.700 }, new[] { 50.000, 52.000 },
         };
 
-        // the United States: Amateur Extra, General and Technician (FCC 97.301 and 97.305)
+        // the United States: Amateur Extra, Advanced, General and Technician (FCC 97.301 and 97.305)
         private static List<Seg> unitedStates(string licence)
         {
             List<Seg> s = new List<Seg>();
@@ -75,6 +75,19 @@ namespace Thetis
                 s.Add(new Seg(14.000, 14.150, Kind.CwData)); s.Add(new Seg(14.150, 14.350, Kind.AllModes));
                 s.Add(new Seg(18.068, 18.110, Kind.CwData)); s.Add(new Seg(18.110, 18.168, Kind.AllModes));
                 s.Add(new Seg(21.000, 21.200, Kind.CwData)); s.Add(new Seg(21.200, 21.450, Kind.AllModes));
+                s.Add(new Seg(24.890, 24.930, Kind.CwData)); s.Add(new Seg(24.930, 24.990, Kind.AllModes));
+                s.Add(new Seg(28.000, 28.300, Kind.CwData)); s.Add(new Seg(28.300, 29.700, Kind.AllModes));
+            }
+            else if (licence == "Advanced")
+            {
+                // as General but for the CW / data starts and the phone sub-bands on 80, 40, 20 and 15 m (GitHub #28)
+                s.Add(new Seg(1.800, 2.000, Kind.AllModes));
+                s.Add(new Seg(3.525, 3.600, Kind.CwData)); s.Add(new Seg(3.700, 4.000, Kind.AllModes));
+                s.Add(new Seg(7.025, 7.125, Kind.CwData)); s.Add(new Seg(7.125, 7.300, Kind.AllModes));
+                s.Add(new Seg(10.100, 10.150, Kind.CwData));
+                s.Add(new Seg(14.025, 14.150, Kind.CwData)); s.Add(new Seg(14.175, 14.350, Kind.AllModes));
+                s.Add(new Seg(18.068, 18.110, Kind.CwData)); s.Add(new Seg(18.110, 18.168, Kind.AllModes));
+                s.Add(new Seg(21.025, 21.200, Kind.CwData)); s.Add(new Seg(21.225, 21.450, Kind.AllModes));
                 s.Add(new Seg(24.890, 24.930, Kind.CwData)); s.Add(new Seg(24.930, 24.990, Kind.AllModes));
                 s.Add(new Seg(28.000, 28.300, Kind.CwData)); s.Add(new Seg(28.300, 29.700, Kind.AllModes));
             }

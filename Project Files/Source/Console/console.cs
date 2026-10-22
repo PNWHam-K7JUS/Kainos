@@ -26861,7 +26861,7 @@ namespace Thetis
 
                 if (HardwareSpecific.Model == HPSDRModel.HERMESLITE)
                 {
-                    toolStripStatusLabel_Volts.Text = String.Format("{0:#0.0}C", _MKIIHL2Temp);
+                    toolStripStatusLabel_Volts.Text = KainosTemperatureText(_MKIIHL2Temp);       // Kainos: °C or °F (consoleKainosSupport.cs, GitHub #28)
                     toolStripStatusLabel_Amps.Text = String.Format("{0:#0.00}A", _MKIIPAAmps);
                 }
                 else if (Math.Abs(_MKIIPAVolts - _oldMKIIPAVolts) >= 0.1f)  //MW0LGE [2.9.0.7] added to prevent edge case flicker due to rounding

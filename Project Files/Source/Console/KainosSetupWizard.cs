@@ -56,7 +56,7 @@ namespace Thetis
     {
         public static readonly KeyValuePair<string, string[]>[] Countries =
         {
-            new KeyValuePair<string, string[]>("United States", new[] { "Technician", "General", "Amateur Extra" }),
+            new KeyValuePair<string, string[]>("United States", new[] { "Technician", "General", "Advanced", "Amateur Extra" }),     // Advanced: no longer issued, still renewed (GitHub #28)
             new KeyValuePair<string, string[]>("Canada", new[] { "Basic", "Basic with Honours", "Advanced" }),
             new KeyValuePair<string, string[]>("United Kingdom", new[] { "Foundation", "Intermediate", "Full" }),
             new KeyValuePair<string, string[]>("Australia", new[] { "Foundation", "Standard", "Advanced" }),

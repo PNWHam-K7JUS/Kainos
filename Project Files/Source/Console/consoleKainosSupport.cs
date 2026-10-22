@@ -165,6 +165,26 @@ namespace Thetis
         // the VST3 plugin's choice changed (KainosVst.cs): saved with the options
         internal void KainosRaiseSettingsChanged() { KainosSettingsChanged?.Invoke(this, EventArgs.Empty); }
 
+        // ---- the HL2's temperature in the status bar: °C, or °F (Setup > Appearance > Kainos; GitHub #28) ----
+
+        private bool _kainosTempClickHooked;
+
+        internal string KainosTemperatureText(float celsius)
+        {
+            if (!_kainosTempClickHooked)
+            {
+                // a click on it switches between °C and °F (the Setup box, so it's saved)
+                _kainosTempClickHooked = true;
+                toolStripStatusLabel_Volts.Click += (s, e) =>
+                {
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && !IsSetupFormNull) SetupForm.KainosFahrenheit = !SetupForm.KainosFahrenheit;
+                };
+                toolStripStatusLabel_Volts.ToolTipText = "The radio's temperature: click for °C / °F";
+            }
+            bool f = !IsSetupFormNull && SetupForm.KainosFahrenheit;
+            return f ? String.Format("{0:#0.0}°F", celsius * 9f / 5f + 32f) : String.Format("{0:#0.0}°C", celsius);
+        }
+
         // ---- squelch kept over a restart (GitHub #10) ----
 
         // InitConsole calls ptbSquelch_Scroll / ptbRX2Squelch_Scroll, which store the slider's value as the threshold for
