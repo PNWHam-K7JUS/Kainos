@@ -6,18 +6,24 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 
 - Website and download: https://kainossdr.com
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
-- Current version: 1.0.10 (based on Thetis 2.10.3.15)
+- Current version: 1.0.12 (based on Thetis 2.10.3.15)
 
 ![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
 
 ## What Kainos adds
 
+- **Modules**: add-on features you download only if you want them, from **Setup > Modules** (Kainos 1.0.12 and later). Install, turn on or off, or remove each one; Kainos fetches it from GitHub and checks it before installing.
+  - **[Digital Modes](https://github.com/PNWHam-K7JUS/kainos-module-digimodes)**: FT8, FT4, JT65, JT9 and WSPR, and FT2 (experimental), decoded by WSJT-X's own decoder and sent straight through Kainos, with no virtual audio cables or CAT: band activity, automatic QSO sequencing and an ADIF log.
+  - **[SSTV](https://github.com/PNWHam-K7JUS/kainos-module-sstv)**: receive Martin, Scottie, Robot 36 and PD pictures (found by themselves, slant-corrected, held through fades, with the sender's callsign and a gallery) and send your own CQ, Reply and 73 pictures.
+  - **[Voice Keyer (DVK)](https://github.com/PNWHam-K7JUS/kainos-module-dvk)**: 12 recordings on F1 - F12, recorded from your mic and sent through your whole transmit chain so they sound like you, with preview and repeat CQ. It opens from its **DVK** button in the left-hand column.
+- **New filters**: **AUTO NOTCH** (on the VFO flag's DSP tab) finds steady carriers and heterodynes and notches up to eight at once, staying put as you tune; **PEAK** in the RTTY window puts narrow peaks on the mark and space tones, for your ears and the decoder.
 - **A modern layout**: a dark, tidy console in the Kainos colours, switchable back to the Thetis (Classic) look in Setup > Appearance > Kainos, with its own UI scale (75-200%).
   - **Slice flags** on the panadapter (SmartSDR style) for VFO A and, with RX2 or split on, VFO B: antenna, filter, active DSP, mode, frequency and an S meter. Turn the mouse wheel over a digit to tune by that digit, click the frequency to type one, and click TX to choose the transmit VFO. Flags are see-through until the mouse is over them, and can be dragged down the panadapter by their face so spots along the top stay visible. Tabs under the flag open its audio, DSP, mode, RIT/XIT, VAC and FreeDV controls.
   - **A right-hand column of tabs** you turn on and off: VFO, VFO sync, meters (an analog meter; OE3IDE's FTDX-5000 skin is offered on first run), band / mode / filter, RX, TX, PA profile, EQ, Kainos Audio, FreeDV and memories.
   - **A Kainos panadapter background**: dark navy with the logo faint behind the trace (Setup > Appearance > Kainos).
   - **3D stacked-trace panadapter (experimental)**: the **3D** button under the panadapter stacks the last few seconds of traces behind the live one, in the waterfall's colours. It is new, uses more CPU, and may change.
   - **Every window in the Kainos look**: Setup, Memory, Equalizer and the rest open dark, like the Kainos Audio window; sliders and menus look the same on every PC.
+  - **A modern Setup**: a search box (Ctrl+F) and a list of pages down the left in place of the rows of tabs.
   - **A left-hand column** with power, transmit, VFO and VAC buttons, and **a bar under the panadapter** for pan, zoom, display mode and multi-RX. Everything else at the bottom of the window is gone, so the panadapter and waterfall use the full height.
 - **RTTY**: built-in RTTY (45.45 baud, 170 Hz shift and others) with no extra programs or virtual audio cables. Open **Modes > RTTY** in the menu bar (**RTTY** on its own in the Classic layout): the terminal opens under the panadapter (or in its own window) with received text, type-ahead sending, macros and a tuning indicator. Use DIGL or LSB.
 - **CW**: a built-in CW decoder and sender. Open **Modes > CW** in the menu bar (**CW** on its own in the Classic layout): the terminal (laid out like RTTY's) decodes the receiver at your CW pitch and follows the sender's speed, and what you type or send from the macros goes out through Thetis's CWX keyer at your chosen speed. Use CWL or CWU and zero-beat the signal.
@@ -27,12 +33,12 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - **SWR sweep**: the SWR button sweeps a band at 1 W or less and plots your antenna's SWR, with the 2:1 bandwidth; save sweeps to compare, or export them as CSV.
 - **Setup wizard**: callsign, HL2 boards (N2ADR, I/O board), PC audio and look in a few steps, offered on first run and in the Setup menu.
 - **Safety nets**: one-click settings backup, an update notice with the release notes, and **Report a bug** (top right), which opens a GitHub issue with diagnostics filled in. **Light mode** for slower PCs.
-- **Make it yours**: drag the right-hand column's sections into your own order, shrink a VFO flag to one line, see-through flags you can pin anywhere on the panadapter (or turn off and use the VFO tab), and choose what the mouse wheel does over the column.
+- **Make it yours**: drag the right-hand column's sections into your own order, put its tabs on one row, shrink a VFO flag to one line, see-through flags you can pin anywhere on the panadapter (or turn off and use the VFO tab), and choose what the mouse wheel does over the column.
 - **Audio scope**: an AUDIO SCOPE tab with a waveform, audio spectrum and waterfall of what you hear, and of your own signal while you transmit, in a choice of colours (Standard, Kainos glow, Phosphor, Heat, Spectrum).
 - **Hear VFO B in split**: LISTEN on VFO B's flag puts a second receiver on it inside RX1's span, so you hear the pileup and the DX together.
 - **VST3 plugins** (experimental): run a VST3 audio plugin in Kainos Audio's transmit chain, with its own window, anywhere in the chain.
 - **Amplifier band switching**: a Xiegu GPA100 follows Kainos's band over Bluetooth (Setup > Serial / Network / Midi CAT > Amplifier (CI-V), with Find GPA100); other amps that follow an Icom radio over CI-V can too.
-- **Compact view and a tidier menu bar**: the side columns tuck away at the window's edges and slide in when you point at them; Audio, Modes and Tools menus.
+- **Compact view and a tidier menu bar**: the side columns tuck away at the window's edges and slide in when you point at them; Audio, Modes and Tools menus. The RTTY, CW and module windows docked under the panadapter can each be made taller or shorter.
 - **Kainos Audio**: audio processing for the voices you hear and your own transmitted voice, in one window with Receive and Transmit tabs. Open it from the **Audio** menu. The processing is ported from [AetherSDR](https://github.com/aethersdr/AetherSDR):
   - **Receive**, on every receiver: parametric EQ, gate, compressor, tube saturation and the AetherVoice exciter. Saved with your settings.
   - **Transmit**: gate, parametric EQ, de-esser, compressor, tube saturation, AetherVoice, reverb and a final limiter. Saved in each TX profile.
