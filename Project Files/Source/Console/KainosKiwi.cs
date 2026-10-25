@@ -40,6 +40,10 @@ namespace Thetis
     // The list comes from rx.linkfanel.net's copy of kiwisdr.com/public (made for map tools; kiwisdr.com's own page
     // is behind a human check). Each receiver's owner decides who may connect and for how long; Kainos shows their
     // answer (busy, time limit...) as it comes.
+    //
+    // About half the list is reached through kiwisdr.com's proxy (<name>.proxy.kiwisdr.com). On port 80 that redirects
+    // browsers; the receiver itself answers on 8073, as on a Kiwi's own address, so those are listed with :8073.
+    // Receivers that aren't listed at all can be added by address (Add Kiwi); their /status page gives the same fields.
 
     internal class KiwiReceiver
     {
@@ -47,6 +51,8 @@ namespace Thetis
         public int Users, UsersMax;
         public double Lat, Lon, Km = -1;
         public long LowHz, HighHz;
+        public bool Own;                    // added by address (Add Kiwi), not from the list
+        public bool NoAnswer;               // an added one whose /status didn't answer
         public bool Free { get { return Users < UsersMax; } }
     }
 
@@ -70,29 +76,71 @@ namespace Thetis
                     if ((string)t["status"] != "active" || (string)t["offline"] == "yes") continue;
                     string url = (string)t["url"] ?? "";
                     if (!url.StartsWith("http")) continue;
-                    if (url.IndexOf("proxy.kiwisdr.com", StringComparison.OrdinalIgnoreCase) >= 0) continue;     // their proxy serves browsers only
-                    KiwiReceiver r = new KiwiReceiver
-                    {
-                        Name = clean((string)t["name"]),
-                        Url = url.TrimEnd('/'),
-                        Loc = clean((string)t["loc"]),
-                        Antenna = clean((string)t["antenna"]),
-                        Grid = (string)t["grid"] ?? "",
-                    };
-                    int.TryParse((string)t["users"], out r.Users);
-                    int.TryParse((string)t["users_max"], out r.UsersMax);
-                    Match m = Regex.Match((string)t["gps"] ?? "", @"\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)");
-                    if (m.Success)
-                    {
-                        double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out r.Lat);
-                        double.TryParse(m.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out r.Lon);
-                    }
-                    string[] bands = ((string)t["bands"] ?? "").Split('-');
-                    if (bands.Length == 2) { long.TryParse(bands[0], out r.LowHz); long.TryParse(bands[1], out r.HighHz); }
-                    list.Add(r);
+                    list.Add(fromFields(k => (string)t[k], IsProxy(url) ? NormalUrl(url) : url.TrimEnd('/')));
                 }
                 return list;
             }
+        }
+
+        // an address as typed (host, host:port or a URL) as http://host:port; a Kiwi's own port is 8073, and a proxied
+        // one answers there too (see above). Null if it isn't an address.
+        public static string NormalUrl(string typed)
+        {
+            string t = (typed ?? "").Trim().TrimEnd('/');
+            if (t.Length == 0) return null;
+            if (!Regex.IsMatch(t, "^[a-z]+://", RegexOptions.IgnoreCase)) t = "http://" + t;
+            Uri u;
+            if (!Uri.TryCreate(t, UriKind.Absolute, out u) || u.Host.Length == 0) return null;
+            bool proxy = IsProxy(t);
+            int port = u.IsDefaultPort && (proxy || !Regex.IsMatch(t, @"^[a-z]+://[^/]+:\d+", RegexOptions.IgnoreCase)) ? 8073 : u.Port;
+            return (u.Scheme == "https" ? "https" : "http") + "://" + u.Host + ":" + port;
+        }
+
+        public static bool IsProxy(string url)
+        {
+            Uri u;
+            return Uri.TryCreate(url, UriKind.Absolute, out u) && u.Host.EndsWith(".proxy.kiwisdr.com", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // one receiver's own status page (/status: the list's fields, one "key=value" a line)
+        public static KiwiReceiver FetchStatus(string url)
+        {
+            using (HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) })
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+                string text = http.GetStringAsync(url + "/status").Result;
+                Dictionary<string, string> f = new Dictionary<string, string>();
+                foreach (string line in text.Split('\n'))
+                {
+                    int eq = line.IndexOf('=');
+                    if (eq > 0) f[line.Substring(0, eq).Trim()] = line.Substring(eq + 1).Trim();
+                }
+                if (!f.ContainsKey("users_max")) throw new Exception("no KiwiSDR status there");
+                return fromFields(k => { string v; return f.TryGetValue(k, out v) ? v : null; }, url);
+            }
+        }
+
+        private static KiwiReceiver fromFields(Func<string, string> get, string url)
+        {
+            KiwiReceiver r = new KiwiReceiver
+            {
+                Name = clean(get("name")),
+                Url = url,
+                Loc = clean(get("loc")),
+                Antenna = clean(get("antenna")),
+                Grid = get("grid") ?? "",
+            };
+            int.TryParse(get("users"), out r.Users);
+            int.TryParse(get("users_max"), out r.UsersMax);
+            Match m = Regex.Match(get("gps") ?? "", @"\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)");
+            if (m.Success)
+            {
+                double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out r.Lat);
+                double.TryParse(m.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out r.Lon);
+            }
+            string[] bands = (get("bands") ?? "").Split('-');
+            if (bands.Length == 2) { long.TryParse(bands[0], out r.LowHz); long.TryParse(bands[1], out r.HighHz); }
+            return r;
         }
 
         private static string clean(string s) { return Regex.Replace(s ?? "", @"\s+", " ").Trim(); }

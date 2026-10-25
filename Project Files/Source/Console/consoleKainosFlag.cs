@@ -296,6 +296,19 @@ namespace Thetis
         // VFO B as split's transmit frequency (split or quick split on, RX2 off): it has no receiver of its own
         internal bool KainosSplitB { get { return chkVFOSplit.Checked && !RX2Enabled; } }
 
+        // a dot on a flag tab when something on it is on (GitHub #33): DSP (NR, NB, ANF, AUTO NOTCH, NNR ...), RIT / XIT,
+        // FREEDV (RADE on this receiver)
+        internal bool KainosFlagTabActive(int rx, string tab)
+        {
+            switch (tab)
+            {
+                case "DSP": return !(rx == 2 && KainosSplitB) && KainosDspText(rx).Length > 0;
+                case "RIT/XIT": return chkRIT.Checked || chkXIT.Checked;
+                case "FREEDV": return RadeEnabledOn(rx - 1);
+                default: return false;
+            }
+        }
+
         internal string KainosDspText(int rx)
         {
             List<string> on = new List<string>();
@@ -958,6 +971,12 @@ namespace Thetis
                         if (i > 0) using (Pen line = new Pen(KainosUI.Line)) g.DrawLine(line, r.Left, r.Top, r.Left, r.Bottom);
                         Color c = open ? (_rx == 1 ? KainosUI.GoldHi : KainosUI.Violet) : (i == _hoverTab ? KainosUI.Text : KainosUI.Dim);
                         using (Brush b = new SolidBrush(c)) g.DrawString(Tabs[i], f, b, r, sf);
+                        if (_console.KainosFlagTabActive(_rx, Tabs[i]))
+                        {
+                            float d = 5 * s;
+                            using (Brush b = new SolidBrush(_rx == 1 ? KainosUI.GoldHi : KainosUI.Violet))
+                                g.FillEllipse(b, r.Right - d - 3 * s, r.Top + 3 * s, d, d);
+                        }
                     }
             }
         }

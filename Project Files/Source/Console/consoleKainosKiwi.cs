@@ -59,6 +59,11 @@ namespace Thetis
         private KainosActionGrid _kiwiOutButton;
         private TextBox _kiwiSearch;
         internal readonly HashSet<string> KiwiFavourites = new HashSet<string>();
+        // receivers added by address (Add Kiwi): listed first, and checked (their /status) on each refresh
+        private readonly List<KiwiReceiver> _kiwiOwn = new List<KiwiReceiver>();
+        // the list shows the first _kiwiShow that match; "Show more" adds ten, a new search or refresh starts again
+        private int _kiwiShow = KainosKiwiList.Rows;
+        internal int KiwiMatches;
         internal double KiwiOwnKhz = 7074;
         internal string KiwiOwnMode = "usb";
         private int _kiwiDevice = -1;           // -1: Windows's default output
@@ -93,6 +98,16 @@ namespace Thetis
                         }
                         break;
                     case "vol": if (int.TryParse(v, out n)) KiwiVolume.Value = Math.Max(0, Math.Min(100, n)); break;
+                    case "own":
+                        _kiwiOwn.Clear();
+                        foreach (string o in v.Split('|'))
+                        {
+                            string[] p = o.Split('~');
+                            if (p[0].Length == 0) continue;
+                            string label = p.Length > 1 ? Uri.UnescapeDataString(p[1]) : "";
+                            _kiwiOwn.Add(new KiwiReceiver { Own = true, Url = Uri.UnescapeDataString(p[0]), Name = label, Loc = label, Antenna = "", Grid = "" });
+                        }
+                        break;
                 }
             }
         }
@@ -103,7 +118,8 @@ namespace Thetis
                                  + ";follow=" + (_kiwiFollow ? 1 : 0) + ";followb=" + (_kiwiFollowB ? 1 : 0) + ";main=" + (KiwiOnPanadapter ? 1 : 0)
                                  + ";wfc=" + KiwiWfContrast + ";wfs=" + KiwiWfSpeed
                                  + ";zooms=" + string.Join("|", _kiwiZoomByBand.Select(kv => kv.Key + ":" + kv.Value))
-                                 + ";vol=" + (int)KiwiVolume.Value;
+                                 + ";vol=" + (int)KiwiVolume.Value
+                                 + ";own=" + string.Join("|", _kiwiOwn.Select(r => Uri.EscapeDataString(r.Url) + "~" + Uri.EscapeDataString(r.Loc.Length > 0 ? r.Loc : r.Name)));
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -171,6 +187,7 @@ namespace Thetis
             _kiwiButtons.Add("Stop", () => false, kiwiStop, KainosUI.Tone.Tx);
             _kiwiButtons.Add("Waterfall", () => _kiwiWfForm != null, KiwiShowWaterfall, KainosUI.Tone.Ice);      // consoleKainosKiwiWaterfall.cs
             _kiwiButtons.Add("Main view", () => KiwiOnPanadapter, () => { KiwiOnPanadapter = !KiwiOnPanadapter; kiwiSave(); kiwiWfTick(); }, KainosUI.Tone.Ice);
+            _kiwiButtons.Add("Add Kiwi", () => false, kiwiAdd, KainosUI.Tone.Ice);
             _kiwiVolume = new KainosUpDown(KiwiVolume, "Vol", "%", false);
             KiwiVolume.ValueChanged += (s, e) => { if (_kiwiOut != null) _kiwiOut.Volume = (float)KiwiVolume.Value / 100f; kiwiSave(); };
             _kiwiTune = new KainosKiwiTune(this);
@@ -182,7 +199,7 @@ namespace Thetis
                 BorderStyle = BorderStyle.FixedSingle, BackColor = KainosUI.Bg, ForeColor = KainosUI.Text,
                 Font = new Font("Segoe UI", Math.Max(8f, KainosUI.S(12)), FontStyle.Regular, GraphicsUnit.Pixel),
             };
-            _kiwiSearch.TextChanged += (s, e) => { kiwiSort(); _kiwiList.Invalidate(); };
+            _kiwiSearch.TextChanged += (s, e) => { _kiwiShow = KainosKiwiList.Rows; kiwiSort(); kiwiListResized(); };
             _kiwiSearch.HandleCreated += (s, e) => SendMessage(_kiwiSearch.Handle, 0x1501, (IntPtr)1, "Search: place, call or antenna");     // EM_SETCUEBANNER
             _kiwiList = new KainosKiwiList(this);
             foreach (Control c in new Control[] { _kiwiStatus, _kiwiButtons, _kiwiTune, _kiwiVolume, _kiwiOutButton, _kiwiSearch, _kiwiList })
@@ -224,15 +241,21 @@ namespace Thetis
             _kiwiState = "Getting the list of KiwiSDRs...";
             Task.Run(() =>
             {
+                List<KiwiReceiver> own = kiwiCheckOwn();
                 try
                 {
                     List<KiwiReceiver> all = KiwiDirectory.Fetch();
-                    BeginInvoke(new Action(() => { _kiwiAll = all; kiwiSort(); _kiwiLoading = false; _kiwiState = all.Count + " receivers. Click one to listen."; _kiwiList.Invalidate(); }));
+                    BeginInvoke(new Action(() =>
+                    {
+                        _kiwiAll = all; kiwiOwnChecked(own); _kiwiShow = KainosKiwiList.Rows; kiwiSort(); _kiwiLoading = false;
+                        _kiwiState = all.Count + (own.Count > 0 ? " receivers and " + own.Count + " of yours" : " receivers") + ". Click one to listen.";
+                        kiwiListResized();
+                    }));
                 }
                 catch (Exception ex)
                 {
                     Exception e = ex is AggregateException && ex.InnerException != null ? ex.InnerException : ex;
-                    BeginInvoke(new Action(() => { _kiwiLoading = false; _kiwiState = "Couldn't get the list (" + e.Message + ")"; }));
+                    BeginInvoke(new Action(() => { kiwiOwnChecked(own); kiwiSort(); _kiwiLoading = false; _kiwiState = "Couldn't get the list (" + e.Message + ")"; kiwiListResized(); }));
                 }
             });
         }
@@ -243,13 +266,107 @@ namespace Thetis
             double la, lo;
             bool have = KiwiDirectory.GridToLatLon(kiwiGrid, out la, out lo);
             long hz = (long)(VFOAFreq * 1e6);
-            foreach (KiwiReceiver r in _kiwiAll) r.Km = have && (r.Lat != 0 || r.Lon != 0) ? KiwiDirectory.DistanceKm(la, lo, r.Lat, r.Lon) : -1;
+            // yours first (and instead of the same receiver from the list), then the list
+            HashSet<string> ownUrls = new HashSet<string>(_kiwiOwn.Select(r => r.Url), StringComparer.OrdinalIgnoreCase);
+            List<KiwiReceiver> all = _kiwiOwn.Concat(_kiwiAll.Where(r => !ownUrls.Contains(r.Url))).ToList();
+            foreach (KiwiReceiver r in all) r.Km = have && (r.Lat != 0 || r.Lon != 0) ? KiwiDirectory.DistanceKm(la, lo, r.Lat, r.Lon) : -1;
             string find = _kiwiSearch != null ? _kiwiSearch.Text.Trim() : "";
-            IEnumerable<KiwiReceiver> q = _kiwiAll.Where(r => (r.Free || KiwiFavourites.Contains(r.Url)) && (r.HighHz == 0 || (hz >= r.LowHz && hz <= r.HighHz)));
+            IEnumerable<KiwiReceiver> q = all.Where(r => r.Own || ((r.Free || KiwiFavourites.Contains(r.Url)) && (r.HighHz == 0 || (hz >= r.LowHz && hz <= r.HighHz))));
             if (find.Length > 0)
                 q = q.Where(r => (r.Loc + " " + r.Name + " " + r.Antenna + " " + r.Grid).IndexOf(find, StringComparison.OrdinalIgnoreCase) >= 0);
             q = have ? q.OrderBy(r => r.Km < 0 ? double.MaxValue : r.Km) : q.OrderBy(r => r.Users);
-            KiwiNearest = q.OrderBy(r => KiwiFavourites.Contains(r.Url) ? 0 : 1).Take(KainosKiwiList.Rows).ToList();
+            List<KiwiReceiver> matched = q.OrderBy(r => r.Own ? 0 : KiwiFavourites.Contains(r.Url) ? 1 : 2).ToList();
+            KiwiMatches = matched.Count;
+            KiwiNearest = matched.Take(_kiwiShow).ToList();
+        }
+
+        internal void KiwiShowMore()
+        {
+            _kiwiShow += 10;
+            kiwiSort();
+            kiwiListResized();
+        }
+
+        // the list's height follows how many it shows
+        private void kiwiListResized()
+        {
+            if (_kainosColumn != null) _kainosColumn.ArrangeSections();
+            if (_kiwiList != null) _kiwiList.Invalidate();
+        }
+
+        // ---- receivers added by address (GitHub discussion #43) ----
+
+        private void kiwiAdd()
+        {
+            string typed = KainosKiwiAddDialog.Ask(this);
+            if (typed == null) return;
+            string url = KiwiDirectory.NormalUrl(typed);
+            if (url == null) { MessageBox.Show(this, "That doesn't look like an address: try something like kiwi.example.com:8073.", "Add Kiwi", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (_kiwiOwn.Any(r => string.Equals(r.Url, url, StringComparison.OrdinalIgnoreCase))) { _kiwiState = "Already in your list: " + url; return; }
+            _kiwiState = "Checking " + url + " ...";
+            Task.Run(() =>
+            {
+                KiwiReceiver r = null;
+                string why = null;
+                try { r = KiwiDirectory.FetchStatus(url); }
+                catch (Exception ex) { Exception e = ex is AggregateException && ex.InnerException != null ? ex.InnerException : ex; why = e.Message; }
+                BeginInvoke(new Action(() =>
+                {
+                    if (r == null)
+                    {
+                        if (MessageBox.Show(this, "No KiwiSDR answered at " + url + " (" + why + ").\r\n\r\nAdd it anyway?", "Add Kiwi",
+                                            MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { _kiwiState = "Not added."; return; }
+                        r = new KiwiReceiver { Url = url, Name = url, Loc = "", Antenna = "", Grid = "", NoAnswer = true };
+                    }
+                    r.Own = true;
+                    _kiwiOwn.Add(r);
+                    kiwiSave();
+                    kiwiSort();
+                    _kiwiState = "Added " + (r.Loc.Length > 0 ? r.Loc : r.Name) + ". Right-click it to remove it.";
+                    kiwiListResized();
+                }));
+            });
+        }
+
+        internal void KiwiRemoveOwn(KiwiReceiver r)
+        {
+            if (MessageBox.Show(this, "Remove " + (r.Loc.Length > 0 ? r.Loc : r.Name) + " from your Kiwis?", "Kiwi", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            _kiwiOwn.RemoveAll(o => string.Equals(o.Url, r.Url, StringComparison.OrdinalIgnoreCase));
+            kiwiSave();
+            kiwiSort();
+            kiwiListResized();
+        }
+
+        // on a worker thread: each added receiver's /status, kept as it was (marked no answer) if it doesn't answer
+        private List<KiwiReceiver> kiwiCheckOwn()
+        {
+            List<KiwiReceiver> was = (List<KiwiReceiver>)Invoke(new Func<List<KiwiReceiver>>(() => _kiwiOwn.ToList()));
+            List<KiwiReceiver> now = new List<KiwiReceiver>();
+            foreach (KiwiReceiver o in was)
+            {
+                try
+                {
+                    KiwiReceiver r = KiwiDirectory.FetchStatus(o.Url);
+                    r.Own = true;
+                    if (r.Loc.Length == 0 && r.Name.Length == 0) { r.Loc = o.Loc; r.Name = o.Name; }
+                    now.Add(r);
+                }
+                catch
+                {
+                    now.Add(new KiwiReceiver { Own = true, Url = o.Url, Name = o.Name, Loc = o.Loc, Antenna = o.Antenna, Grid = o.Grid, Lat = o.Lat, Lon = o.Lon, NoAnswer = true });
+                }
+            }
+            return now;
+        }
+
+        // on the UI thread: the checked ones in place of the old (any added or removed meanwhile are kept as they are)
+        private void kiwiOwnChecked(List<KiwiReceiver> now)
+        {
+            for (int i = 0; i < _kiwiOwn.Count; i++)
+            {
+                KiwiReceiver n = now.FirstOrDefault(r => string.Equals(r.Url, _kiwiOwn[i].Url, StringComparison.OrdinalIgnoreCase));
+                if (n != null) _kiwiOwn[i] = n;
+            }
         }
 
         // the Kiwi's frequency when following VFO A. In CW, Thetis's VFO is the signal itself, while the Kiwi listens
@@ -470,7 +587,9 @@ namespace Thetis
             BackColor = KainosUI.Surface;
         }
 
-        public int PreferredHeight { get { return Rows * rowH; } }
+        // at least Rows high, so a search doesn't make the column jump; longer with "Show more"
+        public int PreferredHeight { get { return Math.Max(Rows, _console.KiwiNearest.Count + (more ? 1 : 0)) * rowH; } }
+        private bool more { get { return _console.KiwiMatches > _console.KiwiNearest.Count; } }
         private int rowH { get { return KainosUI.S(30); } }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -499,19 +618,28 @@ namespace Thetis
                     int y = i * rowH;
                     bool on = _console.KiwiOn != null && _console.KiwiOn.Url == r.Url;
                     if (i == _hover || on) using (Brush hb = new SolidBrush(on ? KainosUI.Selected : KainosUI.Raised)) g.FillRectangle(hb, 0, y, Width, rowH - 1);
-                    bool fav = _console.KiwiFavourites.Contains(r.Url);
+                    bool fav = r.Own || _console.KiwiFavourites.Contains(r.Url);
                     g.DrawLine(line, 0, y + rowH - 1, Width, y + rowH - 1);
                     string km = r.Km >= 0 ? r.Km.ToString("0", CultureInfo.InvariantCulture) + " km" : "";
                     g.DrawString((fav ? "\u2605 " : "") + (r.Loc.Length > 0 ? r.Loc : r.Name), big, on || fav ? gold : text, new RectangleF(2, y + 1, Width - KainosUI.S(90), KainosUI.S(16)), clip);
-                    string right = on ? _console.KiwiSignalText : !r.Free ? "full" : r.Users + "/" + r.UsersMax;
+                    string right = on ? _console.KiwiSignalText : r.NoAnswer ? "no answer" : !r.Free ? "full" : r.Users + "/" + r.UsersMax;
                     using (StringFormat rf = new StringFormat { Alignment = StringAlignment.Far })
                         g.DrawString(km + "  " + right, small, on ? gold : dim, new RectangleF(Width - KainosUI.S(90), y + 3, KainosUI.S(88), KainosUI.S(14)), rf);
-                    g.DrawString(r.Antenna, small, faint, new RectangleF(2, y + KainosUI.S(16), Width - 4, KainosUI.S(14)), clip);
+                    g.DrawString(r.Own && r.Antenna.Length == 0 ? r.Url : r.Antenna, small, faint, new RectangleF(2, y + KainosUI.S(16), Width - 4, KainosUI.S(14)), clip);
+                }
+                if (more)
+                {
+                    int y = list.Count * rowH;
+                    if (_hover == list.Count) using (Brush hb = new SolidBrush(KainosUI.Raised)) g.FillRectangle(hb, 0, y, Width, rowH - 1);
+                    int left = _console.KiwiMatches - list.Count;
+                    using (StringFormat cf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                        g.DrawString("Show " + Math.Min(10, left) + " more  (" + left + " not shown)", small, gold, new RectangleF(0, y, Width, rowH - 1), cf);
                 }
             }
         }
 
-        private int hit(Point p) { int i = p.Y / Math.Max(1, rowH); return i >= 0 && i < _console.KiwiNearest.Count ? i : -1; }
+        // a receiver's row, or the row past them ("Show more", when there are more)
+        private int hit(Point p) { int i = p.Y / Math.Max(1, rowH); return i >= 0 && (i < _console.KiwiNearest.Count || (i == _console.KiwiNearest.Count && more)) ? i : -1; }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -527,8 +655,11 @@ namespace Thetis
         {
             base.OnMouseDown(e);
             int h = hit(e.Location);
-            if (h >= 0 && e.Button == MouseButtons.Left) _console.KiwiListen(_console.KiwiNearest[h]);
-            else if (h >= 0 && e.Button == MouseButtons.Right) { _console.KiwiToggleFavourite(_console.KiwiNearest[h]); Invalidate(); }
+            if (h < 0) return;
+            if (h == _console.KiwiNearest.Count) { if (e.Button == MouseButtons.Left) _console.KiwiShowMore(); return; }
+            KiwiReceiver r = _console.KiwiNearest[h];
+            if (e.Button == MouseButtons.Left) _console.KiwiListen(r);
+            else if (e.Button == MouseButtons.Right) { if (r.Own) _console.KiwiRemoveOwn(r); else _console.KiwiToggleFavourite(r); Invalidate(); }
         }
 
         protected override void OnMouseWheel(MouseEventArgs e)
@@ -536,6 +667,35 @@ namespace Thetis
             base.OnMouseWheel(e);
             KainosViewport v = Parent as KainosViewport;
             if (v != null) typeof(Control).GetMethod("OnMouseWheel", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(v, new object[] { e });
+        }
+    }
+
+    // Add Kiwi: a receiver's address
+    internal static class KainosKiwiAddDialog
+    {
+        public static string Ask(IWin32Window owner)
+        {
+            using (Form f = new Form())
+            {
+                f.Text = "Add a KiwiSDR";
+                f.FormBorderStyle = FormBorderStyle.FixedDialog;
+                f.MinimizeBox = f.MaximizeBox = false;
+                f.ShowInTaskbar = false;
+                f.StartPosition = FormStartPosition.CenterParent;
+                f.BackColor = KainosUI.Panel;
+                f.ForeColor = KainosUI.Text;
+                f.Font = new Font("Segoe UI", 9f);
+                f.ClientSize = new Size(440, 150);
+                Label l = new Label { Text = "The receiver's address, as you'd open it in a browser:", Location = new Point(12, 14), AutoSize = true };
+                TextBox box = new TextBox { Location = new Point(12, 38), Width = 416, BackColor = KainosUI.Bg, ForeColor = KainosUI.Text, BorderStyle = BorderStyle.FixedSingle };
+                Label hint = new Label { Text = "For example kiwi.example.com:8073 (8073 is used when there's no port).\r\nIt's listed first, and right-click removes it.", Location = new Point(12, 66), AutoSize = true, ForeColor = KainosUI.Dim };
+                Button ok = new Button { Text = "Add", Location = new Point(258, 108), Size = new Size(80, 30), FlatStyle = FlatStyle.Flat, BackColor = KainosUI.Raised, DialogResult = DialogResult.OK };
+                Button cancel = new Button { Text = "Cancel", Location = new Point(348, 108), Size = new Size(80, 30), FlatStyle = FlatStyle.Flat, BackColor = KainosUI.Raised, DialogResult = DialogResult.Cancel };
+                f.Controls.AddRange(new Control[] { l, box, hint, ok, cancel });
+                f.AcceptButton = ok;
+                f.CancelButton = cancel;
+                return f.ShowDialog(owner) == DialogResult.OK && box.Text.Trim().Length > 0 ? box.Text.Trim() : null;
+            }
         }
     }
 }
