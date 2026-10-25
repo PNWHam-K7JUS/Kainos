@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.13 (not yet released)
+### Kainos 1.0.13
 
 **New: NNR neural noise reduction**
 - **NNR**, the neural noise reduction from WDSP 2.10 (Warren Pratt, NR0V), is now in Kainos. It's trained on speech: it takes the band noise down between and under the words and keeps the voice. In a test with speech in white noise it took the pauses down by about 25 dB and left the speech nearly unchanged.
