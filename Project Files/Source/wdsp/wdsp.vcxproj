@@ -266,6 +266,10 @@
     <ClInclude Include="rnnr.h" />
     <ClInclude Include="RXA.h" />
     <ClInclude Include="sbnr.h" />
+    <ClInclude Include="nnr.h" />
+    <ClInclude Include="nnet.h" />
+    <ClInclude Include="nnet_profile.h" />
+    <ClInclude Include="nnio.h" />
     <ClInclude Include="sender.h" />
     <ClInclude Include="shift.h" />
     <ClInclude Include="siphon.h" />
@@ -381,6 +385,11 @@
     <ClCompile Include="rnnr.c" />
     <ClCompile Include="RXA.c" />
     <ClCompile Include="sbnr.c" />
+    <ClCompile Include="nnr.c" />
+    <ClCompile Include="nnet.c" />
+    <ClCompile Include="nnio.c" />
+    <ClCompile Include="nnr_model_0.c" />
+    <ClCompile Include="nnr_model_1.c" />
     <ClCompile Include="sender.c" />
     <ClCompile Include="shift.c" />
     <ClCompile Include="siphon.c" />

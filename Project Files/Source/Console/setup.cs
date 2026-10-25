@@ -37650,6 +37650,7 @@ namespace Thetis
             console.ARP.SetPlaybackSetting("CFC", chkRecording_disable_cfc.Checked);
             console.ARP.SetPlaybackSetting("PHASE", chkRecording_disable_phase.Checked);
             console.ARP.SetPlaybackSetting("LEVELER", chkRecording_disable_leveler.Checked);
+            if (chkRecording_disable_kainos != null) console.ARP.SetPlaybackSetting("KAINOS", chkRecording_disable_kainos.Checked);     // Kainos: setupKainos.cs
             console.ARP.SetPlaybackSetting("MON", chkRecording_enable_monIfMox.Checked);
         }
 

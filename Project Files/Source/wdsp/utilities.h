@@ -26,6 +26,8 @@ warren@wpratt.com
 
 __declspec (dllexport) void *malloc0 (int size);
 
+extern void dprintf (const char* format, ...);	// Kainos NNR (from WDSP 2.10)
+
 extern void print_impulse (const char* filename, int N, double* impulse, int rtype, int pr_mode);
 
 extern __declspec (dllexport) void analyze_bandpass_filter (int N, double f_low, double f_high, double samplerate, int wintype, int rtype, double scale);

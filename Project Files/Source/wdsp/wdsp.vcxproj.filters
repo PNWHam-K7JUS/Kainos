@@ -237,6 +237,18 @@
     <ClInclude Include="sbnr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="nnr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="nnet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="nnet_profile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="nnio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="FDnoiseIQ.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -474,6 +486,21 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sbnr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nnr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nnet.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nnio.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nnr_model_0.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nnr_model_1.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FDnoiseIQ.c">

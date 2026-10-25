@@ -611,13 +611,7 @@ namespace Thetis
             {
                 _lastSent = sent;
             }
-            _rx.SelectionStart = _rx.TextLength;
-            _rx.SelectionLength = 0;
-            _rx.SelectionColor = sent ? KainosUI.Tx : KainosUI.Text;
-            _rx.AppendText(c.ToString());
-            if (_rx.TextLength > 60000) { _rx.Select(0, 20000); _rx.ReadOnly = false; _rx.SelectedText = ""; _rx.ReadOnly = true; }
-            _rx.SelectionStart = _rx.TextLength;
-            _rx.ScrollToCaret();
+            KainosRxText.Append(_rx, c.ToString(), sent ? KainosUI.Tx : KainosUI.Text);       // follows only while at the bottom (#30)
         }
 
         public void Tick()

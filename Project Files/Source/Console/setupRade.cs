@@ -196,12 +196,21 @@ namespace Thetis
             tcDSP.Controls.Add(tpDSPRade);
         }
 
+        // the DSP section in Setup's top tabs. The Kainos Setup shell holds tcDSP in a panel inside its page, so the page
+        // is found by walking up rather than as tcDSP's parent.
+        private void showDSPPage()
+        {
+            Control p = tcDSP.Parent;
+            while (p != null && !(p is TabPage && p.Parent == TabSetup)) p = p.Parent;
+            if (p != null) TabSetup.SelectedTab = (TabPage)p;
+        }
+
         // opens Setup on this tab (the FreeDV window's Settings button)
         internal void ShowRadeTab()
         {
             Show();
             if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
-            if (tcDSP.Parent is TabPage) TabSetup.SelectedTab = (TabPage)tcDSP.Parent;
+            showDSPPage();
             tcDSP.SelectedTab = tpDSPRade;
             BringToFront();
             Activate();

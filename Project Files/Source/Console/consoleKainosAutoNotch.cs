@@ -188,8 +188,10 @@ namespace Thetis
             if (unchecked(w - _lastW) < N / 2) return;              // not enough new audio yet
             _lastW = w;
 
-            // the spectrum, in dB
-            for (int k = 0; k < N; k++) { _re[k] = _buf[2 * k] * _win[k]; _im[k] = _buf[2 * k + 1] * _win[k]; }
+            // the spectrum, in dB. Q is negated: in WDSP's frequencies (the passband edges, the notches) a USB tone at
+            // +1 kHz is at -1 kHz in a plain FFT of I + jQ, so without it the passband searched was the mirror image of
+            // the one heard, and no carrier was ever found on the air
+            for (int k = 0; k < N; k++) { _re[k] = _buf[2 * k] * _win[k]; _im[k] = -_buf[2 * k + 1] * _win[k]; }
             fft(_re, _im);
             for (int k = 0; k < N; k++) _db[k] = 10 * Math.Log10(_re[k] * _re[k] + _im[k] * _im[k] + 1e-30);
 

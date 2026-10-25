@@ -255,6 +255,25 @@ namespace Thetis
             }
         }
 
+        // Kainos: held off while a recording plays out on transmit (GitHub #41: Setup > Audio > Recording, "Disable Kainos
+        // Audio"), so it goes out as it was recorded. Separate from BYPASS: it isn't saved and the button doesn't show it.
+        private bool _playbackHold;
+        public bool PlaybackHold
+        {
+            get { return _playbackHold; }
+            set
+            {
+                if (_playbackHold == value) return;
+                _playbackHold = value;
+                for (int s = 0; s < AetherStripDefs.Stages; s++) push(s, 0);
+                if (!_console.IsSetupFormNull && !_rx) _console.SetupForm.ApplyAetherVoiceTXFromStrip();
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        // off for either reason: BYPASS, or a recording playing
+        public bool Bypassed { get { return _bypass || _playbackHold; } }
+
         public void ApplyAll()
         {
             for (int s = 0; s < AetherStripDefs.Stages; s++)
@@ -267,7 +286,7 @@ namespace Thetis
         {
             if (_console == null || _console.radio == null) return;
             double v = _values[stage, param];
-            if (param == 0 && _bypass) v = 0;
+            if (param == 0 && Bypassed) v = 0;
             if (_rx)
             {
                 for (int t = 0; t < 2; t++)

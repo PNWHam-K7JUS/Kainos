@@ -164,6 +164,10 @@ struct _rxa
     {
         SBNR p; // NR3 + NR4 support (nr4)
     } sbnr;
+    struct
+    {
+        NNR p;  // Kainos NNR (from WDSP 2.10)
+    } nnr;
 
 	struct
 	{
@@ -223,7 +227,7 @@ extern __declspec (dllexport) void SetRXAMode (int channel, int mode);
 
 extern void RXAResCheck (int channel);
 
-extern void RXAbp1Check (int channel, int amd_run, int snba_run, int emnr_run, int anf_run, int anr_run, int rnnr_run, int sbnr_run); // NR3 + NR4 support
+extern void RXAbp1Check (int channel, int amd_run, int snba_run, int emnr_run, int anf_run, int anr_run, int rnnr_run, int sbnr_run, int nnr_run); // NR3 + NR4 support, Kainos NNR
 
 extern void RXAbp1Set (int channel);
 

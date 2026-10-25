@@ -55,6 +55,11 @@ namespace Thetis
         private TextBoxTS txtKainosFlags;
         private TextBoxTS txtKainosColumnTabs, txtKainosMeterId, txtKainosMeterType, txtKainosFtdxOffered, txtKainosRtty, txtKainosCw, txtKainosRttyMacros, txtKainosCwMacros, txtKainos3D, txtKainosLayoutSet, txtKainosSpots, txtKainosKiwi, txtKainosScope, txtKainosCompact, txtKainosVst, txtKainosTermHeight, txtKainosAutoNotch;
         private bool _kainosSettingsHooked;
+        // true while applyKainosUI hands the saved settings to the console. Restoring one (the CW or RTTY squelch, say)
+        // can save its window's settings, which copied every console value back into these boxes, including the ones
+        // not handed over yet (still empty), so the CW and RTTY macros, spots, Kiwi, flags ... were lost at start-up
+        // (GitHub #30). The boxes already hold what was saved, so nothing is copied back until they've all been read.
+        private bool _kainosApplyingUI;
 
         private void addKainosUITab()
         {
@@ -205,6 +210,7 @@ namespace Thetis
                 _kainosSettingsHooked = true;
                 console.KainosSettingsChanged += (s, e) =>
                 {
+                    if (_kainosApplyingUI) return;
                     txtKainosColumnTabs.Text = console.KainosColumnTabs;
                     txtKainosMeterId.Text = console.KainosMeterId;
                     txtKainosMeterType.Text = console.KainosMeterType;
@@ -222,41 +228,49 @@ namespace Thetis
                     txtKainosFlags.Text = console.KainosFlagSettings;
                     txtKainosTermHeight.Text = console.KainosTermHeightSetting;
                     txtKainosAutoNotch.Text = console.KainosAutoNotchSettings;
+                    txtKainosNnr.Text = console.KainosNnrSettings;
                 };
             }
-            console.KainosColumnTabs = txtKainosColumnTabs.Text;
-            console.KainosMeterId = txtKainosMeterId.Text;
-            console.KainosMeterType = string.IsNullOrEmpty(txtKainosMeterType.Text) ? "ANANMM" : txtKainosMeterType.Text;
-            console.KainosFtdxOffered = txtKainosFtdxOffered.Text == "1";
-            console.KainosRttySettings = txtKainosRtty.Text;
-            console.RttyLoadSettings();
-            console.KainosAutoNotchSettings = txtKainosAutoNotch.Text;
-            console.KainosAutoNotchLoad();
-            console.KainosCwSettings = txtKainosCw.Text;
-            console.CwLoadSettings();
-            console.KainosRttyMacros = txtKainosRttyMacros.Text;
-            console.KainosCwMacros = txtKainosCwMacros.Text;
-            console.RttyMacrosLoaded();
-            console.CwMacrosLoaded();
-            console.Kainos3DSettings = txtKainos3D.Text;
-            console.Kainos3DLoad();
-            console.KainosSpotSettings = txtKainosSpots.Text;
-            console.KainosSpotsLoad();
-            console.KainosKiwiSettings = txtKainosKiwi.Text;
-            console.KiwiLoadSettings();
-            console.KainosScopeSettings = txtKainosScope.Text;
-            console.KainosScopeLoad();
-            console.KainosCompactSettings = txtKainosCompact.Text;
-            console.KainosCompactLoad();
-            if (!_kainosVstLoaded)
+            _kainosApplyingUI = true;
+            try
             {
-                // the transmit chain's VST3 plugin, once at start-up
-                _kainosVstLoaded = true;
-                KainosVst.Changed += (s, e) => console.KainosRaiseSettingsChanged();
-                if (KainosVst.Available) KainosVst.LoadSettings(console, txtKainosVst.Text);
+                console.KainosColumnTabs = txtKainosColumnTabs.Text;
+                console.KainosMeterId = txtKainosMeterId.Text;
+                console.KainosMeterType = string.IsNullOrEmpty(txtKainosMeterType.Text) ? "ANANMM" : txtKainosMeterType.Text;
+                console.KainosFtdxOffered = txtKainosFtdxOffered.Text == "1";
+                console.KainosRttySettings = txtKainosRtty.Text;
+                console.RttyLoadSettings();
+                console.KainosAutoNotchSettings = txtKainosAutoNotch.Text;
+                console.KainosAutoNotchLoad();
+                console.KainosNnrSettings = txtKainosNnr.Text;
+                console.KainosNnrLoad();
+                console.KainosCwSettings = txtKainosCw.Text;
+                console.CwLoadSettings();
+                console.KainosRttyMacros = txtKainosRttyMacros.Text;
+                console.KainosCwMacros = txtKainosCwMacros.Text;
+                console.RttyMacrosLoaded();
+                console.CwMacrosLoaded();
+                console.Kainos3DSettings = txtKainos3D.Text;
+                console.Kainos3DLoad();
+                console.KainosSpotSettings = txtKainosSpots.Text;
+                console.KainosSpotsLoad();
+                console.KainosKiwiSettings = txtKainosKiwi.Text;
+                console.KiwiLoadSettings();
+                console.KainosScopeSettings = txtKainosScope.Text;
+                console.KainosScopeLoad();
+                console.KainosCompactSettings = txtKainosCompact.Text;
+                console.KainosCompactLoad();
+                if (!_kainosVstLoaded)
+                {
+                    // the transmit chain's VST3 plugin, once at start-up
+                    _kainosVstLoaded = true;
+                    KainosVst.Changed += (s, e) => console.KainosRaiseSettingsChanged();
+                    if (KainosVst.Available) KainosVst.LoadSettings(console, txtKainosVst.Text);
+                }
+                console.KainosFlagSettings = txtKainosFlags.Text;
+                console.KainosTermHeightSetting = txtKainosTermHeight.Text;
             }
-            console.KainosFlagSettings = txtKainosFlags.Text;
-            console.KainosTermHeightSetting = txtKainosTermHeight.Text;
+            finally { _kainosApplyingUI = false; }
             console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;
             Display.KainosBackdrop = chkKainosBackdrop.Checked;

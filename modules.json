@@ -5,16 +5,16 @@
       "id": "digimodes",
       "name": "Digital Modes (FT8 / FT4 / FT2 / JT65 / JT9 / WSPR)",
       "description": "FT8, FT4, FT2 (experimental), JT65, JT9 and WSPR inside Kainos: band activity, automatic QSO sequencing and an ADIF log, in the Kainos look. Decoding by WSJT-X's jt9 (included).",
-      "version": "0.10.2",
+      "version": "0.10.3",
       "api": 1,
       "minKainos": "1.0.12",
       "entry": "Kainos.DigiModes.dll",
       "author": "Justin Cron K7JUS",
       "license": "GPL-3.0-or-later",
       "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-digimodes",
-      "url": "https://github.com/PNWHam-K7JUS/kainos-module-digimodes/releases/download/v0.10.2/kainos-digimodes-0.10.2.zip",
-      "sha256": "444d0683b21637c1dd314edbf569ece9a6ccfde9fe616d983738d7a82bbb6f7c",
-      "size": 7460565
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-digimodes/releases/download/v0.10.3/kainos-digimodes-0.10.3.zip",
+      "sha256": "be084a0dfb0831dd35cb012c1239234f5215ddf9aea4d54e101af06d496705b9",
+      "size": 7460962
     },
     {
       "id": "sstv",

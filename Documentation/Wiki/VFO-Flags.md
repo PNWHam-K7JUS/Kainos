@@ -13,6 +13,8 @@ Each receiver has a **flag** on the panadapter, SmartSDR style: the antenna, fil
 
 **AUDIO**, **DSP**, **MODE**, **RIT/XIT**, **VAC** and **FREEDV** open a drawer under the flag with those controls. Click the tab again to close it.
 
+A small dot on a tab means something on it is on: **DSP** (NR, NB, SNB, ANF, AUTO NOTCH, NNR ...), **RIT/XIT** (RIT or XIT) or **FREEDV** (RADE on this receiver), so you can see it with the drawer closed.
+
 ## Keeping the flags out of the way
 
 - **See-through:** flags are see-through until you point at them, so spots and markers behind them show. Set how see-through in **Setup > Appearance > Kainos > Slice flags**.

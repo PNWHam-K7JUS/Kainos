@@ -4,9 +4,13 @@ Listen to [KiwiSDR](http://kiwisdr.com) receivers around the world from inside K
 
 ## Listening
 
-1. Open the **KIWI** tab in the right-hand column. It lists the nearest public KiwiSDRs (search by place, call or antenna).
+1. Open the **KIWI** tab in the right-hand column. It lists the nearest public KiwiSDRs (search by place, call, antenna or address).
 2. **Click** a receiver to listen. The tab shows its status; the VFO A flag shows the Kiwi's signal reading.
 3. **Vol** sets its volume and **Out** chooses the output device. **Stop** ends it.
+
+The list shows the nearest eight with a free channel that cover your frequency. **Show more** under it adds ten at a time; a new search or **Refresh** starts again from eight. Right-click a receiver to make it a favourite (★, listed first).
+
+**A receiver that isn't listed?** Press **Add Kiwi** and type its address as you'd open it in a browser (for example `kiwi.example.com:8073`; 8073 is used when there's no port). Kainos checks it and adds it at the top of the list, and checks it again on each refresh. Right-click one you've added to remove it.
 
 ## Follow
 

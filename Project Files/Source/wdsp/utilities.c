@@ -65,6 +65,18 @@ DestroyCriticalSection (LPCRITICAL_SECTION cs_ptr)
 *																										*
 ********************************************************************************************************/
 
+// Kainos NNR (from WDSP 2.10): prints to the debugger output window; works like printf(...)
+#include <stdarg.h>
+void dprintf (const char* format, ...)
+{
+	char buffer[512];
+	va_list args;
+	va_start (args, format);
+	vsnprintf (buffer, sizeof (buffer), format, args);
+	va_end (args);
+	OutputDebugStringA (buffer);
+}
+
 void print_impulse (const char* filename, int N, double* impulse, int rtype, int pr_mode)
 {
 	int i;
