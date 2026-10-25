@@ -30164,7 +30164,8 @@ namespace Thetis
                 _forceATTwhenPowerChangesWhenPSAon_anddecreased = value;
             }
         }
-        private void chkMOX_CheckedChanged2(object sender, System.EventArgs e)
+        // Kainos: chkMOX_CheckedChanged2 (consoleKainosPtt.cs) wraps this to record each MOX change for GitHub #23
+        private void chkMOX_CheckedChanged2_core(object sender, System.EventArgs e)
         {
             if (radeInterceptMox()) return; // Kainos: consoleRade.cs (RADE end-of-over)
             if(chkMOX.Checked && _ganymede_pa_issue)

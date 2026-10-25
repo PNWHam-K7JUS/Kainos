@@ -73,6 +73,31 @@ namespace Thetis
             addKainosUITab();      // setupKainosUI.cs
             addKainosCivTab();     // setupKainosCiv.cs: amplifier band switching over CI-V
             addKainosModulesTab(); // setupKainosModules.cs: downloadable modules
+            addRecordingKainosOption();
+        }
+
+        // Setup > Audio > Recording, "During playback temporarily": Kainos Audio as well as Thetis's own processing, on by
+        // default, so a recording plays out on transmit as it was recorded (GitHub #41). The group's rows are drawn a
+        // little closer to fit a sixth.
+        private CheckBoxTS chkRecording_disable_kainos;
+
+        private void addRecordingKainosOption()
+        {
+            chkRecording_disable_kainos = new CheckBoxTS
+            {
+                Name = "chkRecording_disable_kainos",
+                Text = "Disable Kainos Audio",
+                Checked = true,
+                AutoSize = true,
+                UseVisualStyleBackColor = true
+            };
+            toolTip1.SetToolTip(chkRecording_disable_kainos, "Turns the Kainos Audio chain (gate, EQ, compressor, AetherVoice, plug-in ...) off while a\r\n" +
+                "recording plays out on transmit, so it goes out as it was recorded.");
+            CheckBoxTS[] rows = { chkRecording_disable_txeq, chkRecording_disable_comp, chkRecording_disable_cfc,
+                                  chkRecording_disable_phase, chkRecording_disable_leveler, chkRecording_disable_kainos };
+            for (int i = 0; i < rows.Length; i++) rows[i].Location = new Point(6, 15 + 20 * i);
+            groupBoxTS65.Controls.Add(chkRecording_disable_kainos);
+            chkRecording_disable_kainos.CheckedChanged += chkRecording_disable_during_playback;
         }
 
         #region AetherVoice
@@ -289,7 +314,7 @@ namespace Thetis
             tx.TXAetherVoiceMode = Math.Max(0, s.Mode.SelectedIndex);
             tx.SetTXAetherVoiceBody((double)s.BodyDrive.Value, (double)s.BodyTune.Value, (double)s.BodyMix.Value / 100.0);
             tx.SetTXAetherVoiceClarity((double)s.ClarityTune.Value, (double)s.ClarityHarmonics.Value, (double)s.ClarityMix.Value / 100.0);
-            tx.TXAetherVoiceOn = s.Enable.Checked && !console.AetherStripTX.Bypass;
+            tx.TXAetherVoiceOn = s.Enable.Checked && !console.AetherStripTX.Bypassed;
         }
 
         #endregion

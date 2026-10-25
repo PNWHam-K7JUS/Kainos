@@ -220,7 +220,7 @@ namespace Thetis
             }
             IntPtr proc = IntPtr.Zero;
             if (_h != IntPtr.Zero) try { proc = kv_process_proc(); } catch { }
-            bool bypass = _console.AetherStripTX != null && _console.AetherStripTX.Bypass;
+            bool bypass = _console.AetherStripTX != null && _console.AetherStripTX.Bypassed;
             _console.radio.GetDSPTX(0).SetTXStripPlugin(proc, _h, _on && !bypass && _h != IntPtr.Zero);
         }
         private static bool _hooked;
