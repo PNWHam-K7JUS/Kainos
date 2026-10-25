@@ -19,6 +19,7 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 **New: more KiwiSDRs, and your own**
 - The KIWI tab now lists **about twice as many receivers**: the half of the public list that's reached through kiwisdr.com's proxy (`<name>.proxy.kiwisdr.com`) was left out, as their address only answers browsers. Kainos now reaches them on the port the receiver itself answers on (8073).
+- The search box also matches a receiver's address, which often carries the owner's call (kr6la.proxy.kiwisdr.com, say).
 - **Show more** under the list adds ten receivers at a time (before, only the nearest eight could be seen); a new search or Refresh starts again from eight.
 - **Add Kiwi** (GitHub discussion #43): type the address of a receiver that isn't listed (for example `kiwi.example.com:8073`). Kainos checks it (its status page gives its place, antenna, users and position for the distance), lists it first with a star, and checks it again on each refresh. Right-click one you've added to remove it.
 

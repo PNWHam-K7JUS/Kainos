@@ -4,7 +4,7 @@ Listen to [KiwiSDR](http://kiwisdr.com) receivers around the world from inside K
 
 ## Listening
 
-1. Open the **KIWI** tab in the right-hand column. It lists the nearest public KiwiSDRs (search by place, call or antenna).
+1. Open the **KIWI** tab in the right-hand column. It lists the nearest public KiwiSDRs (search by place, call, antenna or address).
 2. **Click** a receiver to listen. The tab shows its status; the VFO A flag shows the Kiwi's signal reading.
 3. **Vol** sets its volume and **Out** chooses the output device. **Stop** ends it.
 

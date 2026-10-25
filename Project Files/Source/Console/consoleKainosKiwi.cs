@@ -200,7 +200,7 @@ namespace Thetis
                 Font = new Font("Segoe UI", Math.Max(8f, KainosUI.S(12)), FontStyle.Regular, GraphicsUnit.Pixel),
             };
             _kiwiSearch.TextChanged += (s, e) => { _kiwiShow = KainosKiwiList.Rows; kiwiSort(); kiwiListResized(); };
-            _kiwiSearch.HandleCreated += (s, e) => SendMessage(_kiwiSearch.Handle, 0x1501, (IntPtr)1, "Search: place, call or antenna");     // EM_SETCUEBANNER
+            _kiwiSearch.HandleCreated += (s, e) => SendMessage(_kiwiSearch.Handle, 0x1501, (IntPtr)1, "Search: place, call, antenna or address");     // EM_SETCUEBANNER
             _kiwiList = new KainosKiwiList(this);
             foreach (Control c in new Control[] { _kiwiStatus, _kiwiButtons, _kiwiTune, _kiwiVolume, _kiwiOutButton, _kiwiSearch, _kiwiList })
                 _kainosColumn.Viewport.Controls.Add(c);
@@ -273,7 +273,7 @@ namespace Thetis
             string find = _kiwiSearch != null ? _kiwiSearch.Text.Trim() : "";
             IEnumerable<KiwiReceiver> q = all.Where(r => r.Own || ((r.Free || KiwiFavourites.Contains(r.Url)) && (r.HighHz == 0 || (hz >= r.LowHz && hz <= r.HighHz))));
             if (find.Length > 0)
-                q = q.Where(r => (r.Loc + " " + r.Name + " " + r.Antenna + " " + r.Grid).IndexOf(find, StringComparison.OrdinalIgnoreCase) >= 0);
+                q = q.Where(r => (r.Loc + " " + r.Name + " " + r.Antenna + " " + r.Grid + " " + r.Url).IndexOf(find, StringComparison.OrdinalIgnoreCase) >= 0);     // the address too: many carry the owner's call
             q = have ? q.OrderBy(r => r.Km < 0 ? double.MaxValue : r.Km) : q.OrderBy(r => r.Users);
             List<KiwiReceiver> matched = q.OrderBy(r => r.Own ? 0 : KiwiFavourites.Contains(r.Url) ? 1 : 2).ToList();
             KiwiMatches = matched.Count;
