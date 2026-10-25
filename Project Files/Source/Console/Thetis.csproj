@@ -703,6 +703,10 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="consoleKainosNnr.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="KainosRtty.cs" />
     <Compile Include="displayKainos.cs" />
     <Compile Include="KainosCw.cs" />
@@ -991,6 +995,10 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="setupRade.cs">
+      <DependentUpon>setup.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="setupKainosNnr.cs">
       <DependentUpon>setup.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>

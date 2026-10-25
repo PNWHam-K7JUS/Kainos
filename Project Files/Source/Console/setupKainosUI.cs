@@ -222,6 +222,7 @@ namespace Thetis
                     txtKainosFlags.Text = console.KainosFlagSettings;
                     txtKainosTermHeight.Text = console.KainosTermHeightSetting;
                     txtKainosAutoNotch.Text = console.KainosAutoNotchSettings;
+                    txtKainosNnr.Text = console.KainosNnrSettings;
                 };
             }
             console.KainosColumnTabs = txtKainosColumnTabs.Text;
@@ -232,6 +233,8 @@ namespace Thetis
             console.RttyLoadSettings();
             console.KainosAutoNotchSettings = txtKainosAutoNotch.Text;
             console.KainosAutoNotchLoad();
+            console.KainosNnrSettings = txtKainosNnr.Text;
+            console.KainosNnrLoad();
             console.KainosCwSettings = txtKainosCw.Text;
             console.CwLoadSettings();
             console.KainosRttyMacros = txtKainosRttyMacros.Text;

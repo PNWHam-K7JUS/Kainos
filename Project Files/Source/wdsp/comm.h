@@ -56,6 +56,7 @@ warren@wpratt.com
 #include "emnr.h"
 #include "rnnr.h" // NR3 + NR4 support
 #include "sbnr.h" // NR3 + NR4 support
+#include "nnr.h"  // Kainos NNR (from WDSP 2.10)
 #include "emph.h"
 #include "eq.h"
 #include "aethervoice.h"

@@ -69,6 +69,7 @@ namespace Thetis
         {
             addAetherVoiceTab();
             addRadeTab();
+            addNnrTab();           // setupKainosNnr.cs: NNR neural noise reduction
             addKainosUITab();      // setupKainosUI.cs
             addKainosCivTab();     // setupKainosCiv.cs: amplifier band switching over CI-V
             addKainosModulesTab(); // setupKainosModules.cs: downloadable modules

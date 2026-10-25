@@ -314,6 +314,7 @@ namespace Thetis
                     on.Add(c.Text);
             }
             if (KainosAutoNotchOn(rx)) on.Add("AN");
+            if (KainosNnrOn(rx)) on.Add("NNR");
             return string.Join(" ", on);
         }
 
@@ -447,9 +448,12 @@ namespace Thetis
                                          .OrderBy(c => c.Top).ThenBy(c => c.Left));
                         rows.Add(g);
                         // Kainos's multi-carrier notch (consoleKainosAutoNotch.cs), with how many it has notched
-                        KainosActionGrid an = new KainosActionGrid(1);
+                        // and its NNR (consoleKainosNnr.cs), on its own so it can be used with or without NR
+                        KainosActionGrid an = new KainosActionGrid(2);
                         an.Add("AUTO NOTCH", () => KainosAutoNotchOn(rx), () => KainosToggleAutoNotch(rx), KainosUI.Tone.Ice);
-                        an.LabelFor = (i, l) => KainosAutoNotchOn(rx) && KainosAutoNotchCount(rx) > 0 ? "AUTO NOTCH · " + KainosAutoNotchCount(rx) : l;
+                        an.Add("NNR", () => KainosNnrOn(rx), () => KainosToggleNnr(rx), KainosUI.Tone.Ice, () => SetupForm.ShowNnrTab());
+                        an.LabelFor = (i, l) => i == 0 && KainosAutoNotchOn(rx) && KainosAutoNotchCount(rx) > 0 ? "AUTO NOTCH · " + KainosAutoNotchCount(rx)
+                                              : i == 1 && KainosNnrStandby(rx) ? "NNR · STANDBY" : l;
                         rows.Add(an);
                         if (rx == 2 && !KainosSplitB)
                         {

@@ -6,7 +6,18 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.12 (not yet released)
+### Kainos 1.0.13 (not yet released)
+
+**New: NNR neural noise reduction**
+- **NNR**, the neural noise reduction from WDSP 2.10 (Warren Pratt, NR0V), is now in Kainos. It's trained on speech: it takes the band noise down between and under the words and keeps the voice. In a test with speech in white noise it took the pauses down by about 25 dB and left the speech nearly unchanged.
+- It has its **own NNR button** on each VFO flag's DSP tab, next to AUTO NOTCH, so it runs on its own or together with NR, NR2, NR3 or NR4. The flag's DSP summary shows **NNR** while it's on. Right-click the button for its settings.
+- **Setup > DSP > NNR**: the model (**Standard**, or **Large**, which uses more CPU), the **reduction depth** (6 - 40 dB, 25 by default), and **Voice modes only**. NNR treats steady tones as noise, so by default it stands by in CW and the digital modes and only runs in LSB, USB, AM, SAM, DSB and FM (the button reads NNR · STANDBY).
+- Before or after the AGC, it follows the other NRs (Setup > DSP > NR, NRs/ANF Position).
+- It adds about 50 ms of delay to the receive audio while it's on. One receiver with the standard model takes about 15 % of one CPU core (the large model about 35 %).
+
+- Technical: `wdsp/nnr.c`, `nnet.c`, `nnio.c` and the two built-in models (`nnr_model_0.c`, `nnr_model_1.c`) are WDSP 2.10's, taken from AetherSDR's patched copy (its standalone accessors and the `n->df` guard in `setAlpha_nnet` / `setKnee_nnet`). Kainos keeps WDSP 1.29; NNR is wired in beside NR3/NR4: created in `create_rxa` (position 1, 16 kHz model rate, 512-point FFT), `xnnr` after `xsbnr` at both positions, and the rate, size, buffer, flush and destroy calls. `RXAbp1Check` takes an `nnr_run` argument and `RXAbp1Set` checks NNR, so bp1 runs with gain 2 while NNR is on. `SetRXANNRRun` sets bp1 the way `SetRXARNNRRun` does, and `SetRXANNRPosition` moves bp1 to NNR's position like every other NR (without that, bp1 stayed before the AGC and silenced the receiver). `dprintf` added to `utilities.c`. `consoleKainosNnr.cs` (new) holds the per-receiver on/off (saved in a hidden `txtKainosNnr`) and a 250 ms tick that sends only changes to RX1, RX1's sub-receiver and RX2, re-sending the model after WDSP rebuilds the block. `setupKainosNnr.cs` (new) is the Setup page. The models are built the first time NNR is switched on in a channel (`nnr_load`, about 8 ms and 9 MB; until then `xnnr` passes audio through), so the ten RX channels Kainos creates don't carry about 90 MB they may never use; `calc_nnr` rebuilds them after a rate or size change only once they're loaded. The first channel's FFTW planning adds about 0.7 s at start.
+
+### Kainos 1.0.12
 
 1.0.11 was never released on its own: everything that was to be in it is here.
 
