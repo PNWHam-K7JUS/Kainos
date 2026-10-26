@@ -523,7 +523,8 @@ namespace Thetis
                     if (_console.AetherStripTX != null) _console.AetherStripTX.PlaybackHold = false;     // Kainos (GitHub #41)
                     if (_prePlaybackSetting.ContainsKey("MON") && _console.MON != _prePlaybackSetting["MON"]) _console.MON = _prePlaybackSetting["MON"];
                     if (_prePlaybackSetting.ContainsKey("BYPASS_VAC") && Audio.VACBypass != _prePlaybackSetting["BYPASS_VAC"]) Audio.VACBypass = _prePlaybackSetting["BYPASS_VAC"];
-                    if (_prePlaybackSetting.ContainsKey("MOX") && _console.MOX != _prePlaybackSetting["MOX"]) _console.MOX = _prePlaybackSetting["MOX"];
+                    // Kainos: not while MOX is already changing (OnPreMox): the operator's key-up wins (GitHub #23)
+                    if (!_inPreMox && _prePlaybackSetting.ContainsKey("MOX") && _console.MOX != _prePlaybackSetting["MOX"]) _console.MOX = _prePlaybackSetting["MOX"];
                 }
                 else
                 {
@@ -560,12 +561,22 @@ namespace Thetis
             }
         }
 
+        // Kainos: MOX is changing (the console's MOX handler runs this first). Stopping a playback restores what it
+        // changed, MOX included; doing that here put MOX back on part-way through un-keying, so a recording played out
+        // while keyed (PLAY with the foot switch down) kept the radio transmitting after the switch was let go (GitHub #23).
+        private bool _inPreMox;
+
         private void OnPreMox(int rx, bool oldMox, bool newMox)
         {
             if (oldMox != newMox)
             {
-                try { StopRecord(out string _); } catch { }
-                try { StopPlayback(out string _); } catch { }
+                _inPreMox = true;
+                try
+                {
+                    try { StopRecord(out string _); } catch { }
+                    try { StopPlayback(out string _); } catch { }
+                }
+                finally { _inPreMox = false; }
             }
         }
 

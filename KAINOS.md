@@ -6,6 +6,13 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.14 (not yet released)
+
+**Fixed**
+- **The radio kept transmitting after you let go of the foot switch** (GitHub #23), when a REC / PLAY recording was played out while keyed. Letting go stopped the playback, and stopping it put back everything it had changed, including MOX, part-way through un-keying, so the radio was keyed again. Your key-up now wins: playback stops and the radio goes back to receive.
+
+- Technical: found with 1.0.13's MOX trail in KainosErrors.txt: the un-key (`chk=0`) raised `MoxPreChangeHandlers`, `clsAudioRecordPlayback.OnPreMox` called `StopPlayback`, whose `storeRestoreSettings(false, true)` set `_console.MOX` back to its pre-playback value (on), a nested `chkMOX_CheckedChanged2` (`nested=1, chk=1`); the outer handler then read `chkMOX.Checked` as on and ran the key path. `OnPreMox` sets `_inPreMox` while it stops recording and playback, and the MOX restore is skipped while it's set.
+
 ### Kainos 1.0.13
 
 **New: NNR neural noise reduction**
