@@ -8,6 +8,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 ### Kainos 1.0.14 (not yet released)
 
+**New**
+- **KiwiSDR: Mute, Hear radio / Hear Kiwi, and TX mute** (Discussion #54), in the KIWI tab, with Mute and Hear on the Kiwi's waterfall window too. **Hear Kiwi** mutes the radio and unmutes the Kiwi in one click, and **Hear radio** swaps back, so you can switch to the Kiwi when your own receiver is noisy. **TX mute** (on unless you turn it off) silences the Kiwi while you transmit, and for 1.5 s after you un-key, so you don't hear your own signal coming back a second late. Turn it off to listen to yourself on the Kiwi.
+
+- Technical: the Kiwi's volume and mutes are now applied to its own samples (`VolumeWaveProvider16`). Its Vol used to set `WaveOutEvent.Volume`, which is `waveOutSetVolume`: the volume of Kainos's whole audio session in Windows, which Windows remembers. The Kiwi player now also sets that back to 100% when it starts. The TX mute follows `MoxChangeHandlers`, and its 1.5 s hold ends in the Kiwi's 300 ms tick, which drops what was buffered meanwhile.
+
 **Fixed**
 - **The radio kept transmitting after you let go of the foot switch** (GitHub #23), when a REC / PLAY recording was played out while keyed. Letting go stopped the playback, and stopping it put back everything it had changed, including MOX, part-way through un-keying, so the radio was keyed again. Your key-up now wins: playback stops and the radio goes back to receive.
 

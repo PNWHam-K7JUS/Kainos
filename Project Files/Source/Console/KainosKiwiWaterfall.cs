@@ -47,7 +47,7 @@ namespace Thetis
             ClientSize = new Size(960, 440);
             MinimumSize = new Size(480, 260);
 
-            _title = new Label { Location = new Point(12, 10), Size = new Size(600, 22), Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = KainosUI.GoldHi,
+            _title = new Label { Location = new Point(12, 10), Size = new Size(400, 22), Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = KainosUI.GoldHi,
                                  Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
             Controls.Add(_title);
             KainosWizardButton zoomOut = new KainosWizardButton("Zoom -") { Location = new Point(660, 6), Size = new Size(84, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
@@ -57,6 +57,13 @@ namespace Thetis
             zoomIn.Click += (s, e) => _console.KiwiWaterfallZoom(+1);
             centre.Click += (s, e) => _console.KiwiWaterfallCentre();
             Controls.AddRange(new Control[] { zoomOut, zoomIn, centre });
+            // the Kiwi's audio (Discussion #54): mute it, or swap between hearing it and the radio
+            _mute = new KainosWizardButton("Mute") { Location = new Point(440, 6), Size = new Size(84, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            _hear = new KainosWizardButton("Hear Kiwi") { Location = new Point(530, 6), Size = new Size(120, 28), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            _mute.Click += (s, e) => _console.KiwiToggleMute();
+            _hear.Click += (s, e) => _console.KiwiHearSwap();
+            Controls.AddRange(new Control[] { _mute, _hear });
+            RefreshAudio();
 
             _view = new KiwiSpectrumView(console) { Location = new Point(0, 40), Size = new Size(960, 400), Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right };
             Controls.Add(_view);
@@ -67,6 +74,15 @@ namespace Thetis
                 if (o != null) Location = new Point(o.Left + (o.Width - Width) / 2, o.Top + (o.Height - Height) / 2);
             };
             FormClosed += (s, e) => _console.KiwiWaterfallClosed();
+        }
+
+        private readonly KainosWizardButton _mute, _hear;
+        public void RefreshAudio()
+        {
+            _mute.Text = _console.KiwiMuted ? "Unmute" : "Mute";
+            _mute.Accent = _console.KiwiMuted;
+            _hear.Text = _console.KiwiHearingKiwi ? "Hear radio" : "Hear Kiwi";
+            _mute.Invalidate();
         }
 
         public KiwiSpectrumView View { get { return _view; } }
