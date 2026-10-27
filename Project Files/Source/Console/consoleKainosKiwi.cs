@@ -53,6 +53,9 @@ namespace Thetis
         private string _kiwiLastMode = "";
         private WaveOutEvent _kiwiOut;
         private BufferedWaveProvider _kiwiBuf;
+        // the Kiwi's volume, on its own samples as they're played: the player's own Volume (waveOutSetVolume) sets the
+        // volume of Kainos's whole audio session in Windows, VAC included
+        private VolumeWaveProvider16 _kiwiGain;
         private int _kiwiRate;
         private System.Windows.Forms.Timer _kiwiTimer;
         private KainosKiwiTune _kiwiTune;
@@ -67,6 +70,13 @@ namespace Thetis
         internal double KiwiOwnKhz = 7074;
         internal string KiwiOwnMode = "usb";
         private int _kiwiDevice = -1;           // -1: Windows's default output
+        // Mute, and muted while transmitting (Discussion #54): a Kiwi near you hears your own signal, a second or so
+        // late. The TX mute holds for a moment after the un-key, for the audio still on its way.
+        internal bool KiwiMuted;
+        private bool _kiwiTxMute = true, _kiwiTxHeld;
+        private DateTime _kiwiTxHoldUntil;
+        private bool _kiwiHearShown;
+        private const int KiwiTxHoldMs = 1500;
 
         // saved with the options: "fav=url|url;dev=-1;follow=1;vol=60"
         public string KainosKiwiSettings = "";
@@ -98,6 +108,8 @@ namespace Thetis
                         }
                         break;
                     case "vol": if (int.TryParse(v, out n)) KiwiVolume.Value = Math.Max(0, Math.Min(100, n)); break;
+                    case "mute": KiwiMuted = v == "1"; break;
+                    case "txmute": _kiwiTxMute = v != "0"; break;
                     case "own":
                         _kiwiOwn.Clear();
                         foreach (string o in v.Split('|'))
@@ -118,7 +130,7 @@ namespace Thetis
                                  + ";follow=" + (_kiwiFollow ? 1 : 0) + ";followb=" + (_kiwiFollowB ? 1 : 0) + ";main=" + (KiwiOnPanadapter ? 1 : 0)
                                  + ";wfc=" + KiwiWfContrast + ";wfs=" + KiwiWfSpeed
                                  + ";zooms=" + string.Join("|", _kiwiZoomByBand.Select(kv => kv.Key + ":" + kv.Value))
-                                 + ";vol=" + (int)KiwiVolume.Value
+                                 + ";vol=" + (int)KiwiVolume.Value + ";mute=" + (KiwiMuted ? 1 : 0) + ";txmute=" + (_kiwiTxMute ? 1 : 0)
                                  + ";own=" + string.Join("|", _kiwiOwn.Select(r => Uri.EscapeDataString(r.Url) + "~" + Uri.EscapeDataString(r.Loc.Length > 0 ? r.Loc : r.Name)));
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -188,8 +200,18 @@ namespace Thetis
             _kiwiButtons.Add("Waterfall", () => _kiwiWfForm != null, KiwiShowWaterfall, KainosUI.Tone.Ice);      // consoleKainosKiwiWaterfall.cs
             _kiwiButtons.Add("Main view", () => KiwiOnPanadapter, () => { KiwiOnPanadapter = !KiwiOnPanadapter; kiwiSave(); kiwiWfTick(); }, KainosUI.Tone.Ice);
             _kiwiButtons.Add("Add Kiwi", () => false, kiwiAdd, KainosUI.Tone.Ice);
+            _kiwiButtons.Add("Mute", () => KiwiMuted, KiwiToggleMute, KainosUI.Tone.Tx);
+            _kiwiButtons.Add("Hear", () => false, KiwiHearSwap, KainosUI.Tone.Gold);
+            _kiwiButtons.Add("TX mute", () => _kiwiTxMute, () => { _kiwiTxMute = !_kiwiTxMute; kiwiTxRelease(false); kiwiSave(); _kiwiButtons.Invalidate(); }, KainosUI.Tone.Tx);
+            Func<int, string, string> follow = _kiwiButtons.LabelFor;
+            _kiwiButtons.LabelFor = (i, l) => l == "Hear" ? (KiwiHearingKiwi ? "Hear radio" : "Hear Kiwi") : follow(i, l);
             _kiwiVolume = new KainosUpDown(KiwiVolume, "Vol", "%", false);
-            KiwiVolume.ValueChanged += (s, e) => { if (_kiwiOut != null) _kiwiOut.Volume = (float)KiwiVolume.Value / 100f; kiwiSave(); };
+            KiwiVolume.ValueChanged += (s, e) => { kiwiApplyVolume(); kiwiSave(); };
+            MoxChangeHandlers += (rx, oldMox, newMox) =>
+            {
+                if (InvokeRequired) { try { BeginInvoke(new Action(() => kiwiMox(newMox))); } catch { } }
+                else kiwiMox(newMox);
+            };
             _kiwiTune = new KainosKiwiTune(this);
             _kiwiOutButton = new KainosActionGrid(1);
             _kiwiOutButton.Add("Out", () => false, kiwiNextDevice, KainosUI.Tone.Ice);
@@ -428,8 +450,10 @@ namespace Thetis
                 _kiwiRate = rate;
                 _kiwiBuf = new BufferedWaveProvider(new WaveFormat(rate, 16, 1)) { BufferDuration = TimeSpan.FromSeconds(3), DiscardOnBufferOverflow = true };
                 _kiwiOut = new WaveOutEvent { DesiredLatency = 200, DeviceNumber = _kiwiDevice < WaveOut.DeviceCount ? _kiwiDevice : -1 };
-                _kiwiOut.Init(_kiwiBuf);
-                _kiwiOut.Volume = (float)KiwiVolume.Value / 100f;
+                _kiwiGain = new VolumeWaveProvider16(_kiwiBuf);
+                _kiwiOut.Init(_kiwiGain);
+                try { _kiwiOut.Volume = 1f; } catch { }     // puts back the session volume an older Kainos set with Vol
+                kiwiApplyVolume();
                 _kiwiOut.Play();
             }
             byte[] b = new byte[pcm.Length * 2];
@@ -437,8 +461,63 @@ namespace Thetis
             _kiwiBuf.AddSamples(b, 0, b.Length);
         }
 
+        // the player's volume: the Vol setting, or nothing while muted or transmitting
+        private void kiwiApplyVolume()
+        {
+            if (_kiwiGain == null) return;
+            _kiwiGain.Volume = KiwiMuted || _kiwiTxHeld ? 0f : (float)KiwiVolume.Value / 100f;
+        }
+
+        internal void KiwiToggleMute()
+        {
+            KiwiMuted = !KiwiMuted;
+            kiwiApplyVolume();
+            kiwiSave();
+            kiwiAudioChanged();
+        }
+
+        // hearing the Kiwi rather than the radio: the Kiwi on and the radio (RX1) muted
+        internal bool KiwiHearingKiwi { get { return !KiwiMuted && chkMUT.Checked; } }
+
+        // one click from the radio to the Kiwi and back: mutes one and unmutes the other
+        internal void KiwiHearSwap()
+        {
+            bool toKiwi = !KiwiHearingKiwi;
+            KiwiMuted = !toKiwi;
+            if (chkMUT.Checked != toKiwi) kainosClick(chkMUT);
+            kiwiApplyVolume();
+            kiwiSave();
+            kiwiAudioChanged();
+        }
+
+        private void kiwiAudioChanged()
+        {
+            _kiwiButtons?.Invalidate();
+            if (_kiwiWfForm != null && !_kiwiWfForm.IsDisposed) _kiwiWfForm.RefreshAudio();
+        }
+
+        private void kiwiMox(bool tx)
+        {
+            if (tx && _kiwiTxMute) { _kiwiTxHeld = true; kiwiApplyVolume(); }
+            if (!tx && _kiwiTxHeld) _kiwiTxHoldUntil = DateTime.Now.AddMilliseconds(KiwiTxHoldMs);
+        }
+
+        // the TX mute ends (after its hold, or when TX mute is turned off): what came in meanwhile is dropped
+        private void kiwiTxRelease(bool afterHold)
+        {
+            if (!_kiwiTxHeld) return;
+            if (afterHold && (_mox || DateTime.Now < _kiwiTxHoldUntil)) return;
+            if (!afterHold && _kiwiTxMute) return;
+            _kiwiTxHeld = false;
+            try { _kiwiBuf?.ClearBuffer(); } catch { }
+            kiwiApplyVolume();
+        }
+
         private void kiwiTick()
         {
+            kiwiTxRelease(true);
+            // the radio's MUTE changes from its own buttons too: the Hear buttons say which one you hear
+            if (_kiwiHearShown != KiwiHearingKiwi) { _kiwiHearShown = KiwiHearingKiwi; kiwiAudioChanged(); }
             // following (VFO A or B) and the waterfall keep going with the tab closed
             if (_kiwi != null && _kiwiFollow)
             {

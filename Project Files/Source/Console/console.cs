@@ -47156,6 +47156,9 @@ namespace Thetis
         {
             get { return _lastRX2NoiseFloor; }
         }
+        private FormWindowState _kainosNfState;     // Kainos (GitHub #52): the window when the noise floor was last read
+        private Size _kainosNfSize;
+        private DateTime _kainosNfHoldUntil;
         private void tmrAutoAGC_Tick(object sender, EventArgs e)
         {
             if (!chkPower.Checked || _mox) return;
@@ -47166,6 +47169,22 @@ namespace Thetis
             _lastRX2NoiseFloorGood = Display.IsNoiseFloorGoodRX2;
 
             if (!_lastRX1NoiseFloorGood && !_lastRX2NoiseFloorGood) return;
+
+            // Kainos (GitHub #52): while the window is minimised the panadapter's noise floor reads about 12 dB low, and
+            // it takes a moment to settle after a resize or restore. Auto AGC followed it, so the AGC gain jumped up and
+            // stepped back down. Those readings are used up and dropped; the last good floor is kept.
+            if (WindowState != _kainosNfState || Size != _kainosNfSize)
+            {
+                _kainosNfState = WindowState;
+                _kainosNfSize = Size;
+                _kainosNfHoldUntil = DateTime.UtcNow.AddSeconds(2);
+            }
+            if (WindowState == FormWindowState.Minimized || DateTime.UtcNow < _kainosNfHoldUntil)
+            {
+                if (_lastRX1NoiseFloorGood) { float discard1 = Display.NoiseFloorRX1; }
+                if (_lastRX2NoiseFloorGood) { float discard2 = Display.NoiseFloorRX2; }
+                return;
+            }
 
             if (_lastRX1NoiseFloorGood) _lastRX1NoiseFloor = Display.NoiseFloorRX1; // these update noisefloorgoodrx, and 'use up' the readings
             if (_lastRX2NoiseFloorGood) _lastRX2NoiseFloor = Display.NoiseFloorRX2;

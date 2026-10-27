@@ -6,6 +6,37 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.14
+
+**New**
+- **KiwiSDR: Mute, Hear radio / Hear Kiwi, and TX mute** (Discussion #54), in the KIWI tab, with Mute and Hear on the Kiwi's waterfall window too. **Hear Kiwi** mutes the radio and unmutes the Kiwi in one click, and **Hear radio** swaps back, so you can switch to the Kiwi when your own receiver is noisy. **TX mute** (on unless you turn it off) silences the Kiwi while you transmit, and for 1.5 s after you un-key, so you don't hear your own signal coming back a second late. Turn it off to listen to yourself on the Kiwi.
+
+- Technical: the Kiwi's volume and mutes are now applied to its own samples (`VolumeWaveProvider16`). Its Vol used to set `WaveOutEvent.Volume`, which is `waveOutSetVolume`: the volume of Kainos's whole audio session in Windows, which Windows remembers. The Kiwi player now also sets that back to 100% when it starts. The TX mute follows `MoxChangeHandlers`, and its 1.5 s hold ends in the Kiwi's 300 ms tick, which drops what was buffered meanwhile.
+
+**Fixed**
+- **The radio kept transmitting after you let go of the foot switch** (GitHub #23), when a REC / PLAY recording was played out while keyed. Letting go stopped the playback, and stopping it put back everything it had changed, including MOX, part-way through un-keying, so the radio was keyed again. Your key-up now wins: playback stops and the radio goes back to receive.
+
+- **AGC gain jumped up when Kainos was minimised or resized, then stepped back down** (GitHub #52), with Auto AGC on (the AGC Gain slider's green knob). While the window is minimised, the panadapter's noise-floor reading comes out about 12 dB low, and it takes a moment to settle after a resize or restore; Auto AGC followed it. Measured on an HL2: minimising took the AGC gain from 71 to 83 dB, then down in steps (80, 77, 75) and back to 71 on restore. Now it stays at 71. The grid that follows the noise floor no longer jumps either.
+
+- **The right-hand control column wobbled, and could freeze Kainos** (GitHub #56), when its sections only just filled it, for example METERS + RX + KAINOS AUDIO at 110% UI scale. The column kept switching its scroll bar on and off, getting wider and then narrower, and the meter got taller and then shorter with it. The column now sizes the meter for the width it is about to have, so it settles at once. Tested by stepping the window height 600 to 1360 px: 1.0.13 stopped responding part-way, and 1.0.14 settled at every height.
+
+- **Dragging the control column's scroll bar showed the meter twice, torn** (GitHub #48). The mouse wheel swaps the meter and the other pinned panels for still pictures while the column moves; dragging the scroll bar moved the real ones, and the meter (drawn by DirectX) showed at its old and new places at once. Dragging now uses the same pictures, and the real panels come back when you let go.
+
+- **The VFO flag's S meter read well above the analog meters** (GitHub #49): S9+20 on the flag while the ANAN meter's needle sat on S9. The flag used the peak signal strength, frame by frame; the analog meters show the average by default. On a 20 m SSB station the peak ran a median 7 dB above the average, and up to 15 dB on voice peaks. The flag now uses the average too, and its reading rises fast and falls slowly like the bar, so it no longer flickers up on each voice peak. Checked side by side with the ANAN meter on 20 m: within an S unit.
+
+- **The list of TX profile changes covered the orange "TX Profile modified" box** (GitHub #50). Clicking the box now opens the list just under it, lined up with its right-hand edge, so you can read what changed before saving.
+
+- Technical: `KainosColumn.Gliding` is also true while the scroll bar's thumb is dragged (`ThumbDrag`, which raises `GlideStarting` / `GlideEnded`, also on lost mouse capture). `lblTXProfileWarning_Click` (setup.cs) placed the report at a fixed (right edge, y 34), but `KainosSetupShell` moves the warning down beside the page title; it now goes under `lblTXProfileWarning`.
+
+- Technical: `kainosMetersMeasure` (consoleKainosColumn.cs) measured the meter container at its current height, which follows its previous width (it keeps its meters' shape). The two measures in `arrange` (with and without the scroll bar) then disagreed, and the container's `SizeChanged` started each new layout. It now scales the height to the width being measured.
+
+- Technical: `tmrAutoAGC_Tick` (console.cs) uses up and drops the noise-floor readings while the window is minimised, and for 2 s after its size or state changes, so Auto AGC and grid-follow keep the last good floor. Found by logging `RXA_AGC_GAIN`, `GetRXAAGCTop`, `ptbRF` and `_lastRX1NoiseFloor` every 100 ms through a scripted resize / minimise / restore.
+
+- Technical: found with 1.0.13's MOX trail in KainosErrors.txt: the un-key (`chk=0`) raised `MoxPreChangeHandlers`, `clsAudioRecordPlayback.OnPreMox` called `StopPlayback`, whose `storeRestoreSettings(false, true)` set `_console.MOX` back to its pre-playback value (on), a nested `chkMOX_CheckedChanged2` (`nested=1, chk=1`); the outer handler then read `chkMOX.Checked` as on and ran the key path. `OnPreMox` sets `_inPreMox` while it stops recording and playback, and the MOX restore is skipped while it's set.
+
+**Modules**
+- **SSTV 0.5.1** (released 27 October): the sync / black / white tone markers showed on the panadapter whether or not the SSTV window was open (seen on LSB voice; GitHub #57, #58), and came back after closing it. They're now drawn only while the SSTV window is open. A self-test checks it.
+
 ### Kainos 1.0.13
 
 **New: NNR neural noise reduction**

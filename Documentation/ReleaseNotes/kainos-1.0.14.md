@@ -1,0 +1,27 @@
+# Kainos 1.0.14
+
+Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS/Kainos/wiki) for how to use everything below. Thanks to everyone who sent ideas and bug reports.
+
+**New: KiwiSDR Mute, Hear radio / Hear Kiwi, and TX mute** (GitHub discussion #54)
+- **Mute** silences the Kiwi. **Hear Kiwi** mutes the radio and unmutes the Kiwi in one click, and **Hear radio** swaps back, so you can switch to a quieter Kiwi when your own receiver is noisy. Both are in the KIWI tab and on the Kiwi's waterfall window.
+- **TX mute** (on unless you turn it off) silences the Kiwi while you transmit, and for 1.5 s after you un-key, so you don't hear your own signal coming back a second late. Turn it off to listen to yourself on the Kiwi.
+- The Kiwi's **Vol** now changes only the Kiwi. It used to set the volume of Kainos's whole audio session in Windows (which Windows remembers), so it could turn down Kainos's other Windows audio too, VAC included. Kainos puts that session back to 100% the next time the Kiwi plays.
+
+**Fixed**
+- **The radio kept transmitting after you let go of the foot switch** (GitHub #23), when a REC / PLAY recording was played out while keyed. Letting go stopped the playback, and stopping it put back everything it had changed, including MOX, part-way through un-keying, so the radio was keyed again. Your key-up now wins: playback stops and the radio goes back to receive.
+- **AGC gain jumped up when Kainos was minimised or resized, then stepped back down** (GitHub #52), with Auto AGC on (the AGC Gain slider's green knob). While the window is minimised, the panadapter's noise-floor reading comes out about 12 dB low, and it takes a moment to settle after a resize or restore; Auto AGC followed it. Measured on an HL2: minimising took the AGC gain from 71 to 83 dB, then down in steps and back to 71 on restore. Now it stays at 71. The grid that follows the noise floor no longer jumps either.
+- **The right-hand control column wobbled, and could freeze Kainos** (GitHub #56), when its sections only just filled it, for example METERS + RX + KAINOS AUDIO at 110% UI scale. The column kept switching its scroll bar on and off, and the meter grew and shrank with it. It now settles at once. Tested by stepping the window height from 600 to 1360 px: 1.0.13 stopped responding part-way, and 1.0.14 settled at every height.
+- **Dragging the control column's scroll bar showed the meter twice, torn** (GitHub #48). Dragging now works like the mouse wheel: the meter and the other pinned panels are shown as still pictures while the column moves, and come back live when you let go.
+- **The VFO flag's S meter read well above the analog meters** (GitHub #49): S9+20 on the flag while the ANAN meter's needle sat on S9. The flag used the peak signal strength, frame by frame; the analog meters show the average by default. On a 20 m SSB station the peak ran a median 7 dB above the average, and up to 15 dB on voice peaks. The flag now uses the average too, and its reading rises fast and falls slowly like the bar. Side by side with the ANAN meter on 20 m, they agree to within an S unit.
+- **The list of TX profile changes covered the orange "TX Profile modified" box** (GitHub #50). Clicking the box now opens the list just under it, so you can read what changed before saving.
+
+- Technical: #23: found with 1.0.13's MOX trail in KainosErrors.txt: the un-key raised `MoxPreChangeHandlers`, `clsAudioRecordPlayback.OnPreMox` called `StopPlayback`, whose `storeRestoreSettings(false, true)` set `_console.MOX` back on, a nested `chkMOX_CheckedChanged2`; the outer handler then read `chkMOX.Checked` as on and ran the key path. `OnPreMox` sets `_inPreMox` while it stops recording and playback, and the MOX restore is skipped while it's set. #52: `tmrAutoAGC_Tick` (console.cs) uses up and drops the noise-floor readings while the window is minimised, and for 2 s after its size or state changes. #56: `kainosMetersMeasure` (consoleKainosColumn.cs) measured the meter container at its current height, which follows its previous width; the two measures in `arrange` (with and without the scroll bar) then disagreed, and the container's `SizeChanged` started each new layout. It now scales the height to the width being measured. #48: `KainosColumn.Gliding` is also true while the scroll bar's thumb is dragged (`ThumbDrag`, which raises `GlideStarting` / `GlideEnded`, also on lost mouse capture). #49: `KainosSignalDbm` reads `AVG_SIGNAL_STRENGTH`, and `drawSMeter` smooths the reading's dBm. #50: `lblTXProfileWarning_Click` (setup.cs) placed the report at a fixed place, but `KainosSetupShell` moves the warning beside the page title; it now goes under `lblTXProfileWarning`. Kiwi: the volume and mutes are applied with `VolumeWaveProvider16` instead of `WaveOutEvent.Volume` (`waveOutSetVolume`, the whole session's volume), which is set back to 1 when the player starts; the TX mute follows `MoxChangeHandlers`, and its hold ends in the Kiwi's 300 ms tick, which drops what was buffered meanwhile.
+
+**Modules**
+- **SSTV 0.5.1** (released 27 October): the sync / black / white tone markers showed on the panadapter whether or not the SSTV window was open, in every mode (GitHub #57, #58). They're now drawn only while the SSTV window is open.
+
+## Installing
+
+Run **Kainos-1.0.14-x64.msi**. It replaces any earlier Kainos version and keeps your settings. Kainos installs alongside Thetis and doesn't change it.
+
+SSTV 0.5.1 comes from **Setup > Modules** (it also runs on Kainos 1.0.13).
