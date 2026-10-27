@@ -13,6 +13,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - Technical: found with 1.0.13's MOX trail in KainosErrors.txt: the un-key (`chk=0`) raised `MoxPreChangeHandlers`, `clsAudioRecordPlayback.OnPreMox` called `StopPlayback`, whose `storeRestoreSettings(false, true)` set `_console.MOX` back to its pre-playback value (on), a nested `chkMOX_CheckedChanged2` (`nested=1, chk=1`); the outer handler then read `chkMOX.Checked` as on and ran the key path. `OnPreMox` sets `_inPreMox` while it stops recording and playback, and the MOX restore is skipped while it's set.
 
+**Modules**
+- **SSTV 0.5.1**: the sync / black / white tone markers showed on the panadapter whether or not the SSTV window was open (seen on LSB voice), and came back after closing it. They're now drawn only while the SSTV window is open. A self-test checks it.
+
 ### Kainos 1.0.13
 
 **New: NNR neural noise reduction**
