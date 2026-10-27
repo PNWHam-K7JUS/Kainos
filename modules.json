@@ -20,16 +20,16 @@
       "id": "sstv",
       "name": "SSTV (slow-scan TV)",
       "description": "Slow-scan TV inside Kainos: receive Martin, Scottie, Robot 36 and PD pictures (found automatically, slant-corrected, with the sender's callsign and a gallery), and send them: a one-time station setup makes your CQ, Reply and 73 pictures, and Reply answers in the sender's mode.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "api": 1,
       "minKainos": "1.0.12",
       "entry": "Kainos.Sstv.dll",
       "author": "Justin Cron K7JUS",
       "license": "GPL-3.0-or-later",
       "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-sstv",
-      "url": "https://github.com/PNWHam-K7JUS/kainos-module-sstv/releases/download/v0.5.0/kainos-sstv-0.5.0.zip",
-      "sha256": "5aa7f01b5034b0f2e0b99d7f9dd3f382602d45b2355210389b711ebeca014c72",
-      "size": 84303
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-sstv/releases/download/v0.5.1/kainos-sstv-0.5.1.zip",
+      "sha256": "4fb35a119745b8f4817eb352c17980ec14c4e089d768ee7f6a91fe1638f3867c",
+      "size": 84394
     },
     {
       "id": "dvk",
