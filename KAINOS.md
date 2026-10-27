@@ -17,6 +17,8 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - **Dragging the control column's scroll bar showed the meter twice, torn** (GitHub #48). The mouse wheel swaps the meter and the other pinned panels for still pictures while the column moves; dragging the scroll bar moved the real ones, and the meter (drawn by DirectX) showed at its old and new places at once. Dragging now uses the same pictures, and the real panels come back when you let go.
 
+- **The VFO flag's S meter read well above the analog meters** (GitHub #49): S9+20 on the flag while the ANAN meter's needle sat on S9. The flag used the peak signal strength, frame by frame; the analog meters show the average by default. On a 20 m SSB station the peak ran a median 7 dB above the average, and up to 15 dB on voice peaks. The flag now uses the average too, and its reading rises fast and falls slowly like the bar, so it no longer flickers up on each voice peak. Checked side by side with the ANAN meter on 20 m: within an S unit.
+
 - **The list of TX profile changes covered the orange "TX Profile modified" box** (GitHub #50). Clicking the box now opens the list just under it, lined up with its right-hand edge, so you can read what changed before saving.
 
 - Technical: `KainosColumn.Gliding` is also true while the scroll bar's thumb is dragged (`ThumbDrag`, which raises `GlideStarting` / `GlideEnded`, also on lost mouse capture). `lblTXProfileWarning_Click` (setup.cs) placed the report at a fixed (right edge, y 34), but `KainosSetupShell` moves the warning down beside the page title; it now goes under `lblTXProfileWarning`.

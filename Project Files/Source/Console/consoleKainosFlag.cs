@@ -415,12 +415,14 @@ namespace Thetis
             if (!c.Checked && c.Enabled) kainosClick(c);
         }
 
-        // the S meter: Thetis's signal strength in dBm (calibrated), and S units (S9 = -73 dBm, -93 above 30 MHz)
+        // the S meter: Thetis's signal strength in dBm (calibrated), and S units (S9 = -73 dBm, -93 above 30 MHz). The
+        // average, as the analog meters show by default: the peak reading ran 7-15 dB above it on SSB voice, so the flag
+        // said S9+20 while the ANAN meter's needle sat on S9 (GitHub #49)
         internal float KainosSignalDbm(int rx)
         {
             if (!PowerOn) return -200f;
             if (rx == 2 && !RX2Enabled) return -200f;                       // no RX2: nothing to measure
-            return WDSP.CalculateRXMeter(rx == 1 ? 0u : 2u, 0u, WDSP.MeterType.SIGNAL_STRENGTH) + RXOffset(rx);
+            return WDSP.CalculateRXMeter(rx == 1 ? 0u : 2u, 0u, WDSP.MeterType.AVG_SIGNAL_STRENGTH) + RXOffset(rx);
         }
         internal double KainosSUnits(int rx, float dbm) { return Common.GetSMeterUnits(dbm, KainosVfoMHz(rx) >= S9Frequency); }
 
@@ -985,11 +987,15 @@ namespace Thetis
         // 60%, S9 to +60 dB the rest, gold / violet to S9 and red over it) with its scale under it. Fast attack,
         // slow decay. Empty while this receiver's VFO transmits or the radio is off.
         private float _sm = -1;
+        // the reading's dBm, with the same attack and decay: it showed each frame's own value, so voice peaks flicked it
+        // up a few S units at a time (GitHub #49)
+        private float _smDbm = -200f;
         private void drawSMeter(Graphics g, float s, float pad, float top)
         {
             float dbm = _console.KainosSignalDbm(_rx);
             bool live = dbm > -190f && !(_console.KainosMox && _console.KainosIsTxVfo(_rx));
-            double su = live ? _console.KainosSUnits(_rx, dbm) : 0;
+            _smDbm = !live ? -200f : _smDbm <= -190f || dbm > _smDbm ? dbm : _smDbm * 0.8f + dbm * 0.2f;
+            double su = live ? _console.KainosSUnits(_rx, _smDbm) : 0;
             float target = live ? (float)(su <= 9 ? Math.Max(0, su) / 9 * 0.6 : 0.6 + Math.Min(60, (su - 9) * 6) / 60 * 0.4) : 0;
             _sm = _sm < 0 || target > _sm ? target : _sm * 0.8f + target * 0.2f;
 
