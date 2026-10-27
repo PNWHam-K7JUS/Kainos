@@ -927,14 +927,25 @@ namespace Thetis
         // and the column eases toward it about 60 times a second, moving the sections without measuring them again
         private Timer _glide;
         private int _glideTo;
-        public bool Gliding { get { return _glide != null && _glide.Enabled; } }
+        // gliding, or the scroll bar's thumb being dragged: either way the sections move every frame, so the meter and the
+        // other pinned panels are swapped for pictures while it lasts (dragging the thumb moved the real ones, and the
+        // DirectX meter showed itself at its old and new places at once; GitHub #48)
+        public bool Gliding { get { return (_glide != null && _glide.Enabled) || _thumbDrag; } }
+        private bool _thumbDrag;
+
+        internal void ThumbDrag(bool on)
+        {
+            if (on == _thumbDrag) return;
+            if (on) { stopGlide(); GlideStarting?.Invoke(); _thumbDrag = true; }
+            else { _thumbDrag = false; GlideEnded?.Invoke(); }
+        }
         public event Action GlideEnded, GlideStarting;
 
         private void stopGlide()
         {
             if (_glide == null || !_glide.Enabled) return;
             _glide.Stop();
-            GlideEnded?.Invoke();
+            if (!_thumbDrag) GlideEnded?.Invoke();
         }
 
         internal void ScrollBy(int delta)
@@ -1451,7 +1462,7 @@ namespace Thetis
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
             RectangleF t = thumb;
-            if (e.Y >= t.Top && e.Y <= t.Bottom) { _dragging = true; _dragFrom = e.Y; _scrollFrom = _column.ScrollPos; Capture = true; }
+            if (e.Y >= t.Top && e.Y <= t.Bottom) { _dragging = true; _dragFrom = e.Y; _scrollFrom = _column.ScrollPos; Capture = true; _column.ThumbDrag(true); }
             else _column.ScrollTo(_column.ScrollPos + (e.Y < t.Top ? -1 : 1) * (int)(_column.ViewHeight * 0.9));
             Invalidate();
         }
@@ -1472,6 +1483,17 @@ namespace Thetis
             base.OnMouseUp(e);
             _dragging = false;
             Capture = false;
+            _column.ThumbDrag(false);
+            Invalidate();
+        }
+
+        // the mouse let go somewhere we didn't hear about (another window took it): the drag is over
+        protected override void OnMouseCaptureChanged(EventArgs e)
+        {
+            base.OnMouseCaptureChanged(e);
+            if (Capture) return;
+            _dragging = false;
+            _column.ThumbDrag(false);
             Invalidate();
         }
     }

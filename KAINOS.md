@@ -15,6 +15,12 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - **The right-hand control column wobbled, and could freeze Kainos** (GitHub #56), when its sections only just filled it, for example METERS + RX + KAINOS AUDIO at 110% UI scale. The column kept switching its scroll bar on and off, getting wider and then narrower, and the meter got taller and then shorter with it. The column now sizes the meter for the width it is about to have, so it settles at once. Tested by stepping the window height 600 to 1360 px: 1.0.13 stopped responding part-way, and 1.0.14 settled at every height.
 
+- **Dragging the control column's scroll bar showed the meter twice, torn** (GitHub #48). The mouse wheel swaps the meter and the other pinned panels for still pictures while the column moves; dragging the scroll bar moved the real ones, and the meter (drawn by DirectX) showed at its old and new places at once. Dragging now uses the same pictures, and the real panels come back when you let go.
+
+- **The list of TX profile changes covered the orange "TX Profile modified" box** (GitHub #50). Clicking the box now opens the list just under it, lined up with its right-hand edge, so you can read what changed before saving.
+
+- Technical: `KainosColumn.Gliding` is also true while the scroll bar's thumb is dragged (`ThumbDrag`, which raises `GlideStarting` / `GlideEnded`, also on lost mouse capture). `lblTXProfileWarning_Click` (setup.cs) placed the report at a fixed (right edge, y 34), but `KainosSetupShell` moves the warning down beside the page title; it now goes under `lblTXProfileWarning`.
+
 - Technical: `kainosMetersMeasure` (consoleKainosColumn.cs) measured the meter container at its current height, which follows its previous width (it keeps its meters' shape). The two measures in `arrange` (with and without the scroll bar) then disagreed, and the container's `SizeChanged` started each new layout. It now scales the height to the width being measured.
 
 - Technical: `tmrAutoAGC_Tick` (console.cs) uses up and drops the noise-floor readings while the window is minimised, and for 2 s after its size or state changes, so Auto AGC and grid-follow keep the last good floor. Found by logging `RXA_AGC_GAIN`, `GetRXAAGCTop`, `ptbRF` and `_lastRX1NoiseFloor` every 100 ms through a scripted resize / minimise / restore.

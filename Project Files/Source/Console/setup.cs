@@ -28470,7 +28470,11 @@ namespace Thetis
             {
                 txtboxTXProfileChangedReport.Text = "Modifications" + Environment.NewLine + Environment.NewLine + sReport;
                 txtboxTXProfileChangedReport.Width = getTextBoxWidthForReport();
-                txtboxTXProfileChangedReport.Location = new Point(this.ClientSize.Width - txtboxTXProfileChangedReport.Size.Width, 34);
+                // Kainos (GitHub #50): just under the orange box, lined up with its right-hand edge. Kainos's Setup layout
+                // moves the box down beside the page's name, and the list went at a fixed place that it now covered.
+                int reportX = Math.Max(0, Math.Min(lblTXProfileWarning.Right, this.ClientSize.Width) - txtboxTXProfileChangedReport.Width);
+                txtboxTXProfileChangedReport.Location = new Point(reportX, lblTXProfileWarning.Bottom + 4);
+                txtboxTXProfileChangedReport.BringToFront();
                 txtboxTXProfileChangedReport.Visible = true;
             }
             else
