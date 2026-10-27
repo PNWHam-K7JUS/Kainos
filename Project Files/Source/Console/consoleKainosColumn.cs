@@ -830,7 +830,12 @@ namespace Thetis
         private int kainosMetersMeasure(int w)
         {
             if (_kainosMeter == null) return (int)(w * 0.55f);
-            return Math.Max(KainosUI.S(40), Math.Min(_kainosMeter.Height, kainosMeterMaxHeight(w)));
+            // the height it will have at width w: the container keeps its meters' shape, so its height goes with its
+            // width. Measuring its height as it was (at the width before) let the column flip for ever when the sections
+            // only just filled it (GitHub #56): no scroll bar, so wider, so the meter grew taller, so a scroll bar, so
+            // narrower, so the meter shrank... and the meter's resize starts each new layout.
+            int h = _kainosMeter.Width > 0 ? (int)Math.Round(_kainosMeter.Height * (double)w / _kainosMeter.Width) : _kainosMeter.Height;
+            return Math.Max(KainosUI.S(40), Math.Min(h, kainosMeterMaxHeight(w)));
         }
 
         // a meter container can grow taller than its meters (issue #1: everything under it was pushed out of sight):
