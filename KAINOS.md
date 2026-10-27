@@ -11,6 +11,10 @@ Newest first. Each version's section is written to be copied straight into a Git
 **Fixed**
 - **The radio kept transmitting after you let go of the foot switch** (GitHub #23), when a REC / PLAY recording was played out while keyed. Letting go stopped the playback, and stopping it put back everything it had changed, including MOX, part-way through un-keying, so the radio was keyed again. Your key-up now wins: playback stops and the radio goes back to receive.
 
+- **AGC gain jumped up when Kainos was minimised or resized, then stepped back down** (GitHub #52), with Auto AGC on (the AGC Gain slider's green knob). While the window is minimised, the panadapter's noise-floor reading comes out about 12 dB low, and it takes a moment to settle after a resize or restore; Auto AGC followed it. Measured on an HL2: minimising took the AGC gain from 71 to 83 dB, then down in steps (80, 77, 75) and back to 71 on restore. Now it stays at 71. The grid that follows the noise floor no longer jumps either.
+
+- Technical: `tmrAutoAGC_Tick` (console.cs) uses up and drops the noise-floor readings while the window is minimised, and for 2 s after its size or state changes, so Auto AGC and grid-follow keep the last good floor. Found by logging `RXA_AGC_GAIN`, `GetRXAAGCTop`, `ptbRF` and `_lastRX1NoiseFloor` every 100 ms through a scripted resize / minimise / restore.
+
 - Technical: found with 1.0.13's MOX trail in KainosErrors.txt: the un-key (`chk=0`) raised `MoxPreChangeHandlers`, `clsAudioRecordPlayback.OnPreMox` called `StopPlayback`, whose `storeRestoreSettings(false, true)` set `_console.MOX` back to its pre-playback value (on), a nested `chkMOX_CheckedChanged2` (`nested=1, chk=1`); the outer handler then read `chkMOX.Checked` as on and ran the key path. `OnPreMox` sets `_inPreMox` while it stops recording and playback, and the MOX restore is skipped while it's set.
 
 **Modules**
