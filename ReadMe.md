@@ -6,7 +6,7 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 
 - Website and download: https://kainossdr.com
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
-- Current version: 1.0.13 (based on Thetis 2.10.3.15)
+- Current version: 1.0.14 (based on Thetis 2.10.3.15)
 
 ![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
 
@@ -29,7 +29,7 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 - **RTTY**: built-in RTTY (45.45 baud, 170 Hz shift and others) with no extra programs or virtual audio cables. Open **Modes > RTTY** in the menu bar (**RTTY** on its own in the Classic layout): the terminal opens under the panadapter (or in its own window) with received text, type-ahead sending, macros and a tuning indicator. Use DIGL or LSB.
 - **CW**: a built-in CW decoder and sender. Open **Modes > CW** in the menu bar (**CW** on its own in the Classic layout): the terminal (laid out like RTTY's) decodes the receiver at your CW pitch and follows the sender's speed, and what you type or send from the macros goes out through Thetis's CWX keyer at your chosen speed. Use CWL or CWU and zero-beat the signal.
 - **Built-in spotting**: DX cluster and POTA spots on the panadapter (callsign tags with flags; click to tune) and in a SPOTS tab, with no other program. It logs in to the cluster with your callsign automatically (the one in Setup > DSP > FreeDV (RADE)).
-- **KiwiSDR**: the KIWI tab lists the nearest public KiwiSDRs; click one to listen, following VFO A, VFO B or tuned on its own, with favourites, search and a choice of output device. **Waterfall** opens the Kiwi's own panadapter and waterfall (click to tune, spots and the band plan on it), and with the HL2 off the Kiwi fills the main panadapter, so it works like a radio. About 880 receivers are listed (**Show more** under the list), and **Add Kiwi** adds one that isn't, by its address.
+- **KiwiSDR**: the KIWI tab lists the nearest public KiwiSDRs; click one to listen, following VFO A, VFO B or tuned on its own, with favourites, search and a choice of output device. **Waterfall** opens the Kiwi's own panadapter and waterfall (click to tune, spots and the band plan on it), and with the HL2 off the Kiwi fills the main panadapter, so it works like a radio. About 880 receivers are listed (**Show more** under the list), and **Add Kiwi** adds one that isn't, by its address. **Hear Kiwi** swaps between the radio and the Kiwi in one click, and the Kiwi is muted while you transmit.
 - **Licence-aware band plan**: a band along the bottom of the panadapter shows what each part of the band is used for (CW, digital, SSB ...) and, by colour, where your licence lets you transmit (United States and Canada built in), with tags at FT8, FT4, WSPR and other popular frequencies.
 - **SWR sweep**: the SWR button sweeps a band at 1 W or less and plots your antenna's SWR, with the 2:1 bandwidth; save sweeps to compare, or export them as CSV.
 - **Setup wizard**: callsign, HL2 boards (N2ADR, I/O board), PC audio and look in a few steps, offered on first run and in the Setup menu.
