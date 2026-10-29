@@ -3131,8 +3131,8 @@ namespace Thetis
                 if (isTXProfileSettingDifferent<bool>(dr, "Show_TX_Filter", (bool)console.ShowTXFilter, out sReportOut)) sReport += sReportOut;
             }
 
-            if (isTXProfileSettingDifferent<bool>(dr, "VAC1_On", (bool)chkAudioEnableVAC.Checked, out sReportOut)) sReport += sReportOut;
-            if (isTXProfileSettingDifferent<bool>(dr, "VAC1_Auto_On", (bool)chkAudioVACAutoEnable.Checked, out sReportOut)) sReport += sReportOut;
+            if (!kainosKeepVacOnOff && isTXProfileSettingDifferent<bool>(dr, "VAC1_On", (bool)chkAudioEnableVAC.Checked, out sReportOut)) sReport += sReportOut;
+            if (!kainosKeepVacOnOff && isTXProfileSettingDifferent<bool>(dr, "VAC1_Auto_On", (bool)chkAudioVACAutoEnable.Checked, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<int>(dr, "VAC1_RX_GAIN", (int)udAudioVACGainRX.Value, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<int>(dr, "VAC1_TX_GAIN", (int)udAudioVACGainTX.Value, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<bool>(dr, "VAC1_Stereo_On", (bool)chkAudio2Stereo.Checked, out sReportOut)) sReport += sReportOut;
@@ -3156,8 +3156,8 @@ namespace Thetis
             if (isTXProfileSettingDifferent<string>(dr, "VAC1_AudioInput", (string)comboAudioInput2.Text, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<string>(dr, "VAC1_AudioOutput", (string)comboAudioOutput2.Text, out sReportOut)) sReport += sReportOut;
 
-            if (isTXProfileSettingDifferent<bool>(dr, "VAC2_On", (bool)chkVAC2Enable.Checked, out sReportOut)) sReport += sReportOut;
-            if (isTXProfileSettingDifferent<bool>(dr, "VAC2_Auto_On", (bool)chkVAC2AutoEnable.Checked, out sReportOut)) sReport += sReportOut;
+            if (!kainosKeepVacOnOff && isTXProfileSettingDifferent<bool>(dr, "VAC2_On", (bool)chkVAC2Enable.Checked, out sReportOut)) sReport += sReportOut;
+            if (!kainosKeepVacOnOff && isTXProfileSettingDifferent<bool>(dr, "VAC2_Auto_On", (bool)chkVAC2AutoEnable.Checked, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<int>(dr, "VAC2_RX_GAIN", (int)udVAC2GainRX.Value, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<int>(dr, "VAC2_TX_GAIN", (int)udVAC2GainTX.Value, out sReportOut)) sReport += sReportOut;
             if (isTXProfileSettingDifferent<bool>(dr, "VAC2_Stereo_On", (bool)chkAudioStereo3.Checked, out sReportOut)) sReport += sReportOut;
@@ -3334,8 +3334,8 @@ namespace Thetis
                 if (DB.ConvertFromDBVal<bool>(dr["Show_TX_Filter"]) != (bool)console.ShowTXFilter) return true;
             }
 
-            if (DB.ConvertFromDBVal<bool>(dr["VAC1_On"]) != (bool)chkAudioEnableVAC.Checked) return true;
-            if (DB.ConvertFromDBVal<bool>(dr["VAC1_Auto_On"]) != (bool)chkAudioVACAutoEnable.Checked) return true;
+            if (!kainosKeepVacOnOff && DB.ConvertFromDBVal<bool>(dr["VAC1_On"]) != (bool)chkAudioEnableVAC.Checked) return true;
+            if (!kainosKeepVacOnOff && DB.ConvertFromDBVal<bool>(dr["VAC1_Auto_On"]) != (bool)chkAudioVACAutoEnable.Checked) return true;
             if (DB.ConvertFromDBVal<int>(dr["VAC1_RX_GAIN"]) != (int)udAudioVACGainRX.Value) return true;
             if (DB.ConvertFromDBVal<int>(dr["VAC1_TX_GAIN"]) != (int)udAudioVACGainTX.Value) return true;
             if (DB.ConvertFromDBVal<bool>(dr["VAC1_Stereo_On"]) != (bool)chkAudio2Stereo.Checked) return true;
@@ -3362,8 +3362,8 @@ namespace Thetis
             if (DB.ConvertFromDBVal<bool>(dr["VAC1_Exclusive_In"]) != (bool)chkVAC1ExclusiveIn.Checked) return true;
             if (DB.ConvertFromDBVal<bool>(dr["VAC1_Exclusive_Out"]) != (bool)chkVAC1ExclusiveOut.Checked) return true;
 
-            if (DB.ConvertFromDBVal<bool>(dr["VAC2_On"]) != (bool)chkVAC2Enable.Checked) return true;
-            if (DB.ConvertFromDBVal<bool>(dr["VAC2_Auto_On"]) != (bool)chkVAC2AutoEnable.Checked) return true;
+            if (!kainosKeepVacOnOff && DB.ConvertFromDBVal<bool>(dr["VAC2_On"]) != (bool)chkVAC2Enable.Checked) return true;
+            if (!kainosKeepVacOnOff && DB.ConvertFromDBVal<bool>(dr["VAC2_Auto_On"]) != (bool)chkVAC2AutoEnable.Checked) return true;
             if (DB.ConvertFromDBVal<int>(dr["VAC2_RX_GAIN"]) != (int)udVAC2GainRX.Value) return true;
             if (DB.ConvertFromDBVal<int>(dr["VAC2_TX_GAIN"]) != (int)udVAC2GainTX.Value) return true;
             if (DB.ConvertFromDBVal<bool>(dr["VAC2_Stereo_On"]) != (bool)chkAudioStereo3.Checked) return true;
@@ -9572,6 +9572,11 @@ namespace Thetis
             int[] eq = new int[21];
             int[] cfceq = new int[32];
 
+            // Kainos: the VACs' on/off as they are now, put back at the end if they are kept (setupKainos.cs, #59)
+            bool keepVac = kainosKeepVacOnOff;
+            bool vac1On = chkAudioEnableVAC.Checked, vac1Auto = chkAudioVACAutoEnable.Checked;
+            bool vac2On = chkVAC2Enable.Checked, vac2Auto = chkVAC2AutoEnable.Checked;
+
             if (checkTXProfileChanged2(dr, true)) // check if vac settings are different
             {
                 //[2.10.3.9]MW0LGE added
@@ -9786,10 +9791,10 @@ namespace Thetis
             CFCCOMPEQ = cfceq;
             CFCConfigForm.ConfigData = (string)dr["CFCParaEQData"];
 
-            chkAudioEnableVAC.Checked = (bool)dr["VAC1_On"];    // moved here after setting to off MW0LGE_21k9d
-            chkAudioVACAutoEnable.Checked = (bool)dr["VAC1_Auto_On"]; //[2.10.1.0] MW0LGE moved here
-            chkVAC2Enable.Checked = (bool)dr["VAC2_On"];    // moved here after setting to off MW0LGE_21k9d
-            chkVAC2AutoEnable.Checked = (bool)dr["VAC2_Auto_On"]; //[2.10.1.0] MW0LGE moved here
+            chkAudioEnableVAC.Checked = keepVac ? vac1On : (bool)dr["VAC1_On"];    // moved here after setting to off MW0LGE_21k9d
+            chkAudioVACAutoEnable.Checked = keepVac ? vac1Auto : (bool)dr["VAC1_Auto_On"]; //[2.10.1.0] MW0LGE moved here
+            chkVAC2Enable.Checked = keepVac ? vac2On : (bool)dr["VAC2_On"];    // moved here after setting to off MW0LGE_21k9d
+            chkVAC2AutoEnable.Checked = keepVac ? vac2Auto : (bool)dr["VAC2_Auto_On"]; //[2.10.1.0] MW0LGE moved here
 
             console.TXProfile = sProfileName;
             console.LoadedTXProfile();

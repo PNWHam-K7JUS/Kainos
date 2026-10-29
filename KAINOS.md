@@ -6,6 +6,13 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.15 (in progress)
+
+**New**
+- **Keep VAC on/off when the TX profile changes** (GitHub #59), in Setup > Transmit and off by default. Changing mode can load another TX profile (one each for SSB, AM, FM and digital), and each profile saves whether VAC 1 and VAC 2 are on, so going to AM could turn VAC off if the AM profile was saved with it off. With this on, VAC 1 and VAC 2 stay as they are, and their on/off no longer counts as a change to the profile. Their other settings still come from the profile.
+
+- Technical: `loadTXProfile` remembers the four VAC on/off and auto states before it loads and puts them back at the end, where the profile's `VAC1_On` / `VAC2_On` / `*_Auto_On` would go. `checkTXProfileChanged2` and the change report skip those four while the option is on. The two "Restore VAC device details" rows on Setup > Transmit move up a little to make room.
+
 ### Kainos 1.0.14
 
 **New**
