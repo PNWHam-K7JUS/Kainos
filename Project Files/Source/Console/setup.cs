@@ -3994,6 +3994,10 @@ namespace Thetis
             {
                 if (udHermesStepAttenuatorData != null)
                 {
+                    // Kainos: the HL2's LNA goes to 32 dB, one more than this box allows until it has been changed once,
+                    // and a value outside the box's range threw (GitHub #62, RX2 at 32 on a mode change)
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && udHermesStepAttenuatorData.Maximum < 32) udHermesStepAttenuatorData.Maximum = 32;
+                    value = (int)Math.Max(udHermesStepAttenuatorData.Minimum, Math.Min(udHermesStepAttenuatorData.Maximum, value));
                     if (udHermesStepAttenuatorData.Value == value)
                         udHermesStepAttenuatorData_ValueChanged(this, EventArgs.Empty); //[2.10.3.6] no event will fire if the same, so force it
                     else
@@ -4012,6 +4016,10 @@ namespace Thetis
             {
                 if (udHermesStepAttenuatorDataRX2 != null)
                 {
+                    // Kainos: the HL2's LNA goes to 32 dB, one more than this box allows until it has been changed once,
+                    // and a value outside the box's range threw (GitHub #62, RX2 at 32 on a mode change)
+                    if (HardwareSpecific.Model == HPSDRModel.HERMESLITE && udHermesStepAttenuatorDataRX2.Maximum < 32) udHermesStepAttenuatorDataRX2.Maximum = 32;
+                    value = (int)Math.Max(udHermesStepAttenuatorDataRX2.Minimum, Math.Min(udHermesStepAttenuatorDataRX2.Maximum, value));
                     if (udHermesStepAttenuatorDataRX2.Value == value)
                         udHermesStepAttenuatorDataRX2_ValueChanged(this, EventArgs.Empty); //[2.10.3.6]MW0LGE no event will fire if the same, so force it
                     else

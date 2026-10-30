@@ -13,6 +13,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - Technical: `loadTXProfile` remembers the four VAC on/off and auto states before it loads and puts them back at the end, where the profile's `VAC1_On` / `VAC2_On` / `*_Auto_On` would go. `checkTXProfileChanged2` and the change report skip those four while the option is on. The two "Restore VAC device details" rows on Setup > Transmit move up a little to make room.
 
+**Fixed**
+- **"Value of '32' is not valid for 'Value'" error on a Hermes Lite 2** (GitHub #62). The HL2's receive attenuator goes up to 32 dB, but Setup's RX2 attenuator box stopped at 31, so changing mode with RX2's attenuator at 32 threw an error. The box now allows 32 on the HL2, and an out-of-range value is brought into range instead of failing (RX1 too).
+
 ### Kainos 1.0.14
 
 **New**
