@@ -28,6 +28,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - Technical: `KainosRxText.atBottom` now tests `GetPositionFromCharIndex(TextLength - 1)` against the client height instead of `GetScrollInfo`, and following sends `WM_VSCROLL` / `SB_BOTTOM` instead of `ScrollToCaret`.
 
+**Modules**
+- **Digital Modes 0.10.4: filter band activity by continent** (GitHub #44). A **Continents** switch beside CQ only and Hide worked opens a list to tick: North America, South America, Europe, Africa, Asia, Oceania, Antarctica. Only stations on the ticked continents show; calls to you always do. The switch shows what's ticked (for example "NA EU"), and All continents turns it off. Continents come from cty.dat, which comes with the module.
+- **Voice Keyer 0.3.0** plays a slot when another module asks (the Logbook's contest messages), without its pane open.
+- **Logbook 0.6.1** (new): the log, lookups, uploads, POTA, contests and awards.
+
 ### Kainos 1.0.14
 
 **New**
