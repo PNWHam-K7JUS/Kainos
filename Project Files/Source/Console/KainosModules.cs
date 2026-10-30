@@ -123,6 +123,42 @@ namespace Thetis
             _dataRoot = Path.Combine(appDataPath, "ModuleData");
         }
 
+        // ---- the message bus between modules (IKainosKeyer.Publish / Subscribe) ----
+        private readonly Dictionary<string, List<KeyValuePair<KainosModuleHost, Action<string>>>> _bus = new Dictionary<string, List<KeyValuePair<KainosModuleHost, Action<string>>>>();
+
+        internal void Subscribe(KainosModuleHost host, string topic, Action<string> handler)
+        {
+            lock (_bus)
+            {
+                List<KeyValuePair<KainosModuleHost, Action<string>>> l;
+                if (!_bus.TryGetValue(topic, out l)) _bus[topic] = l = new List<KeyValuePair<KainosModuleHost, Action<string>>>();
+                l.RemoveAll(kv => kv.Key == host);
+                if (handler != null) l.Add(new KeyValuePair<KainosModuleHost, Action<string>>(host, handler));
+            }
+        }
+
+        internal void Unsubscribe(KainosModuleHost host)
+        {
+            lock (_bus) foreach (List<KeyValuePair<KainosModuleHost, Action<string>>> l in _bus.Values) l.RemoveAll(kv => kv.Key == host);
+        }
+
+        // delivered on the UI thread, to every module listening (the sender too, if it listens); how many there were
+        internal int Publish(string topic, string message)
+        {
+            List<KeyValuePair<KainosModuleHost, Action<string>>> to;
+            lock (_bus) { List<KeyValuePair<KainosModuleHost, Action<string>>> l; to = _bus.TryGetValue(topic ?? "", out l) ? l.ToList() : new List<KeyValuePair<KainosModuleHost, Action<string>>>(); }
+            foreach (KeyValuePair<KainosModuleHost, Action<string>> kv in to)
+            {
+                KeyValuePair<KainosModuleHost, Action<string>> s = kv;
+                _console.BeginInvoke(new Action(() =>
+                {
+                    try { s.Value(message); }
+                    catch (Exception ex) { s.Key.Log("message " + topic + ": " + ex.Message); }
+                }));
+            }
+            return to.Count;
+        }
+
         public IEnumerable<Installed> All { get { return _installed.Values.OrderBy(i => i.Info.Name); } }
         public Installed Get(string id) { Installed i; return _installed.TryGetValue(id ?? "", out i) ? i : null; }
         public string DataFolderFor(string id) { string d = Path.Combine(_dataRoot, id); Directory.CreateDirectory(d); return d; }

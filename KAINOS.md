@@ -13,6 +13,10 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - Technical: `loadTXProfile` remembers the four VAC on/off and auto states before it loads and puts them back at the end, where the profile's `VAC1_On` / `VAC2_On` / `*_Auto_On` would go. `checkTXProfileChanged2` and the change report skip those four while the option is on. The two "Restore VAC device details" rows on Setup > Transmit move up a little to make room.
 
+- **Modules can send messages** (module API: `IKainosKeyer`). A module can send CW through Kainos's keyer (CWX, as the CW terminal sends: only in CWL / CWU with the radio on), stop it, and pass messages to other modules. This is what lets the Logbook module's contest page send CQ, the exchange and TU from Enter and F1 - F3: in CW through the keyer, on phone through the Voice Keyer module (0.3), which plays a slot when asked.
+
+- Technical: `IKainosKeyer` sits beside the 1.0.12 interfaces (API version unchanged; a module asks with `host as IKainosKeyer`). `SendCw` / `CwSending` / `StopCw` wrap `CwSend` / `CwSending` / `CwAbort`. The message bus (`Publish` / `Subscribe`) lives in `KainosModuleManager`, delivers on the UI thread, returns how many modules were listening, and drops a module's subscriptions when it stops. Topics so far: `dvk.send`, `dvk.stop`, `dvk.status`.
+
 **Fixed**
 - **"Value of '32' is not valid for 'Value'" error on a Hermes Lite 2** (GitHub #62). The HL2's receive attenuator goes up to 32 dB, but Setup's RX2 attenuator box stopped at 31, so changing mode with RX2's attenuator at 32 threw an error. The box now allows 32 on the HL2, and an out-of-range value is brought into range instead of failing (RX1 too).
 
