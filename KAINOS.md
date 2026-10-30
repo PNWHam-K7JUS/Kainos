@@ -20,6 +20,10 @@ Newest first. Each version's section is written to be copied straight into a Git
 **Fixed**
 - **"Value of '32' is not valid for 'Value'" error on a Hermes Lite 2** (GitHub #62). The HL2's receive attenuator goes up to 32 dB, but Setup's RX2 attenuator box stopped at 31, so changing mode with RX2's attenuator at 32 threw an error. The box now allows 32 on the HL2, and an out-of-range value is brought into range instead of failing (RX1 too).
 
+- **The CW and RTTY decoder windows' scroll bar jumped back to the top once the window filled** (GitHub #64), and the text could stop following. Kainos decided whether you were reading further up from the scroll bar, and the text box doesn't always move the scroll bar when it scrolls itself to the end, so the bar sat at the top and the next character looked like "scrolled up". Now it checks whether the newest text is showing, and the scroll bar stays at the bottom with the text. Scrolling up to read still holds your place (#30).
+
+- Technical: `KainosRxText.atBottom` now tests `GetPositionFromCharIndex(TextLength - 1)` against the client height instead of `GetScrollInfo`, and following sends `WM_VSCROLL` / `SB_BOTTOM` instead of `ScrollToCaret`.
+
 ### Kainos 1.0.14
 
 **New**
