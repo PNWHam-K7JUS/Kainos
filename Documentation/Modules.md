@@ -49,7 +49,7 @@ A module adds a feature to Kainos that not everyone needs, such as FT8/FT4. Modu
 
 ## What the host offers (API version 1)
 
-- **Menu.** `AddMenuItem` adds the item to Kainos's **Modes** menu, and to the menu bar in Classic layout. Each item has `Checked`, `Enabled`, `Text` and `Remove`.
+- **Menu.** `AddMenuItem` adds the item to Kainos's **Digi Modes** menu, and to the menu bar in Classic layout. Each item has `Checked`, `Enabled`, `Text` and `Remove`.
 - **Pane.** `CreatePane` gives the module a pane that lives where the RTTY and CW terminals do: docked under the panadapter, or popped out into its own window. Opening one closes the others.
 - **Audio.** These are the same digital audio taps the RTTY and CW terminals use (`kdigi.c`):
   - `AcquireRx(rx)` and `ReadRx` give you a copy of a receiver's demodulated audio (usually 48 kHz, mono).

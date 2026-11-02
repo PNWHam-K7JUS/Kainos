@@ -19,6 +19,8 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - **Modules can send messages** (module API: `IKainosKeyer`). A module can send CW through Kainos's keyer (CWX, as the CW terminal sends: only in CWL / CWU with the radio on), stop it, and pass messages to other modules. This is what lets the Logbook module's contest page send CQ, the exchange and TU from Enter and F1 - F3: in CW through the keyer, on phone through the Voice Keyer module (0.3), which plays a slot when asked.
 
+- **The Modes menu is now called Digi Modes** (Kainos layout), so it's clear it's where the digital modes and the modules' windows open.
+
 - Technical: `IKainosKeyer` sits beside the 1.0.12 interfaces (API version unchanged; a module asks with `host as IKainosKeyer`). `SendCw` / `CwSending` / `StopCw` wrap `CwSend` / `CwSending` / `CwAbort`. The message bus (`Publish` / `Subscribe`) lives in `KainosModuleManager`, delivers on the UI thread, returns how many modules were listening, and drops a module's subscriptions when it stops. Topics so far: `dvk.send`, `dvk.stop`, `dvk.status`.
 
 **Fixed**
@@ -31,8 +33,12 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 **Modules**
 - **Digital Modes 0.10.4: filter band activity by continent** (GitHub #44). A **Continents** switch beside CQ only and Hide worked opens a list to tick: North America, South America, Europe, Africa, Asia, Oceania, Antarctica. Only stations on the ticked continents show; calls to you always do. The switch shows what's ticked (for example "NA EU"), and All continents turns it off. Continents come from cty.dat, which comes with the module.
+- **Digital Modes 0.11.0: Q65 and FST4W.** **Q65** (QSOs with FT8's messages, for weak-signal VHF and up and HF): pick the period (15 s to 5 minutes) and submode (A - E) under Q65 in the mode menu; Q65-30A is the 6 m ionoscatter mode, Q65-60A - E the EME ones. **FST4W** (beacons like WSPR, a few dB better, with 2, 5, 15 or 30-minute periods, mostly for 2200 m and 630 m): on WSPR's frequencies, with the same Beacon settings. Both are decoded by WSJT-X's jt9; their tones come from WSJT-X's q65code and fst4sim, now included.
 - **Voice Keyer 0.3.0** plays a slot when another module asks (the Logbook's contest messages), without its pane open.
-- **Logbook 0.6.1** (new): the log, lookups, uploads, POTA, contests and awards.
+- **Logbook 0.6.2** (new): the log, lookups, uploads, POTA, contests and awards. A search box above the log (Ctrl+F) finds QSOs by part of a call, name, country, state, grid, park, band, mode or date, every word matching ("DL 20m CW"), with a count of what it found; right-click a QSO for **Every QSO with this call**.
+- **PSK 0.2.0** (new, GitHub #38): PSK31 - PSK500, QPSK31 - QPSK500, PSK-R (PSK63F, PSK125R, PSK250R, PSK500R: BPSK with error correction and interleaving, for fades and static) and 8PSK (8PSK125 - 8PSK500, and with error correction 8PSK125F / FL and 8PSK250F / FL), compatible with fldigi. Click a signal on the waterfall to read it (it snaps to the signal, and AFC follows it), or turn on the browser to read every PSK signal in the passband at once, a row each. Type to send (what you type while sending goes straight out), F1 - F8 messages, squelch, and Log QSO (ADIF, and UDP to logging programs).
+- **Hell 0.1.0** (new, GitHub #38): Feld Hell, Slow Hell, Hell x5, Hell x9, FSK-Hell 245, FSK-Hell 105 and Hell 80, compatible with fldigi. The received text is drawn as it arrives, twice (one copy over the other, so one is always whole), with Slant to straighten it. Type to send, F1 - F8 messages, and Log QSO.
+- **DominoEX / THOR 0.1.0** (new): DominoEX (Micro, 4, 5, 8, 11, 16, 22, 44, 88) and THOR (Micro, 4, 5, 8, 11, 16, 22, 25 x4, 50 x1, 50 x2, 100), compatible with fldigi. Incremental frequency keying doesn't mind a little mistuning or drift; THOR adds error correction and interleaving. Click a signal to read it; type to send, F1 - F8 messages, squelch, Rev for the other sideband, and Log QSO.
 
 ### Kainos 1.0.14
 
