@@ -157,6 +157,24 @@ namespace Kainos.Modules
         IKainosMenuItem AddDockButton(string label, string menuText, string toolTip, Action click);
     }
 
+    // Sending messages: CW through Kainos's keyer, and a message bus between modules (so a logger can have the voice
+    // keyer module send a slot). Added in Kainos 1.0.15, like the ones above: ask with `host as IKainosKeyer` (null on
+    // an older Kainos). Everything here keys the radio only because the user asked (a key or a button in a module).
+    public interface IKainosKeyer
+    {
+        // CW as the CW terminal sends it (through CWX): only in CWL / CWU with the radio on. Returns why it can't
+        // send, or null when the text is queued.
+        string SendCw(string text);
+        bool CwSending { get; }
+        void StopCw();                      // stops at once, and clears what's queued
+
+        // Another module's messages: Publish returns how many modules are listening (0: none, so the message went
+        // nowhere). Handlers run on the UI thread. Subscribe with null stops this module listening to the topic.
+        // Topics in use: "dvk.send" (a slot number, "1" - "12"), "dvk.stop".
+        int Publish(string topic, string message);
+        void Subscribe(string topic, Action<string> handler);
+    }
+
     // Kainos's look, so a module's windows match the console
     public interface IKainosTheme
     {

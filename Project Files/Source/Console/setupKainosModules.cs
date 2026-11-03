@@ -75,7 +75,8 @@ namespace Thetis
                 KainosModuleInfo m = kainosSelectedPublished();
                 if (m == null) return;
                 string size = m.Size > 0 ? " (" + (m.Size / 1048576.0).ToString("0.0") + " MB)" : "";
-                if (MessageBox.Show(this, "Download " + m.Name + " " + m.Version + size + " from GitHub and install it?\r\n\r\n" + m.Description,
+                if (MessageBox.Show(this, "Download " + m.Name + " " + m.Version + size + " from GitHub and install it?\r\n\r\n" + m.Description +
+                                    (m.Experimental ? "\r\n\r\nIt's experimental: it hasn't been tested on the air yet, so it may not work with other programs. Reports are welcome on the Kainos GitHub." : ""),
                         "Install module", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
                 btnKainosModuleInstall.Enabled = false;
                 string why = await console.KainosModules.InstallPublished(m, new Progress<string>(t => lblKainosModuleStatus.Text = t));
@@ -183,7 +184,7 @@ namespace Thetis
             {
                 KainosModuleInfo pub = mgr.Published.FirstOrDefault(m => m.Id == id);
                 KainosModuleManager.Installed ins = mgr.Get(id);
-                string name = ins != null ? ins.Info.Name : pub.Name;
+                string name = ins != null ? ins.Info.ListName : pub.ListName;
                 ListViewItem it = new ListViewItem(new[] { name, ins != null ? ins.Info.Version : "", pub != null ? pub.Version : "", kainosModuleState(pub, ins) }) { Tag = id };
                 lvKainosModules.Items.Add(it);
                 if (id == sel) it.Selected = true;
@@ -212,7 +213,7 @@ namespace Thetis
             KainosModuleManager.Installed ins = mgr.Get(id);
             KainosModuleInfo info = ins != null ? ins.Info : pub;
             if (info != null)
-                lblKainosModuleInfo.Text = info.Description + (info.Author.Length > 0 ? "\r\nBy " + info.Author : "") +
+                lblKainosModuleInfo.Text = (info.Experimental ? "Experimental, not yet tested on the air: " : "") + info.Description + (info.Author.Length > 0 ? "\r\nBy " + info.Author : "") +
                                            (info.License.Length > 0 ? " (" + info.License + ")" : "") + (info.Homepage.Length > 0 ? "\r\n" + info.Homepage : "");
             bool canUpdate = pub != null && pub.Incompatible == null && (ins == null || (ins.PendingVersion == null && Common.CompareVersions(ins.Info.Version, pub.Version) < 0));
             btnKainosModuleInstall.Enabled = canUpdate;

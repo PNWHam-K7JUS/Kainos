@@ -1,4 +1,4 @@
-/*  KainosSetupWizard.cs
+﻿/*  KainosSetupWizard.cs
 
 This file is part of Kainos, a program that implements a Software Defined Radio.
 
@@ -29,11 +29,16 @@ namespace Thetis
     internal class KainosWizardAnswers
     {
         public string Callsign = "", Grid = "", Country = "", Licence = "";
-        public string Model = "HERMES LITE";        // Setup's radio model: the wizard sets up a Hermes Lite 2
+        public string Model = "HERMES LITE";        // Setup's radio model (H/W Select)
+        public List<string> Models = new List<string>();    // the models Setup offers
+        public bool IsHl2 { get { return Model == "HERMES LITE"; } }
+        public HPSDRHW Board = HPSDRHW.Unknown;     // the board the radio reported when it last connected (Unknown: never)
+        public bool TxCheck = true;                 // open the first-transmit check after Apply
         public bool N2adr, IoBoard, Pa, BandVolts;
         public bool Ext10MHz, Cl2;
         public decimal Cl2Freq, TxLatency, PttHang;
-        // audio: VAC1 (the HL2 has no audio output of its own: receive audio and the mic go through the PC)
+        // audio: VAC1 (the HL2 has no audio output of its own: receive audio and the mic go through the PC; other radios
+        // have their own, and VAC is optional)
         public bool AudioOn;
         public string AudioHost = "", AudioOut = "", AudioIn = "";
         // look
@@ -72,7 +77,8 @@ namespace Thetis
     }
 
     // The setup wizard: a welcome (offered once to existing users, or straight to the questions after the first-run
-    // choice), the station, the HL2's hardware, and a summary of what will change. Nothing is set until Apply.
+    // choice), the station, the radio model, its hardware (the HL2's boards; for the ANAN and other HPSDR radios, where
+    // their options are), audio, look, and a summary of what will change. Nothing is set until Apply.
     internal class KainosSetupWizard : Form
     {
         private readonly KainosWizardAnswers _was, _now;
@@ -87,7 +93,13 @@ namespace Thetis
         // the station page
         private TextBox _call, _grid;
         private ComboBox _country, _licence;
-        // the hardware page
+        // the radio page
+        private ComboBox _model;
+        private Label _modelNote, _boardNote;
+        // the hardware page: the HL2's boards, or a note for the other radios
+        private Panel _hl2Hw, _otherHw;
+        private Label _otherText, _audioText;
+        private CheckBox _txCheck;
         private CheckBox _n2adr, _io, _pa, _bandVolts, _ext10, _cl2;
         private NumericUpDown _cl2Freq, _txLat, _pttHang;
         private Panel _advanced;
@@ -107,7 +119,7 @@ namespace Thetis
         {
             _was = current;
             _now = current.Copy();
-            _now.Model = "HERMES LITE";
+            if (!_now.Models.Contains(_now.Model)) _now.Model = "HERMES LITE";
             _offer = offer;
 
             Text = "Kainos setup";
@@ -137,11 +149,12 @@ namespace Thetis
 
             if (offer) _pages.Add(welcomePage());
             _pages.Add(stationPage());
+            _pages.Add(radioPage());
             _pages.Add(hardwarePage());
             _pages.Add(audioPage());
             _pages.Add(lookPage());
             _pages.Add(summaryPage());
-            _titles = (offer ? new[] { "Welcome" } : new string[0]).Concat(new[] { "Station", "Hardware", "Audio", "Look", "Summary" }).ToArray();
+            _titles = (offer ? new[] { "Welcome" } : new string[0]).Concat(new[] { "Station", "Radio", "Hardware", "Audio", "Look", "Summary" }).ToArray();
             show(0);
         }
 
@@ -152,6 +165,7 @@ namespace Thetis
             _page = page;
             _body.Controls.Clear();
             _body.Controls.Add(_pages[page]);
+            showModel();
             _title.Text = (string)_pages[page].Tag;
             _steps.Text = string.Join("   ·   ", _titles.Select((t, i) => i == page ? "● " + t : t));
             _back.Visible = page > 0;
@@ -177,9 +191,9 @@ namespace Thetis
 
         private Panel welcomePage()
         {
-            Panel p = newPage("Set up Kainos for your Hermes Lite 2");
-            text(p, "Kainos can set itself up for your Hermes Lite 2 in a few steps: your callsign, which boards your HL2 has, " +
-                    "and a check of what will change before anything is set.", 0, 60);
+            Panel p = newPage("Set up Kainos for your radio");
+            text(p, "Kainos can set itself up for your radio in a few steps: your callsign, which radio you have (a Hermes Lite 2, " +
+                    "an ANAN or another HPSDR radio) and its boards, and a check of what will change before anything is set.", 0, 60);
             text(p, "Nothing changes until you press Apply on the last page, and you can run this again any time from " +
                     "Setup > Appearance > Kainos > Run setup wizard.", 70, 50, true);
             text(p, "Choose Not now to keep your settings as they are.", 130, 24, true);
@@ -223,6 +237,14 @@ namespace Thetis
         private Panel hardwarePage()
         {
             Panel p = newPage("Your Hermes Lite 2");
+            _otherHw = new Panel { Dock = DockStyle.Fill, BackColor = KainosWindowTheme.WindowBg, Visible = false };
+            _otherText = new Label { Location = new Point(0, 0), Size = new Size(560, 320), ForeColor = KainosWindowTheme.Text };
+            _otherHw.Controls.Add(_otherText);
+            _hl2Hw = new Panel { Dock = DockStyle.Fill, BackColor = KainosWindowTheme.WindowBg };
+            p.Controls.Add(_otherHw);
+            p.Controls.Add(_hl2Hw);
+            Panel hl2 = p;
+            p = _hl2Hw;
             text(p, "Tick what your HL2 has. Kainos sets the matching options for you.", 0, 22, true);
             int y = 30;
             _n2adr = check(p, "N2ADR filter board", "Sets the filter switching for each band to suit the N2ADR board.", ref y, _now.N2adr);
@@ -243,15 +265,118 @@ namespace Thetis
             Label hang = new Label { Text = "PTT hang (ms)", Location = new Point(220, 62), AutoSize = true };
             _pttHang = updown(320, 60, _now.PttHang, 0, 1000, 0);
             _advanced.Controls.AddRange(new Control[] { _ext10, _cl2, _cl2Freq, lat, _txLat, hang, _pttHang });
+            return hl2;
+        }
+
+        private Panel radioPage()
+        {
+            Panel p = newPage("Your radio");
+            text(p, "Which radio is this? Kainos is set up for a Hermes Lite 2 to begin with, and runs the ANAN and other HPSDR " +
+                    "radios as Thetis does.", 0, 44, true);
+            text(p, "Radio", 58, 20, false, 130);
+            _model = hidden(p);
+            foreach (string m in _now.Models) _model.Items.Add(m);
+            if (_model.Items.Count == 0) _model.Items.Add("HERMES LITE");
+            _model.SelectedIndex = Math.Max(0, _model.Items.IndexOf(_now.Model));
+            _model.SelectedIndexChanged += (s, e) => { _now.Model = _model.Text; showModel(); };
+            p.Controls.Add(new KainosDropDown(() => _model, null) { Location = new Point(140, 52), Size = new Size(220, 28) });
+            _boardNote = text(p, "", 92, 44, false);
+            _modelNote = text(p, "", 142, 90, true);
+            // GitHub #36: a Brick2 set up as an ANAN-10E (what Thetis imports often have) won't run PureSignal; as HERMES it
+            // does, with the default SetPk
+            text(p, "BrickSDR and Brick2: choose HERMES, whatever board the radio reports. Set up as an ANAN-10E (as Thetis " +
+                    "settings brought over often are), PureSignal won't correct.", 240, 60, true);
             return p;
+        }
+
+        // the models that go with each board, as Thetis has them (enums.cs)
+        internal static string[] ModelsFor(HPSDRHW board)
+        {
+            switch (board)
+            {
+                case HPSDRHW.Hermes: return new[] { "ANAN-10", "ANAN-100", "HERMES" };
+                case HPSDRHW.HermesII: return new[] { "ANAN-10E", "ANAN-100B" };
+                case HPSDRHW.Angelia: return new[] { "ANAN-100D" };
+                case HPSDRHW.Orion: return new[] { "ANAN-200D" };
+                case HPSDRHW.OrionMKII: return new[] { "ANAN-7000DLE", "ANAN-8000DLE", "ANVELINA-PRO3", "RED-PITAYA" };
+                case HPSDRHW.HermesLite: return new[] { "HERMES LITE" };
+                case HPSDRHW.Saturn: case HPSDRHW.SaturnMKII: return new[] { "ANAN-G2", "ANAN-G2-1K" };
+                case HPSDRHW.HermesC10: return new[] { "ANAN-G2E" };
+                default: return new string[0];
+            }
+        }
+
+        private static string boardName(HPSDRHW board)
+        {
+            switch (board)
+            {
+                case HPSDRHW.HermesII: return "Hermes II";
+                case HPSDRHW.OrionMKII: return "Orion MkII";
+                case HPSDRHW.HermesLite: return "Hermes Lite";
+                case HPSDRHW.SaturnMKII: return "Saturn MkII";
+                case HPSDRHW.HermesC10: return "Hermes C10";
+                default: return board.ToString();
+            }
+        }
+
+        // what each page says for the chosen radio
+        private void showModel()
+        {
+            if (_model == null || _hl2Hw == null) return;
+            bool hl2 = _now.IsHl2;
+            string[] fits = ModelsFor(_now.Board);
+            if (fits.Length == 0)
+            {
+                _boardNote.Text = "Kainos hasn't connected to a radio yet, so it can't tell which board yours is. Its model is usually on the case or in its manual.";
+                _boardNote.ForeColor = KainosWindowTheme.TextMid;
+            }
+            else
+            {
+                bool match = Array.IndexOf(fits, _now.Model) >= 0 || (_now.Board == HPSDRHW.HermesII && _now.Model == "HERMES");     // a Brick
+                _boardNote.Text = "Your radio reported a " + boardName(_now.Board) + " board when it last connected: " +
+                                  (fits.Length == 1 ? fits[0] : string.Join(", ", fits.Take(fits.Length - 1)) + " or " + fits[fits.Length - 1]) +
+                                  (_now.Board == HPSDRHW.HermesII ? " (a BrickSDR / Brick2: HERMES)." : ".") +
+                                  (match ? "" : "  The radio chosen doesn't match it.");
+                _boardNote.ForeColor = match ? KainosWindowTheme.Text : KainosUI.Gold;
+            }
+            _modelNote.Text = hl2
+                ? "The Hermes Lite 2: the next page asks which boards it has (N2ADR filters, I/O board), and whether to use its built-in amplifier."
+                : modelNote(_now.Model) + "\r\n\r\nThe Thetis options for it (Alex filters, antennas, the PA's calibration) stay as they are; " +
+                  "the next page says where to find them.";
+            _hl2Hw.Visible = hl2;
+            _otherHw.Visible = !hl2;
+            Panel hw = (Panel)_hl2Hw.Parent;
+            hw.Tag = hl2 ? "Your Hermes Lite 2" : "Your " + _now.Model;
+            _otherText.Text =
+                "Kainos sets the radio model to " + _now.Model + ". The rest is set up as in Thetis:\r\n\r\n" +
+                "•  Filters and antennas (Alex): Setup > General > Ant/Filters.\r\n" +
+                "•  The PA's power calibration and protection: Setup > PA.\r\n" +
+                "•  The ADCs and receivers: Setup > General > H/W Select.\r\n\r\n" +
+                "PureSignal (PS-A in the dock): if it won't correct, transmit a two-tone (2TON) at your usual full drive with " +
+                "PS-A on, then press Use GetPk in Tools > Linearity: some radios measure well away from the default, and PureSignal " +
+                "can't correct until SetPk matches. The PS light in the status bar shows how it's doing.";
+            if (_audioText != null)
+                _audioText.Text = hl2
+                    ? "The HL2 has no speaker or headphone output of its own, so receive audio and your microphone go through this PC's sound devices (Thetis's VAC 1)."
+                    : "Your radio has its own headphone / speaker output and microphone input. Tick this only to hear it on this PC and use " +
+                      "a PC microphone instead (Thetis's VAC 1).";
+        }
+
+        private static string modelNote(string model)
+        {
+            if (model.StartsWith("ANAN-G2") || model == "ANVELINA-PRO3") return "The " + model + " (Saturn board): Protocol 2, with PureSignal.";
+            if (model == "ANAN-10E" || model == "ANAN-100B") return "The " + model + " (Hermes II board): an Apache Labs radio, with PureSignal.";
+            if (model.StartsWith("ANAN")) return "The " + model + ": an Apache Labs radio, with PureSignal.";
+            if (model == "RED-PITAYA") return "A Red Pitaya running HPSDR firmware.";
+            if (model == "HERMES") return "An original Hermes board, or a BrickSDR / Brick2 (not the Hermes Lite 2: for that, choose HERMES LITE).";
+            return "The " + model + ".";
         }
 
         private Panel audioPage()
         {
             Panel p = newPage("Audio");
-            text(p, "The HL2 has no speaker or headphone output of its own, so receive audio and your microphone go through this " +
-                    "PC's sound devices (Thetis's VAC 1).", 0, 44, true);
-            _audioOn = new CheckBox { Text = "Play receive audio on this PC, and use a PC microphone  (recommended)", Location = new Point(0, 50), AutoSize = true, Checked = _now.AudioOn, ForeColor = KainosWindowTheme.Text, Font = new Font(Font, FontStyle.Bold) };
+            _audioText = text(p, "", 0, 44, true);
+            _audioOn = new CheckBox { Text = "Play receive audio on this PC, and use a PC microphone", Location = new Point(0, 50), AutoSize = true, Checked = _now.AudioOn, ForeColor = KainosWindowTheme.Text, Font = new Font(Font, FontStyle.Bold) };
             p.Controls.Add(_audioOn);
 
             _host = hidden(p); _out = hidden(p); _in = hidden(p);
@@ -380,7 +505,10 @@ namespace Thetis
         private Panel summaryPage()
         {
             Panel p = newPage("Ready to apply");
-            _summary = text(p, "", 0, 320);
+            _summary = text(p, "", 0, 290);
+            _txCheck = new CheckBox { Text = "Then open the first-transmit check (power out, SWR and your microphone, into a dummy load)", AutoSize = true,
+                                      Location = new Point(0, 300), Checked = _now.TxCheck, ForeColor = KainosWindowTheme.Text };
+            p.Controls.Add(_txCheck);
             _summaryPage = p;
             return p;
         }
@@ -394,6 +522,7 @@ namespace Thetis
             _now.Grid = _grid.Text.Trim().ToUpperInvariant();
             _now.Country = _country.Text;
             _now.Licence = _licence.Enabled ? _licence.Text : "";
+            if (_txCheck != null) _now.TxCheck = _txCheck.Checked;
             if (_n2adr == null) return;
             _now.N2adr = _n2adr.Checked; _now.IoBoard = _io.Checked; _now.Pa = _pa.Checked; _now.BandVolts = _bandVolts.Checked;
             _now.Ext10MHz = _ext10.Checked; _now.Cl2 = _cl2.Checked;
@@ -418,15 +547,18 @@ namespace Thetis
             diff("Grid square", _was.Grid, _now.Grid);
             diff("Country", _was.Country, _now.Country);
             diff("Licence class", _was.Licence, _now.Licence);
-            diff("N2ADR filter board", onOff(_was.N2adr), onOff(_now.N2adr));
-            diff("HL2 I/O board", onOff(_was.IoBoard), onOff(_now.IoBoard));
-            diff("Built-in power amplifier", onOff(_was.Pa), onOff(_now.Pa));
-            diff("Band Volts", onOff(_was.BandVolts), onOff(_now.BandVolts));
-            diff("External 10 MHz on CL1", onOff(_was.Ext10MHz), onOff(_now.Ext10MHz));
-            diff("CL2 output", onOff(_was.Cl2), onOff(_now.Cl2));
-            diff("CL2 frequency (MHz)", _was.Cl2Freq.ToString(), _now.Cl2Freq.ToString());
-            diff("TX latency (ms)", _was.TxLatency.ToString(), _now.TxLatency.ToString());
-            diff("PTT hang (ms)", _was.PttHang.ToString(), _now.PttHang.ToString());
+            if (_now.IsHl2)      // the HL2's own options: only set for an HL2
+            {
+                diff("N2ADR filter board", onOff(_was.N2adr), onOff(_now.N2adr));
+                diff("HL2 I/O board", onOff(_was.IoBoard), onOff(_now.IoBoard));
+                diff("Built-in power amplifier", onOff(_was.Pa), onOff(_now.Pa));
+                diff("Band Volts", onOff(_was.BandVolts), onOff(_now.BandVolts));
+                diff("External 10 MHz on CL1", onOff(_was.Ext10MHz), onOff(_now.Ext10MHz));
+                diff("CL2 output", onOff(_was.Cl2), onOff(_now.Cl2));
+                diff("CL2 frequency (MHz)", _was.Cl2Freq.ToString(), _now.Cl2Freq.ToString());
+                diff("TX latency (ms)", _was.TxLatency.ToString(), _now.TxLatency.ToString());
+                diff("PTT hang (ms)", _was.PttHang.ToString(), _now.PttHang.ToString());
+            }
             diff("Audio through this PC (VAC 1)", onOff(_was.AudioOn), onOff(_now.AudioOn));
             if (_now.AudioOn)
             {
@@ -443,9 +575,9 @@ namespace Thetis
             if (opened.Length > 0) lines.Add("•  Tabs to open:  " + opened);
             if (closed.Length > 0) lines.Add("•  Tabs to close:  " + closed);
             if (lines.Count == 0) return "Nothing to change: your settings already match your answers.\r\n\r\nPress Apply to finish.";
-            if (_now.N2adr && !_was.N2adr)
+            if (_now.IsHl2 && _now.N2adr && !_was.N2adr)
                 lines.Add("\r\nThe N2ADR preset replaces the band filter pins in Setup > General > Ant/Filters.");
-            if (!_now.N2adr && _was.N2adr)
+            if (_now.IsHl2 && !_now.N2adr && _was.N2adr)
                 lines.Add("\r\nTurning the N2ADR preset off clears its band filter pins.");
             return "These settings will change:\r\n\r\n" + string.Join("\r\n", lines) + "\r\n\r\nPress Apply to set them, or Back to change your answers.";
         }

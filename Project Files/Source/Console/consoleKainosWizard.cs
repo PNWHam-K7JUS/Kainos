@@ -1,4 +1,4 @@
-/*  consoleKainosWizard.cs
+﻿/*  consoleKainosWizard.cs
 
 This file is part of Kainos, a program that implements a Software Defined Radio.
 
@@ -82,6 +82,7 @@ namespace Thetis
                     if (_kainosColumn != null)
                         foreach (KeyValuePair<string, bool> t in w.Answers.Tabs) _kainosColumn.SetOn(t.Key, t.Value);
                     SetupForm.KainosWizardApply(w.Answers);
+                    if (w.Answers.TxCheck) KainosShowTxCheck();
                 }
                 else if (SetupForm.KainosWizardState == "") { SetupForm.KainosWizardState = "later"; SetupForm.SaveOptions(); }
             }

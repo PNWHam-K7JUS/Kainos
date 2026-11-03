@@ -29,17 +29,15 @@ namespace Thetis
     // The received text in the CW and RTTY windows. New text follows along only while you're at the bottom; scrolled
     // up to read something, the view and your selection stay put while text keeps arriving (GitHub #30: when the window
     // filled, every new character jumped it back to the end). Old text is trimmed from the top past maxChars.
+    // "At the bottom" is judged from the view itself (is the last character showing?), not the scroll bar: the rich
+    // edit control doesn't always move the thumb when it scrolls to the caret, so the bar could sit at the top while the
+    // view was at the end, and the next character then read as "scrolled up" and stopped following (GitHub #64).
     internal static class KainosRxText
     {
-        [StructLayout(LayoutKind.Sequential)]
-        private struct SCROLLINFO { public uint cbSize, fMask; public int nMin, nMax; public uint nPage; public int nPos, nTrackPos; }
-
-        [DllImport("user32.dll")] private static extern bool GetScrollInfo(IntPtr hwnd, int bar, ref SCROLLINFO si);
         [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
 
-        private const int SB_VERT = 1, SIF_ALL = 0x17;
-        private const int WM_SETREDRAW = 0x000B, EM_GETFIRSTVISIBLELINE = 0x00CE, EM_LINESCROLL = 0x00B6;
-        private const int Slack = 4;        // px: "at the bottom" allows for a part line
+        private const int WM_SETREDRAW = 0x000B, WM_VSCROLL = 0x0115, SB_BOTTOM = 7;
+        private const int EM_GETFIRSTVISIBLELINE = 0x00CE, EM_LINESCROLL = 0x00B6;
 
         internal static void Append(RichTextBox rx, string text, Color color, int maxChars = 60000, int trimChars = 20000)
         {
@@ -68,7 +66,7 @@ namespace Thetis
                 if (follow)
                 {
                     rx.SelectionStart = rx.TextLength;
-                    rx.ScrollToCaret();
+                    SendMessage(rx.Handle, WM_VSCROLL, (IntPtr)SB_BOTTOM, IntPtr.Zero);     // moves the view and the thumb
                 }
                 else
                 {
@@ -92,11 +90,9 @@ namespace Thetis
 
         private static bool atBottom(RichTextBox rx)
         {
-            if (!rx.IsHandleCreated) return true;
-            SCROLLINFO si = new SCROLLINFO { cbSize = (uint)Marshal.SizeOf(typeof(SCROLLINFO)), fMask = SIF_ALL };
-            if (!GetScrollInfo(rx.Handle, SB_VERT, ref si)) return true;          // no scroll bar yet: it all fits
-            if (si.nMax <= (int)si.nPage) return true;
-            return si.nPos + (int)si.nPage >= si.nMax - Slack;
+            if (!rx.IsHandleCreated || rx.TextLength == 0) return true;
+            // the last character's top inside the box (a part-shown last line still counts as the bottom)
+            return rx.GetPositionFromCharIndex(rx.TextLength - 1).Y < rx.ClientSize.Height;
         }
     }
 }

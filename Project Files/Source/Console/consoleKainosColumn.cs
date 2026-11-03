@@ -148,6 +148,10 @@ namespace Thetis
                         c.VisibleChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };     // RX2's panels under the panadapter
                     }
 
+                // a meter container added in Setup, or floated / docked again: its tab comes and goes (GitHub #61)
+                ControlAdded += (s, e) => { if (e.Control is ucMeter && _kainosLayout) BeginInvoke(new Action(positionKainosColumn)); };
+                ControlRemoved += (s, e) => { if (e.Control is ucMeter && _kainosLayout) BeginInvoke(new Action(positionKainosColumn)); };
+
                 Shown += (s, e) => { _kainosShown = true; if (_kainosLayout) BeginInvoke(new Action(kainosAttachMeter)); };
                 // and everything drawn once more: a Kainos control that keeps its place and size (the info bar's Blobs /
                 // Peak buttons) isn't repainted by the layout, and kept its old-scale picture (GitHub #27)
@@ -306,6 +310,7 @@ namespace Thetis
                     return;
                 }
                 if (!_kainosPartsOn) { kainosPartsOn(); positionKainosDock(); }
+                kainosSyncContainerTabs();
                 if (_kainosCompactOn) { kainosHideThetisMeters(); kainosCompactPlace(); return; }    // consoleKainosCompact.cs
 
                 int width = KainosUI.S(312);
@@ -418,10 +423,10 @@ namespace Thetis
             // the part of the panel inside the viewport: a panel lies over the column, so the column can't clip it. It
             // used to be hidden whenever any of it was out of view, so scrolling down to the AUDIO SCOPE took the TX
             // tab's mode panel away while its top was still on screen (GitHub #20); now it's cut to the visible part.
-            // The meter still goes all or nothing: it's a DirectX surface, which a window region may not clip.
+            // A meter container still goes all or nothing: it's a DirectX surface, which a window region may not clip.
             int top = viewportRect.Top, visTop = Math.Max(0, top), visBottom = Math.Min(vp.Height, top + c.Height);
             bool whole = top >= 0 && top + c.Height <= vp.Height && _kainosColumn.Visible;
-            bool part = c != _kainosMeter && _kainosColumn.Visible && visBottom > visTop;
+            bool part = !(c is ucMeter) && _kainosColumn.Visible && visBottom > visTop;
             bool inView = whole || part;
             kainosClip(c, whole || !part ? Rectangle.Empty : new Rectangle(0, visTop - top, c.Width, visBottom - visTop));
             Point p = inView ? new Point(_kainosColumn.Left + vp.Left + viewportRect.Left, _kainosColumn.Top + vp.Top + viewportRect.Top)
@@ -790,18 +795,99 @@ namespace Thetis
             positionKainosDock();       // and the column
         }
 
-        // Thetis meter containers docked on the console (usually brought over from Thetis) sit where Kainos layout puts
-        // the column and the panadapter: they covered the column and squeezed it to nothing, hiding the RX tab's volume
-        // and squelch (GitHub issue #1, and reports of no receive audio after the import). In Kainos layout they're
-        // hidden; Classic shows them again. Floating containers (their own windows) are left alone, so a container can
-        // still be used in Kainos layout by floating it (Setup > Appearance > Meters/Gadgets).
+        // Thetis meter containers docked on the console (made in Setup > Appearance > Meters/Gadgets, or brought over
+        // from Thetis) sit where Kainos layout puts the column and the panadapter: left where they were, they covered
+        // the column and squeezed it to nothing, hiding the RX tab's volume and squelch (GitHub issue #1). So each gets
+        // a tab of its own in the column ("METER 2", numbered as Setup lists them), sized to the column like the METERS
+        // tab; it used to be hidden, so a container made in Setup was gone at the next start (GitHub #61). Its tab
+        // off, or the compact view, hides it. Their show on RX / TX still applies (MeterManager shows and hides them).
+        // Classic puts them back where they're docked: Kainos moves them, but their docked place and size (what Setup
+        // and the saved settings hold) are left alone. Floating containers (their own windows) are left alone too.
         private readonly List<ucMeter> _kainosHiddenMeters = new List<ucMeter>();
+        private readonly HashSet<ucMeter> _kainosPlacedMeters = new HashSet<ucMeter>();     // moved into the column
+        private readonly HashSet<ucMeter> _kainosHookedMeters = new HashSet<ucMeter>();
+
+        private static string kainosContainerKey(ucMeter m) { return KainosColumn.ContainerKeyPrefix + m.ID; }
+
+        // a docked container of the user's (not the METERS tab's own)
+        private bool kainosIsUserContainer(ucMeter m)
+        {
+            return m != null && !m.IsDisposed && m != _kainosMeter && m.ID != KainosMeterId && !m.Floating && m.Parent == this;
+        }
+
+        // a tab for each docked container, and none for one deleted or floated since
+        private void kainosSyncContainerTabs()
+        {
+            Dictionary<string, ucMeter> all = MeterManager.MeterContainers;
+            if (all == null || _kainosColumn == null) return;
+            List<ucMeter> ordered = all.Values.OrderBy(m => m.Sequence).ToList();
+            HashSet<string> keep = new HashSet<string>();
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                ucMeter m = ordered[i];
+                if (!kainosIsUserContainer(m)) continue;
+                string key = kainosContainerKey(m);
+                keep.Add(key);
+                string notes = (m.Notes ?? "").Trim();
+                string title = notes.Length > 0 ? notes.ToUpperInvariant() : "METER " + (i + 1).ToString();     // Setup's number
+                if (title.Length > 14) title = title.Substring(0, 14);
+                if (!_kainosColumn.HasSection(key))
+                {
+                    ucMeter c = m;
+                    _kainosColumn.AddSection(key, title, w => kainosContainerMeasure(c, w), r => kainosContainerArrange(c, r));
+                }
+                else _kainosColumn.SetTitle(key, title);
+                if (_kainosHookedMeters.Add(m))
+                {
+                    // shown / hidden on RX / TX, moved back to its docked place by Thetis, or resized: lay out again
+                    EventHandler again = (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
+                    m.VisibleChanged += again;
+                    m.LocationChanged += again;
+                    m.SizeChanged += again;
+                }
+            }
+            foreach (string key in _kainosColumn.TabList.Select(t => t.Key).Where(k => k.StartsWith(KainosColumn.ContainerKeyPrefix) && !keep.Contains(k)).ToList())
+                _kainosColumn.RemoveSection(key);
+            foreach (ucMeter m in _kainosPlacedMeters.Where(m => !kainosIsUserContainer(m)).ToList())
+            {
+                _kainosPlacedMeters.Remove(m);      // floated or deleted: Thetis has it now
+                if (!m.IsDisposed && !m.Floating) m.RestoreLocation();
+            }
+        }
+
+        // shown in the column: its tab on, the column showing, and not in the compact view
+        private bool kainosContainerInColumn(ucMeter m)
+        {
+            return !_kainosCompactOn && _kainosColumn != null && _kainosColumn.Visible && _kainosColumn.IsOn(kainosContainerKey(m));
+        }
+
+        private int kainosContainerMeasure(ucMeter m, int w)
+        {
+            if (!kainosIsUserContainer(m) || !m.MeterEnabled || m.HiddenByMacro) return 0;     // hidden on RX / TX just now
+            // its height at width w, as the METERS tab's (GitHub #56)
+            int h = m.Width > 0 ? (int)Math.Round(m.Height * (double)w / m.Width) : m.Height;
+            return Math.Max(KainosUI.S(40), Math.Min(h, kainosContainerMaxHeight(w)));
+        }
+
+        // a container can hold many meters: up to one and a half times the column's width
+        private static int kainosContainerMaxHeight(int w) { return (int)(w * 1.5f); }
+
+        private void kainosContainerArrange(ucMeter m, Rectangle r)
+        {
+            if (!kainosIsUserContainer(m) || !m.MeterEnabled || m.HiddenByMacro) return;
+            _kainosHiddenMeters.Remove(m);
+            _kainosPlacedMeters.Add(m);
+            if (!m.Visible) m.Visible = true;
+            if (m.Height > kainosContainerMaxHeight(r.Width)) m.Height = kainosContainerMaxHeight(r.Width);
+            kainosPin(m, r, true);
+        }
 
         private void kainosHideThetisMeters()
         {
             foreach (ucMeter m in Controls.OfType<ucMeter>().ToList())
             {
                 if (m == _kainosMeter || m.ID == KainosMeterId || m.Floating || !m.Visible) continue;
+                if (kainosContainerInColumn(m)) continue;          // placed by its tab
                 m.Visible = false;
                 if (!_kainosHiddenMeters.Contains(m)) _kainosHiddenMeters.Add(m);
             }
@@ -809,6 +895,9 @@ namespace Thetis
 
         private void kainosRestoreThetisMeters()
         {
+            foreach (ucMeter m in _kainosPlacedMeters)
+                if (!m.IsDisposed && !m.Floating && m.Parent == this) { kainosClip(m, Rectangle.Empty); m.RestoreLocation(); }
+            _kainosPlacedMeters.Clear();
             foreach (ucMeter m in _kainosHiddenMeters)
                 if (!m.IsDisposed && !m.Floating && m.Parent == this && m.MeterEnabled) m.Visible = true;
             _kainosHiddenMeters.Clear();
@@ -880,6 +969,9 @@ namespace Thetis
         // the order the user has put the tabs in (from the saved tab state); tabs it doesn't list follow, in the
         // order they were added. Some sections are added after the state is loaded, so it's applied again each time.
         private List<string> _order = new List<string>();
+        // the saved tab state's items ("meters", "-band"), so a section added later (a meter container's) starts on or off
+        // as it was saved
+        private string[] _stateItems = new string[0];
         // dragging a tab chip to a new place: the chip pressed, where, and where it would go (index in _sections)
         private Section _pressed, _dragging;
         private Point _pressAt;
@@ -892,6 +984,7 @@ namespace Thetis
         private int _hidden;
         private bool _hoverToggle;
         private const string OneRowToken = "!onerow";
+        public const string ContainerKeyPrefix = "ctr:";        // a docked meter container's tab: "ctr:" + its ID
 
         public KainosColumn(Console console)
         {
@@ -974,8 +1067,33 @@ namespace Thetis
 
         public void AddSection(string key, string title, Func<int, int> measure, Action<Rectangle> arrange, bool defaultOn = true)
         {
-            _sections.Add(new Section { Key = key, Title = title, On = defaultOn, DefaultOn = defaultOn, Measure = measure, Arrange = arrange, Added = _sections.Count });
+            bool on = _stateItems.Contains(key) || (!_stateItems.Contains("-" + key) && defaultOn);
+            _sections.Add(new Section { Key = key, Title = title, On = on, DefaultOn = defaultOn, Measure = measure, Arrange = arrange, Added = _sections.Count });
             applyOrder();
+            Invalidate();
+        }
+
+        public bool HasSection(string key) { return _sections.Exists(x => x.Key == key); }
+
+        // a section that's gone (a meter container deleted or floated); its place in the saved order is kept
+        public void RemoveSection(string key)
+        {
+            Section s = _sections.Find(x => x.Key == key);
+            if (s == null) return;
+            _sections.Remove(s);
+            _heights.Remove(s);
+            if (_hoverTab == s) _hoverTab = null;
+            if (_pressed == s) _pressed = null;
+            if (_dragging == s) { _dragging = null; _dropAt = -1; }
+            Invalidate();
+        }
+
+        public void SetTitle(string key, string title)
+        {
+            Section s = _sections.Find(x => x.Key == key);
+            if (s == null || s.Title == title) return;
+            s.Title = title;
+            Invalidate();
         }
 
         private void applyOrder()
@@ -1025,12 +1143,18 @@ namespace Thetis
         // not listed (new in this version of Kainos) starts as its section says, after the others
         public string TabState
         {
-            get { return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key).Concat(_oneRow ? new[] { OneRowToken } : new string[0])); }
+            get
+            {
+                // a meter container's tab that isn't here just now (not loaded yet, or floated) keeps its saved state
+                IEnumerable<string> absent = _stateItems.Where(i => i.TrimStart('-').StartsWith(ContainerKeyPrefix) && !HasSection(i.TrimStart('-')));
+                return string.Join(",", _sections.Select(s => (s.On ? "" : "-") + s.Key).Concat(absent).Concat(_oneRow ? new[] { OneRowToken } : new string[0]));
+            }
             set
             {
                 string[] items = (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 _oneRow = items.Contains(OneRowToken);
                 items = items.Where(i => i != OneRowToken).ToArray();
+                _stateItems = items;
                 foreach (Section s in _sections)
                     s.On = items.Contains(s.Key) || (!items.Contains("-" + s.Key) && s.DefaultOn);
                 _order = items.Select(i => i.TrimStart('-')).ToList();

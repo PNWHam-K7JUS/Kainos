@@ -1,4 +1,4 @@
-/*  consoleKainosDock.cs
+﻿/*  consoleKainosDock.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 Kainos is based on Thetis : https://github.com/ramdor/Thetis
@@ -42,7 +42,7 @@ namespace Thetis
         private KainosDock _kainosDock;
         private Size _kainosPowerSize, _kainosOptionsSize;
         private bool _kainosPanelsCollapsed;
-        private ToolStripStatusLabel _kainosFwd, _kainosSwr, _kainosAlc;
+        private ToolStripStatusLabel _kainosFwd, _kainosSwr, _kainosAlc, _kainosPs;
         private Timer _kainosTxTimer;
 
         private void kainosDockOn()
@@ -173,12 +173,15 @@ namespace Thetis
                 _kainosFwd = kainosStatusLabel("Fwd");
                 _kainosSwr = kainosStatusLabel("SWR");
                 _kainosAlc = kainosStatusLabel("ALC");
+                _kainosPs = kainosStatusLabel("PS");
+                _kainosPs.Visible = false;
+                _kainosPs.Click += (s, e) => linearityToolStripMenuItem_Click(this, EventArgs.Empty);
                 _kainosTxTimer = new Timer { Interval = 250 };
                 _kainosTxTimer.Tick += (s, e) => updateKainosStatus();
             }
             int at = statusStripMain.Items.IndexOf(toolStripStatusLabel_Fill);
             if (at < 0) at = statusStripMain.Items.Count;
-            foreach (ToolStripStatusLabel l in new[] { _kainosAlc, _kainosSwr, _kainosFwd })
+            foreach (ToolStripStatusLabel l in new[] { _kainosPs, _kainosAlc, _kainosSwr, _kainosFwd })
                 if (!statusStripMain.Items.Contains(l)) statusStripMain.Items.Insert(at, l);
             updateKainosStatus();
             _kainosTxTimer.Start();
@@ -188,7 +191,7 @@ namespace Thetis
         {
             if (_kainosFwd == null) return;
             _kainosTxTimer.Stop();
-            foreach (ToolStripStatusLabel l in new[] { _kainosFwd, _kainosSwr, _kainosAlc })
+            foreach (ToolStripStatusLabel l in new[] { _kainosFwd, _kainosSwr, _kainosAlc, _kainosPs })
                 if (statusStripMain.Items.Contains(l)) statusStripMain.Items.Remove(l);
         }
 
@@ -200,7 +203,8 @@ namespace Thetis
                 Font = new Font("Consolas", 9f),
                 Margin = new Padding(10, 3, 4, 2),
                 ToolTipText = name == "Fwd" ? "Forward power while transmitting" :
-                              name == "SWR" ? "SWR while transmitting" : "ALC gain reduction while transmitting"
+                              name == "SWR" ? "SWR while transmitting" :
+                              name == "PS" ? "PureSignal" : "ALC gain reduction while transmitting"
             };
         }
 
@@ -223,6 +227,71 @@ namespace Thetis
                 _kainosAlc.Text = "ALC --";
                 _kainosSwr.ForeColor = KainosUI.Text;
             }
+            updateKainosPs();
+        }
+
+        // The PureSignal light, shown while PS-A is on: green correcting, amber the feedback level (or SetPk) is wrong,
+        // red no correction. The tooltip says why and what to do; a click opens the Linearity window.
+        private static readonly Color KainosPsGreen = Color.FromArgb(0x6c, 0xc2, 0x7a);
+        private DateTime _kainosPsMoxAt = DateTime.MinValue;
+        private bool _kainosPsMox;
+
+        private void updateKainosPs()
+        {
+            bool on = psform != null && psform.PSEnabled;
+            if (_kainosPs.Visible != on) _kainosPs.Visible = on;
+            if (!on) return;
+            if (_mox != _kainosPsMox) { _kainosPsMox = _mox; if (_mox) _kainosPsMoxAt = DateTime.UtcNow; }
+
+            int fb = puresignal.FeedbackLevel;
+            bool applied = puresignal.CorrectionsBeingApplied;
+            double getPk = psform.GetPk, setPk = psform.SetPk;
+            bool far = PSForm.PeaksFarApart(getPk, setPk);
+            string peaks = "\nGetPk " + getPk.ToString("0.000") + ", SetPk " + setPk.ToString("0.000") +
+                           (far ? ": more than 15 % apart. Open Linearity and press Use GetPk after a full-drive two-tone." : "");
+            string text, tip;
+            Color c;
+            if (!_mox)
+            {
+                text = applied ? "PS ●" : "PS ○";
+                c = applied ? KainosPsGreen : (far ? KainosUI.Gold : KainosUI.Dim);
+                tip = applied ? "PureSignal: correction ready (it was correcting when you last transmitted)."
+                              : "PureSignal is on. It calibrates when you transmit; a two-tone (2TON) at full drive is the quickest way to start it.";
+            }
+            else if ((DateTime.UtcNow - _kainosPsMoxAt).TotalSeconds < 1.5)
+            {
+                text = "PS …"; c = KainosUI.Dim; tip = "PureSignal: calibrating.";
+            }
+            else if (fb > 181)
+            {
+                text = "PS ▲"; c = KainosUI.Gold;
+                tip = "PureSignal: feedback too strong (" + fb + "). Add TX attenuation (Auto-Attenuate does this), or reduce the coupler's level.";
+            }
+            else if (fb <= 90)
+            {
+                text = "PS ✕"; c = KainosUI.Tx;
+                tip = "PureSignal: no correction, the feedback is too weak (" + fb + "). Check the feedback path (internal coupler or external), " +
+                      "reduce TX attenuation, and check SetPk.";
+            }
+            else if (fb <= 128)
+            {
+                text = "PS ▼"; c = KainosUI.Gold;
+                tip = "PureSignal: feedback weak (" + fb + "). Reduce TX attenuation or raise the coupler's level.";
+            }
+            else if (applied)
+            {
+                text = "PS ●"; c = far ? KainosUI.Gold : KainosPsGreen;
+                tip = "PureSignal: correcting (feedback " + fb + ").";
+            }
+            else
+            {
+                text = "PS ○"; c = far ? KainosUI.Gold : KainosUI.Dim;
+                tip = "PureSignal: feedback is right (" + fb + ") but no correction yet. If it never comes, check SetPk.";
+            }
+            tip += peaks + "\nClick for the Linearity window.";
+            if (_kainosPs.Text != text) _kainosPs.Text = text;
+            if (_kainosPs.ForeColor != c) _kainosPs.ForeColor = c;
+            if (_kainosPs.ToolTipText != tip) _kainosPs.ToolTipText = tip;
         }
 
         #endregion

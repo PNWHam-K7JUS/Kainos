@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 using System;
 using System.Drawing;
 using System.Globalization;
+using System.IO.Ports;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -50,6 +51,9 @@ namespace Thetis
             grp.Controls.Add(label("lblKainosCivPort", "COM port", 12, 58));
             comboKainosCivPort = new ComboBoxTS { Name = "comboKainosCivPort", DropDownStyle = ComboBoxStyle.DropDown, Location = new Point(96, 54), Size = new Size(110, 21) };
             toolTip1.SetToolTip(comboKainosCivPort, "The amp's Bluetooth serial port. Windows makes two for it: use the outgoing one (Find GPA100 picks it).");
+            // listed now, not just on DropDown: Setup restores a combo's saved text only when its list has items, so an
+            // empty list lost the port at start-up and the link never reopened
+            comboKainosCivPort.Items.AddRange(SerialPort.GetPortNames().OrderBy(p => p.Length).ThenBy(p => p).ToArray());
             comboKainosCivPort.DropDown += (s, e) => fillKainosCivPorts();
             grp.Controls.Add(comboKainosCivPort);
             ButtonTS find = new ButtonTS { Name = "btnKainosCivFind", Text = "Find GPA100", Location = new Point(214, 52), Size = new Size(132, 25) };

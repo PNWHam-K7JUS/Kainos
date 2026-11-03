@@ -413,7 +413,7 @@ namespace Thetis
     }
 
     // What one running module sees of Kainos (IKainosHost)
-    internal class KainosModuleHost : IKainosHost, IKainosRadio, IKainosAudio, IKainosVoice, IKainosDock
+    internal class KainosModuleHost : IKainosHost, IKainosRadio, IKainosAudio, IKainosVoice, IKainosDock, IKainosKeyer
     {
         private readonly Console _c;
         private readonly KainosModuleManager _mgr;
@@ -609,11 +609,32 @@ namespace Thetis
             catch (Exception ex) { Log("key handler: " + ex); return false; }
         }
 
+        // ---- IKainosKeyer (Kainos 1.0.15): CW through CWX, as the CW terminal sends it; messages between modules ----
+
+        public string SendCw(string text)
+        {
+            if (_gone) return "The module has stopped";
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            return onUi(() =>
+            {
+                string p = _c.CwStartProblem;
+                if (p == null) _c.CwSend(text);
+                return p;
+            });
+        }
+
+        public bool CwSending { get { return _c.CwSending; } }
+        public void StopCw() { if (!_gone) onUi(() => _c.CwAbort()); }
+
+        public int Publish(string topic, string message) { return _gone ? 0 : _mgr.Publish(topic, message); }
+        public void Subscribe(string topic, Action<string> handler) { if (_gone && handler != null) return; _mgr.Subscribe(this, topic, handler); }
+
         // ---- when the module stops ----
 
         internal void Shutdown()
         {
             if (_gone) return;
+            _mgr.Unsubscribe(this);
             bool wasTx = _txOn;
             TxStop();
             MicStop();

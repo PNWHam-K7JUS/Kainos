@@ -740,6 +740,13 @@
     <Compile Include="KainosSwrSweep.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="KainosTxCheck.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="consoleKainosTxCheck.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosSwr.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>

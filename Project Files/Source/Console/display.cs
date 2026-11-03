@@ -1,4 +1,4 @@
-//=================================================================
+﻿//=================================================================
 // display.cs
 //=================================================================
 // Thetis is a C# implementation of a Software Defined Radio.
@@ -1576,6 +1576,8 @@ namespace Thetis
         }        
 
         private static bool _old_mox = false;
+        public static int KainosWaterfallHoldMs = 200;
+        private static double _rx1WaterfallHoldUntil, _rx2WaterfallHoldUntil;
         private static bool _mox = false;
         public static bool MOX
         {
@@ -1596,6 +1598,14 @@ namespace Thetis
                         }
 
                         PurgeBuffers();
+                        // Kainos (GitHub #67): just after un-keying, the spectrum still holds the transmit moment (an FFT's
+                        // fill of samples, and the relays and ADC settling), which drew a bright band across the waterfall:
+                        // hold the waterfall for that long
+                        if (!value && _old_mox)
+                        {
+                            _rx1WaterfallHoldUntil = _high_perf_timer.ElapsedMsec + _fft_fill_timeRX1 + KainosWaterfallHoldMs;
+                            _rx2WaterfallHoldUntil = _high_perf_timer.ElapsedMsec + _fft_fill_timeRX2 + KainosWaterfallHoldMs;
+                        }
                         _old_mox = value;
                     }
                     _mox = value;
@@ -7836,7 +7846,8 @@ namespace Thetis
                     }
 
                     bool stopWaterfallOnTx = (rx == 1 && m_bStopRX1WaterfallOnTX && local_mox) ||
-                                             (rx == 2 && m_bStopRX2WaterfallOnTX && local_mox);
+                                             (rx == 2 && m_bStopRX2WaterfallOnTX && local_mox) ||
+                                             (!local_mox && _high_perf_timer.ElapsedMsec < (rx == 1 ? _rx1WaterfallHoldUntil : _rx2WaterfallHoldUntil));
 
                     if (!stopWaterfallOnTx)
                     {

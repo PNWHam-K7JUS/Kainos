@@ -1,4 +1,4 @@
-/*  consoleKainosAudioMenu.cs
+﻿/*  consoleKainosAudioMenu.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 Kainos is based on Thetis : https://github.com/ramdor/Thetis
@@ -55,8 +55,8 @@ namespace Thetis
             });
             menuStrip1.Items.Insert(menuStrip1.Items.IndexOf(equalizerToolStripMenuItem), _kainosAudioMenu);
 
-            // Modes: the operating modes Kainos adds windows for (RTTY and CW ticked while their terminal is open)
-            _kainosModesMenu = new ToolStripMenuItem("Modes") { Name = "kainosModesMenu", Visible = false };
+            // Digi Modes: the operating modes Kainos adds windows for (RTTY and CW ticked while their terminal is open)
+            _kainosModesMenu = new ToolStripMenuItem("Digi Modes") { Name = "kainosModesMenu", Visible = false };
             ToolStripMenuItem rtty = item("RTTY", "The RTTY terminal (open / close).", () => { if (_rttyOpen) RttyClose(); else RttyOpen(); });
             ToolStripMenuItem cw = item("CW", "The CW terminal (open / close).", () => { if (_cwOpen) CwClose(); else CwOpen(); });
             _kainosModesMenu.DropDownItems.AddRange(new ToolStripItem[]
@@ -75,6 +75,7 @@ namespace Thetis
             {
                 item("XVTRs...", "Transverters.", () => xVTRsToolStripMenuItem_Click(this, EventArgs.Empty)),
                 item("Linearity...", "PureSignal linearity correction.", () => linearityToolStripMenuItem_Click(this, EventArgs.Empty)),
+                item("First-transmit check...", "A few seconds into a dummy load: is there power out, is the SWR right, and does Kainos hear your microphone?", KainosShowTxCheck),
                 item("Radio Astronomy (RA)...", "Thetis's radio astronomy tool: logs RX1 and RX2 signal strength over time to a file.", () => RAtoolStripMenuItem_Click(this, EventArgs.Empty)),
                 item("Finder...", "Find any setting in Kainos by name.", () => finderMenuItem_Click(this, EventArgs.Empty)),
             });
