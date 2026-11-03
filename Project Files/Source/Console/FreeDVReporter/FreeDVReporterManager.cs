@@ -125,21 +125,55 @@ namespace Thetis.FreeDVReporter
         }
 
         // the Reporter button in the FreeDV window
+        // GitHub #66: the button could do nothing. Anything that goes wrong is now said and logged (the click handler
+        // used to swallow it), a window left over from an earlier connection is made afresh, and the window is brought
+        // fully onto a screen and in front (it could open behind the FreeDV window, or off a screen that's gone).
         public static void ShowWindow(Console console)
         {
-            _windowWanted = true;
-            Update(console);
-            if (_form == null || _form.IsDisposed)
+            try
             {
-                _form = new FreeDVReporterForm(_client, console);
-                _form.OnUserClose = () => { _windowWanted = false; Update(_console); };
+                _windowWanted = true;
+                Update(console);
+                if (_client == null) throw new InvalidOperationException("the connection to qso.freedv.org couldn't be started");
+                if (_form != null && !_form.IsDisposed && _formClient != _client)
+                {
+                    _form.OnUserClose = null;
+                    try { _form.Close(); _form.Dispose(); } catch { }
+                    _form = null;
+                }
+                if (_form == null || _form.IsDisposed)
+                {
+                    _form = new FreeDVReporterForm(_client, console);
+                    _formClient = _client;
+                    _form.OnUserClose = () => { _windowWanted = false; Update(_console); };
+                }
+                if (!_form.Visible) _form.Show();
+                if (_form.WindowState == System.Windows.Forms.FormWindowState.Minimized)
+                    _form.WindowState = System.Windows.Forms.FormWindowState.Normal;
+                Common.ForceFormOnScreen(_form, true, true);
+                // above everything for a moment, so it isn't hidden behind the FreeDV window
+                _form.TopMost = true;
+                _form.BringToFront();
+                _form.Activate();
+                FreeDVReporterForm f = _form;
+                f.BeginInvoke(new Action(() => { if (!f.IsDisposed) f.TopMost = false; }));
             }
-            if (!_form.Visible) _form.Show();
-            if (_form.WindowState == System.Windows.Forms.FormWindowState.Minimized)
-                _form.WindowState = System.Windows.Forms.FormWindowState.Normal;
-            _form.BringToFront();
-            _form.Activate();
+            catch (Exception ex)
+            {
+                LogReporter("ShowWindow failed: " + ex);
+                try
+                {
+                    System.IO.File.AppendAllText(System.IO.Path.Combine(console?.AppDataPath ?? "", "KainosErrors.txt"),
+                        DateTime.Now.ToString("u") + "  FreeDV Reporter window: " + ex + Environment.NewLine + Environment.NewLine);
+                }
+                catch { }
+                System.Windows.Forms.MessageBox.Show("The FreeDV Reporter couldn't be opened:\r\n\r\n" + ex.Message +
+                    "\r\n\r\nThe details are in KainosErrors.txt (Report a bug attaches them).", "FreeDV Reporter",
+                    System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+            }
         }
+
+        private static FreeDVReporterClient _formClient;        // the connection the open window shows
 
         // Re-evaluates the connection: open or close it, and switch between reporting and viewing.
         // Called when RADE is switched on or off, the settings change, or the window closes.

@@ -80,7 +80,7 @@ namespace Thetis
         // Setup > Audio > Recording, "During playback temporarily": Kainos Audio as well as Thetis's own processing, on by
         // default, so a recording plays out on transmit as it was recorded (GitHub #41). The group's rows are drawn a
         // little closer to fit a sixth.
-        private CheckBoxTS chkRecording_disable_kainos;
+        private CheckBoxTS chkRecording_disable_kainos, chkRecording_fullLevel;
 
         private void addRecordingKainosOption()
         {
@@ -99,6 +99,22 @@ namespace Thetis
             for (int i = 0; i < rows.Length; i++) rows[i].Location = new Point(6, 15 + 20 * i);
             groupBoxTS65.Controls.Add(chkRecording_disable_kainos);
             chkRecording_disable_kainos.CheckedChanged += chkRecording_disable_during_playback;
+
+            // GitHub #63: QuickRecord's PLAY at full level (clsAudioRecordPlayback.QuickPlayFullLevel), under TX Gain
+            chkRecording_fullLevel = new CheckBoxTS
+            {
+                Name = "chkRecording_fullLevel",
+                Text = "Full level",
+                Checked = true,
+                AutoSize = true,
+                Location = new Point(6, 48),
+                UseVisualStyleBackColor = true
+            };
+            toolTip1.SetToolTip(chkRecording_fullLevel, "PLAY (QuickRecord) brings the recording up to full level: the whole recording is\r\n" +
+                "scaled so its loudest moment is just below full scale, so it drives the transmitter as a microphone would, but\r\n" +
+                "sounds as it was recorded. TX gain applies on top. Off: it plays at the level it was recorded.");
+            chkRecording_fullLevel.CheckedChanged += (s, e) => { if (!initializing) console.ARP.QuickPlayFullLevel = chkRecording_fullLevel.Checked; };
+            groupBoxTS66.Controls.Add(chkRecording_fullLevel);
         }
 
         // Setup > Transmit: keep VAC 1 and VAC 2 on or off as they are when the TX profile changes, rather than taking

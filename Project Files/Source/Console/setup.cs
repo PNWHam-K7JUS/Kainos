@@ -1,4 +1,4 @@
-//=================================================================
+﻿//=================================================================
 // setup.cs
 //=================================================================
 // Thetis is a C# implementation of a Software Defined Radio.
@@ -37668,6 +37668,7 @@ namespace Thetis
             console.ARP.SetPlaybackSetting("PHASE", chkRecording_disable_phase.Checked);
             console.ARP.SetPlaybackSetting("LEVELER", chkRecording_disable_leveler.Checked);
             if (chkRecording_disable_kainos != null) console.ARP.SetPlaybackSetting("KAINOS", chkRecording_disable_kainos.Checked);     // Kainos: setupKainos.cs
+            if (chkRecording_fullLevel != null) console.ARP.QuickPlayFullLevel = chkRecording_fullLevel.Checked;
             console.ARP.SetPlaybackSetting("MON", chkRecording_enable_monIfMox.Checked);
         }
 

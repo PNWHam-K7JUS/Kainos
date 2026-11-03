@@ -1537,6 +1537,50 @@ namespace Thetis
             }
         }
 
+        // Kainos (GitHub #63): a QuickRecord recording is usually received audio, quieter than a microphone through the
+        // processing; with the processing (and Kainos Audio, #41) off while it plays, it drove AM to half power. On (the
+        // default), PLAY scales the whole recording so its peak is at -1 dBFS: as recorded, at full level. TX gain still
+        // applies on top.
+        public bool QuickPlayFullLevel { get; set; } = true;
+
+        // dB to bring a WAV's peak to -1 dBFS (from -6 to +30 dB); 0 if it can't be read
+        private double fullLevelDb(string path, int formatTag, int channels, int bits, long dataStart, long dataLen)
+        {
+            try
+            {
+                double peak = 0;
+                int bytes = bits / 8;
+                if (bytes < 2 || bytes > 4) return 0;
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    fs.Seek(dataStart, SeekOrigin.Begin);
+                    byte[] buf = new byte[65536 - 65536 % (bytes * Math.Max(1, channels))];
+                    long left = dataLen;
+                    while (left > 0)
+                    {
+                        int n = fs.Read(buf, 0, (int)Math.Min(buf.Length, left));
+                        if (n <= 0) break;
+                        left -= n;
+                        for (int i = 0; i + bytes <= n; i += bytes)
+                        {
+                            double v;
+                            if (formatTag == 3) v = BitConverter.ToSingle(buf, i);
+                            else if (bytes == 2) v = BitConverter.ToInt16(buf, i) / 32768.0;
+                            else if (bytes == 3) v = (buf[i] | (buf[i + 1] << 8) | ((sbyte)buf[i + 2] << 16)) / 8388608.0;
+                            else v = BitConverter.ToInt32(buf, i) / 2147483648.0;
+                            v = Math.Abs(v);
+                            if (v > peak) peak = v;
+                        }
+                    }
+                }
+                if (channels == 1) peak *= Math.Pow(10.0, MonoToStereoGainDb / 20.0);       // the reader's mono gain
+                if (peak < 1e-4) return 0;
+                double db = 20.0 * Math.Log10(0.891 / peak);
+                return Math.Max(-6.0, Math.Min(30.0, db));
+            }
+            catch { return 0; }
+        }
+
         public double WDSPTXAudioGainInDb
         {
             get
@@ -1842,6 +1886,9 @@ namespace Thetis
 
                     // adjust gain
                     Audio.WavePreamp = wave;
+                    // Kainos (GitHub #63): QuickRecord's PLAY brought to full level (see QuickPlayFullLevel)
+                    if (QuickPlayFullLevel && play_id == "quick")
+                        adjustGain_dB += fullLevelDb(fullPath, formatTag, channels, bitsPerSample, dataStart, dataLengthBytes);
                     Audio.WavePreampAdjust = Math.Pow(10.0, adjustGain_dB / 20.0);
 
                     ret = true;

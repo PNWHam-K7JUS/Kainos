@@ -1351,8 +1351,10 @@ namespace Thetis
                 if (new_szie != _error_log_initial_size)
                 {
                     //log file has changed
-                    MessageBox.Show("The ErrorLog.txt has been updated during this sesson.\n\n" +
-                    "Please email it to MW0LGE at : [mw0lge@grange-lane.co.uk].\n\n" +
+                    // Kainos (GitHub #65): reports go to Kainos's GitHub, not to Thetis's author by email
+                    MessageBox.Show("The ErrorLog.txt has been updated during this session.\n\n" +
+                    "If something went wrong, please report it on the Kainos GitHub: start Kainos again and use Report a bug " +
+                    "(top right of the menu bar), attaching ErrorLog.txt.\n\n" +
                     "It is located in this folder : [" + AppDataPath + "].",
                     "Error Log Change",
                     MessageBoxButtons.OK,

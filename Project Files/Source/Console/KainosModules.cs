@@ -1,4 +1,4 @@
-/*  KainosModules.cs
+﻿/*  KainosModules.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 Kainos is based on Thetis : https://github.com/ramdor/Thetis
@@ -44,6 +44,7 @@ namespace Thetis
         public string MinKainos = "";
         public string Url = "", Sha256 = "";
         public long Size;
+        public bool Experimental;                   // not yet tested on the air: Setup > Modules says so
 
         public static KainosModuleInfo From(JObject o)
         {
@@ -53,13 +54,16 @@ namespace Thetis
                 Id = s("id").ToLowerInvariant(), Name = s("name"), Description = s("description"), Version = s("version"),
                 Entry = s("entry"), Author = s("author"), License = s("license"), Homepage = s("homepage"),
                 MinKainos = s("minKainos"), Url = s("url"), Sha256 = s("sha256").ToLowerInvariant(),
-                Api = (int?)o["api"] ?? 0, Size = (long?)o["size"] ?? 0,
+                Api = (int?)o["api"] ?? 0, Size = (long?)o["size"] ?? 0, Experimental = (bool?)o["experimental"] ?? false,
             };
             if (m.Name.Length == 0) m.Name = m.Id;
             return m;
         }
 
         // an id is also a folder name: letters, digits, '-' and '_'
+        // the name as Setup > Modules lists it
+        public string ListName { get { return Experimental ? Name + " (experimental)" : Name; } }
+
         public bool IdOk { get { return Id.Length > 0 && Id.Length <= 40 && Id.All(c => (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_'); } }
 
         // why this Kainos can't run it, or null

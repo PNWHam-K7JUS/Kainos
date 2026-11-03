@@ -10,6 +10,8 @@
     <OutputType>Package</OutputType>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <!-- Newer Visual Studio (2026) has its own MSBuild extensions folder, which the WiX 3 installer doesn't know about: fall back to where WiX puts its targets -->
+    <WixTargetsPath Condition=" !Exists('$(WixTargetsPath)') ">$(MSBuildProgramFiles32)\MSBuild\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <Name>Thetis-Installer</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">

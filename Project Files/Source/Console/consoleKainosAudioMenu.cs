@@ -1,4 +1,4 @@
-/*  consoleKainosAudioMenu.cs
+﻿/*  consoleKainosAudioMenu.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 Kainos is based on Thetis : https://github.com/ramdor/Thetis
@@ -75,6 +75,7 @@ namespace Thetis
             {
                 item("XVTRs...", "Transverters.", () => xVTRsToolStripMenuItem_Click(this, EventArgs.Empty)),
                 item("Linearity...", "PureSignal linearity correction.", () => linearityToolStripMenuItem_Click(this, EventArgs.Empty)),
+                item("First-transmit check...", "A few seconds into a dummy load: is there power out, is the SWR right, and does Kainos hear your microphone?", KainosShowTxCheck),
                 item("Radio Astronomy (RA)...", "Thetis's radio astronomy tool: logs RX1 and RX2 signal strength over time to a file.", () => RAtoolStripMenuItem_Click(this, EventArgs.Empty)),
                 item("Finder...", "Find any setting in Kainos by name.", () => finderMenuItem_Click(this, EventArgs.Empty)),
             });

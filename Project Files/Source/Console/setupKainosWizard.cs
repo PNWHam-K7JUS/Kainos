@@ -1,4 +1,4 @@
-/*  setupKainosWizard.cs
+﻿/*  setupKainosWizard.cs
 
 This file is part of Kainos, a program that implements a Software Defined Radio.
 
@@ -17,6 +17,7 @@ Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-13
 
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace Thetis
@@ -54,7 +55,8 @@ namespace Thetis
             page.Controls.Add(chkKainosVacMuteChecked);
 
             ButtonTS run = new ButtonTS { Name = "btnKainosWizard", Text = "Run setup wizard...", Location = new Point(8, 316), Size = new Size(160, 26) };
-            toolTip1.SetToolTip(run, "Set Kainos up for your Hermes Lite 2: callsign, grid square, licence class and which boards the HL2 has.");
+            toolTip1.SetToolTip(run, "Set Kainos up for your radio (Hermes Lite 2, ANAN, BrickSDR and other HPSDR radios): callsign, grid square,\r\n" +
+                "licence class, the radio model and (for a Hermes Lite 2) which boards it has.");
             run.Click += (s, e) => console.KainosRunWizard(false);
             page.Controls.Add(run);
 
@@ -225,6 +227,8 @@ namespace Thetis
             return new KainosWizardAnswers
             {
                 Model = comboRadioModel.Text,
+                Board = Audio.LastRadioHardware,
+                Models = comboRadioModel.Items.Cast<object>().Select(o => comboRadioModel.GetItemText(o)).ToList(),
                 Callsign = _rade != null ? _rade.Callsign.Text : "",
                 Grid = _rade != null ? _rade.Grid.Text : "",
                 Country = lic[0],
@@ -259,15 +263,18 @@ namespace Thetis
                 if (_rade.Grid.Text != a.Grid) _rade.Grid.Text = a.Grid;
             }
             txtKainosLicence.Text = a.Country + "|" + a.Licence;
-            setChecked(chkHERCULES, a.N2adr);
-            setChecked(chkHL2IOBoardPresent, a.IoBoard);
-            setChecked(chkApolloTuner, a.Pa);
-            setChecked(chkHL2BandVolts, a.BandVolts);
-            setChecked(chkExt10MHz, a.Ext10MHz);
-            setChecked(chkCl2Enable, a.Cl2);
-            setValue(udCl2Freq, a.Cl2Freq);
-            setValue(udTxBufferLat, a.TxLatency);
-            setValue(udPTTHang, a.PttHang);
+            if (a.IsHl2)        // the HL2's own options (the same boxes mean other things on other radios)
+            {
+                setChecked(chkHERCULES, a.N2adr);
+                setChecked(chkHL2IOBoardPresent, a.IoBoard);
+                setChecked(chkApolloTuner, a.Pa);
+                setChecked(chkHL2BandVolts, a.BandVolts);
+                setChecked(chkExt10MHz, a.Ext10MHz);
+                setChecked(chkCl2Enable, a.Cl2);
+                setValue(udCl2Freq, a.Cl2Freq);
+                setValue(udTxBufferLat, a.TxLatency);
+                setValue(udPTTHang, a.PttHang);
+            }
 
             // audio: the system first (Setup then lists its devices), then the devices, then VAC 1 on or off
             if (a.AudioOn)

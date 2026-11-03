@@ -41,9 +41,12 @@ A module adds a feature to Kainos that not everyone needs, such as FT8/FT4. Modu
   "api": 1,                              // KainosModuleApi.Version it was built against
   "minKainos": "1.0.11",
   "entry": "Kainos.DigiModes.dll",       // the DLL with the IKainosModule class
-  "author": "...", "license": "GPL-3.0-or-later", "homepage": "https://github.com/..."
+  "author": "...", "license": "GPL-3.0-or-later", "homepage": "https://github.com/...",
+  "experimental": true                   // optional: not yet tested on the air (Setup > Modules says so, from 1.0.15)
 }
 ```
+
+An experimental module also says so in its own menu item ("PSK (experimental)"), since Kainos before 1.0.15 doesn't read the field.
 
 4. Zip `module.json`, the DLL and anything else the module needs. Subfolders are fine; the digital-modes module has a `decoder/` folder.
 

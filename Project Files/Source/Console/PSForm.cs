@@ -76,6 +76,7 @@ namespace Thetis
             console = c;    // MW0LGE moved above restore, so that we actaully have console when control events fire because of restore form
             
             Common.RestoreForm(this, "PureSignal", false); // will also restore txtPSpeak //MW0LGE_21k9rc5
+            kainosUseGetPkOn();     // after the restore, so the form's saved controls don't include it
 
             _advancedON = chkAdvancedViewHidden.Checked; //MW0LGE_[2.9.0.6]
 
@@ -551,6 +552,51 @@ namespace Thetis
         public void SetDefaultPeaks()
         {
             psdefpeak(HardwareSpecific.PSDefaultPeak);
+        }
+
+        // Kainos: "Use GetPk" copies the measured feedback peak into SetPk. The defaults above are per board family, and
+        // a radio can measure well away from them, which stops PureSignal correcting (GitHub #36). The button turns gold
+        // when the two are more than 15 % apart.
+        public double GetPk { get { return _GetPSpeakval; } }
+        public double SetPk { get { return _PShwpeak; } }
+        public static bool PeaksFarApart(double getPk, double setPk) { return getPk > 0.05 && setPk > 0 && Math.Abs(getPk - setPk) / setPk > 0.15; }
+
+        private ButtonTS _kainosUseGetPk;
+        private System.Windows.Forms.Timer _kainosPeakTimer;
+
+        private void kainosUseGetPkOn()
+        {
+            _kainosUseGetPk = new ButtonTS
+            {
+                Name = "btnKainosUseGetPk", Text = "Use GetPk", Location = new Point(204, 117), Size = new Size(67, 23),
+                BackColor = Color.White, ForeColor = Color.Black, UseVisualStyleBackColor = false, Enabled = false,
+            };
+            toolTip1.SetToolTip(_kainosUseGetPk, "Set SetPk to the peak PureSignal measured (GetPk).\n" +
+                "Use it straight after a two-tone (2TON) at your normal full drive, with PureSignal on.\n" +
+                "Gold: GetPk and SetPk are more than 15 % apart, so PureSignal may not correct.");
+            _kainosUseGetPk.Click += (s, e) => kainosUseGetPk();
+            grpPSInfo.Controls.Add(_kainosUseGetPk);
+            _kainosPeakTimer = new System.Windows.Forms.Timer { Interval = 500 };
+            _kainosPeakTimer.Tick += (s, e) =>
+            {
+                bool valid = _GetPSpeakval > 0.05, far = PeaksFarApart(_GetPSpeakval, _PShwpeak);
+                if (_kainosUseGetPk.Enabled != valid) _kainosUseGetPk.Enabled = valid;
+                Color c = far ? Color.Gold : Color.White;
+                if (_kainosUseGetPk.BackColor != c) _kainosUseGetPk.BackColor = c;
+            };
+            _kainosPeakTimer.Start();
+        }
+
+        private void kainosUseGetPk()
+        {
+            double v = Math.Round(_GetPSpeakval, 4);
+            if (v <= 0.05) return;
+            string msg = "Set SetPk to " + v + ", the peak PureSignal measured (GetPk)?\n\n" +
+                "Do this straight after a two-tone (2TON) at your normal full drive with PureSignal on: GetPk measured at " +
+                "low drive will be too low.\n\nSetPk now: " + _PShwpeak + "\nThis radio's default: " + HardwareSpecific.PSDefaultPeak +
+                "\n\nDefault puts it back. The value is saved with the PureSignal settings.";
+            if (MessageBox.Show(this, msg, "PureSignal: use GetPk", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
+            psdefpeak(v);
         }
         #region PSLoops
 
