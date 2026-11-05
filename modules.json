@@ -124,6 +124,21 @@
       "url": "https://github.com/PNWHam-K7JUS/kainos-module-mfsk/releases/download/v0.1.0/kainos-mfsk-0.1.0.zip",
       "sha256": "99fa314c8224eec424d80e3b22f6900f77d13ebcc5162a8a0cb0695b25730b21",
       "size": 62542
+    },
+    {
+      "id": "nanovna",
+      "name": "NanoVNA",
+      "description": "Antenna measurements with a NanoVNA on USB, inside Kainos: SWR, impedance (R, X, |Z|) and return loss against frequency, a Smith chart, the lowest SWR, 2:1 bandwidth and resonance, live sweeps while you trim an antenna, the range following VFO A's band, and saved sweeps (Touchstone .s1p) to compare. The radio never transmits. For the NanoVNA, NanoVNA-H, -H4 and -F.",
+      "version": "0.1.0",
+      "api": 1,
+      "minKainos": "1.0.12",
+      "entry": "Kainos.NanoVna.dll",
+      "author": "Justin Cron K7JUS",
+      "license": "GPL-3.0-or-later",
+      "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-nanovna",
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-nanovna/releases/download/v0.1.0/kainos-nanovna-0.1.0.zip",
+      "sha256": "67a52c42eef7693687d5f4db53336c4e19aa24470fed31150c4bb98e087abba1",
+      "size": 49865
     }
   ]
 }

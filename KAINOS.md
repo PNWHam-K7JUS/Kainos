@@ -6,6 +6,13 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.16 (not yet released)
+
+**New**
+- **NanoVNA module** (Setup > Modules): antenna measurements with a NanoVNA on USB, inside Kainos. A VNA button in the dock opens it under the panadapter, or in its own window. It shows SWR, impedance (R, X and |Z|) or return loss against frequency, with a Smith chart beside it, and reads out the SWR, impedance and series L or C at any frequency you hover over (click to pin it). It also shows the lowest SWR, the 2:1 bandwidth and the resonance. LIVE sweeps over and over, so you can watch the curve move while you trim an antenna. FOLLOW makes the sweep follow VFO A's band, and a double-click tunes VFO A there. Sweeps can be saved (Touchstone .s1p) and laid under later ones. The radio never transmits. It works with the NanoVNA, NanoVNA-H, -H4 and -F (the NanoVNA V2 / LiteVNA aren't supported yet).
+
+- Technical: a module of its own (`kainos-module-nanovna`, 0.1.0), with no change to Kainos itself. It finds the NanoVNA's COM port by its USB id (0483:5740) in the registry, so it never sends anything to other serial ports. It sweeps with the shell's `scan start stop points 3`, in pieces within the firmware's point limit, and puts the NanoVNA's own `sweep` back when it closes. Its sweeps pause while Kainos is transmitting.
+
 ### Kainos 1.0.15
 
 **New**
