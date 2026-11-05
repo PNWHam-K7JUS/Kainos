@@ -355,10 +355,11 @@ namespace Thetis
 
         // the I/O board check at power-on (UpdateIOBoard) when it fails, in KainosErrors.txt: what came back from the
         // board's hardware-version register and its controller, so "unticked at power-on" can be told apart (no reply,
-        // nothing on the bus, or a board of another version)
+        // nothing on the bus, or a board of another version). Only with the HL2 I/O board box ticked: without a board,
+        // no reply is what's expected, and the line read as a fault in bug reports (GitHub #71)
         private void kainosIoBoardLog(string what)
         {
-            if (HardwareSpecific.Model != HPSDRModel.HERMESLITE) return;
+            if (HardwareSpecific.Model != HPSDRModel.HERMESLITE || IsSetupFormNull || !SetupForm.HL2IOBoardPresent) return;
             try
             {
                 System.IO.File.AppendAllText(System.IO.Path.Combine(AppDataPath, "KainosErrors.txt"),

@@ -903,9 +903,11 @@ namespace Thetis
             _kainosHiddenMeters.Clear();
         }
 
+        // by its id, as Kainos started in Classic hasn't attached it: MeterManager brings it back as it was saved, and on
+        // TX / RX, and it has no title bar to move it by, so it sat over the console's top left (GitHub #70)
         private void kainosDetachMeter()
         {
-            if (_kainosMeter != null && !string.IsNullOrEmpty(KainosMeterId))
+            if (!string.IsNullOrEmpty(KainosMeterId) && MeterManager.MeterContainers != null && MeterManager.MeterContainers.ContainsKey(KainosMeterId))
                 kainosMeterEnable(false);
         }
 

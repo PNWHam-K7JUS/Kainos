@@ -16,6 +16,8 @@ Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS
 - **Experimental modules are marked in Setup > Modules**, so you know which ones haven't been tested on the air yet.
 
 **Fixed**
+- **A meter you couldn't move covered the power button in Classic** (GitHub #70). The Kainos layout's own meter (which has no title bar) came back at the top left when Kainos started in Classic. It now stays off in Classic.
+- **A harmless I/O board line in KainosErrors.txt looked like a fault** (GitHub #71). "I/O board check at power-on: no reply" is now written only with the HL2 I/O board box ticked; without a board, no reply is expected.
 - **The FreeDV Reporter button could do nothing** (GitHub #66). It now says why if the window can't open, makes a fresh window when needed, and brings it onto a screen and in front.
 - **A bright band across the waterfall when you stop transmitting** (GitHub #67). The waterfall now waits a moment after un-keying, until the spectrum no longer holds your own transmission.
 - **QuickRecord's PLAY drove AM to only half power** (GitHub #63). A new **Full level** option (Setup > Audio > Recording, on by default) scales the recording so its loudest moment is just below full scale, so it drives the transmitter as your microphone does and still sounds as recorded.

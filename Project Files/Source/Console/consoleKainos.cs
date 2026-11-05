@@ -86,6 +86,8 @@ namespace Thetis
             // every window Kainos opens in the Kainos Audio look (KainosWindowTheme.cs)
             Shown += (s, e) => KainosWindowTheme.Start();
             Shown += (s, e) => kainosWizardOnStartup();         // consoleKainosWizard.cs
+            // started in Classic: the METERS tab's meter stays off (GitHub #70; consoleKainosColumn.cs)
+            Shown += (s, e) => { if (!_kainosLayout) kainosDetachMeter(); };
             FormClosing += (s, e) => KainosSpotting.Stop();
             matchKainosMenuItems();     // consoleKainosLayout.cs
         }
