@@ -13,6 +13,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 - Technical: a module of its own (`kainos-module-nanovna`, 0.1.0), with no change to Kainos itself. It finds the NanoVNA's COM port by its USB id (0483:5740) in the registry, so it never sends anything to other serial ports. It sweeps with the shell's `scan start stop points 3`, in pieces within the firmware's point limit, and puts the NanoVNA's own `sweep` back when it closes. Its sweeps pause while Kainos is transmitting.
 
+- **The AUDIO tab on a VFO flag says MUTE while that receiver is muted** (GitHub #73, Misfit-138): it turns red and reads MUTE, from the MUT button or the AUDIO drawer's MUTE (for VFO B, RX2's mute, or the sub-receiver's in split), so you can see at a glance on the panadapter why there's nothing to hear. The column's VFO faces with the flags off show it too.
+- **SSTV 0.5.2: a CW ID after each picture** (GitHub #72, Sam NR4A), if you want one: Station setup > "Then send a CW ID", off at first. "DE" and your callsign in Morse at 20 WPM, as a 1900 Hz tone (where Tune is, so the same transmit level suits it), about 4 seconds after the picture and its FSK ID. The Power field in Station setup now says it's only what's written on your pictures and in the log (Kainos's Drive slider sets the power), and Options > Transmit level is now Transmit audio level.
+
+- Technical: the flag's tab row draws the AUDIO tab from `KainosMuted(rx)`, on the flags' 80 ms repaint. SSTV's `CwId` makes the keyed tone (PARIS timing, 5 ms raised-cosine edges); `SstvEngine.BuildTx` appends it after the FSK ID, before the transmit level is applied.
+
 ### Kainos 1.0.15
 
 **New**

@@ -970,10 +970,13 @@ namespace Thetis
                         RectangleF r = new RectangleF(1 + i * tw, ty, tw, th);
                         _tabRects[i] = r;
                         bool open = OpenTab == Tabs[i];
-                        if (open) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillRectangle(b, r);
+                        // this receiver muted (MUT, or the AUDIO drawer's MUTE): the AUDIO tab says so, in red (GitHub #73)
+                        bool muted = Tabs[i] == "AUDIO" && _console.KainosMuted(_rx);
+                        if (muted) using (Brush b = new SolidBrush(Color.FromArgb(open ? 150 : 110, KainosUI.Tx))) g.FillRectangle(b, r);
+                        else if (open) using (Brush b = new SolidBrush(KainosUI.Selected)) g.FillRectangle(b, r);
                         if (i > 0) using (Pen line = new Pen(KainosUI.Line)) g.DrawLine(line, r.Left, r.Top, r.Left, r.Bottom);
-                        Color c = open ? (_rx == 1 ? KainosUI.GoldHi : KainosUI.Violet) : (i == _hoverTab ? KainosUI.Text : KainosUI.Dim);
-                        using (Brush b = new SolidBrush(c)) g.DrawString(Tabs[i], f, b, r, sf);
+                        Color c = muted ? Color.White : open ? (_rx == 1 ? KainosUI.GoldHi : KainosUI.Violet) : (i == _hoverTab ? KainosUI.Text : KainosUI.Dim);
+                        using (Brush b = new SolidBrush(c)) g.DrawString(muted ? "MUTE" : Tabs[i], f, b, r, sf);
                         if (_console.KainosFlagTabActive(_rx, Tabs[i]))
                         {
                             float d = 5 * s;
