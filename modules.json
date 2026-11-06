@@ -20,16 +20,16 @@
       "id": "sstv",
       "name": "SSTV (slow-scan TV)",
       "description": "Slow-scan TV inside Kainos: receive Martin, Scottie, Robot 36 and PD pictures (found automatically, slant-corrected, with the sender's callsign and a gallery), and send them: a one-time station setup makes your CQ, Reply and 73 pictures, and Reply answers in the sender's mode.",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "api": 1,
       "minKainos": "1.0.12",
       "entry": "Kainos.Sstv.dll",
       "author": "Justin Cron K7JUS",
       "license": "GPL-3.0-or-later",
       "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-sstv",
-      "url": "https://github.com/PNWHam-K7JUS/kainos-module-sstv/releases/download/v0.5.1/kainos-sstv-0.5.1.zip",
-      "sha256": "4fb35a119745b8f4817eb352c17980ec14c4e089d768ee7f6a91fe1638f3867c",
-      "size": 84394
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-sstv/releases/download/v0.5.2/kainos-sstv-0.5.2.zip",
+      "sha256": "f53f5fd49e9a4df24dab6c1c95dd8f2045ae94d4f5229249a6318d20a43cc29a",
+      "size": 85883
     },
     {
       "id": "dvk",
@@ -124,6 +124,21 @@
       "url": "https://github.com/PNWHam-K7JUS/kainos-module-mfsk/releases/download/v0.1.0/kainos-mfsk-0.1.0.zip",
       "sha256": "99fa314c8224eec424d80e3b22f6900f77d13ebcc5162a8a0cb0695b25730b21",
       "size": 62542
+    },
+    {
+      "id": "nanovna",
+      "name": "NanoVNA",
+      "description": "Antenna measurements with a NanoVNA on USB, inside Kainos: SWR, impedance (R, X, |Z|) and return loss against frequency, a Smith chart, the lowest SWR, 2:1 bandwidth and resonance, live sweeps while you trim an antenna, the range following VFO A's band, and saved sweeps (Touchstone .s1p) to compare. The radio never transmits. For the NanoVNA, NanoVNA-H, -H4 and -F.",
+      "version": "0.1.0",
+      "api": 1,
+      "minKainos": "1.0.12",
+      "entry": "Kainos.NanoVna.dll",
+      "author": "Justin Cron K7JUS",
+      "license": "GPL-3.0-or-later",
+      "homepage": "https://github.com/PNWHam-K7JUS/kainos-module-nanovna",
+      "url": "https://github.com/PNWHam-K7JUS/kainos-module-nanovna/releases/download/v0.1.0/kainos-nanovna-0.1.0.zip",
+      "sha256": "67a52c42eef7693687d5f4db53336c4e19aa24470fed31150c4bb98e087abba1",
+      "size": 49865
     }
   ]
 }
