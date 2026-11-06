@@ -609,7 +609,7 @@ namespace Thetis
             catch (Exception ex) { Log("key handler: " + ex); return false; }
         }
 
-        // ---- IKainosKeyer (Kainos 1.0.15): CW through CWX, as the CW terminal sends it; messages between modules ----
+        // ---- IKainosKeyer (Kainos 1.0.16): CW through CWX, as the CW terminal sends it; messages between modules ----
 
         public string SendCw(string text)
         {

@@ -158,7 +158,7 @@ namespace Kainos.Modules
     }
 
     // Sending messages: CW through Kainos's keyer, and a message bus between modules (so a logger can have the voice
-    // keyer module send a slot). Added in Kainos 1.0.15, like the ones above: ask with `host as IKainosKeyer` (null on
+    // keyer module send a slot). Added in Kainos 1.0.16 (prepared as 1.0.15, which wasn't released), like the ones above: ask with `host as IKainosKeyer` (null on
     // an older Kainos). Everything here keys the radio only because the user asked (a key or a button in a module).
     public interface IKainosKeyer
     {

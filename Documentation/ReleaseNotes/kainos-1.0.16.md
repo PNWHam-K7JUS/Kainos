@@ -1,6 +1,8 @@
-# Kainos 1.0.15
+# Kainos 1.0.16
 
 Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS/Kainos/wiki) for how to use everything below. Thanks to everyone who sent ideas and bug reports, and to Ezio F5MWA and Anton for finding why PureSignal wouldn't correct on a Brick2.
+
+**New: measure your antennas with a NanoVNA.** The new NanoVNA module shows SWR, impedance and a Smith chart right inside Kainos, live while you trim an antenna, and the radio never transmits.
 
 **New: setting up is easier**
 - **The setup wizard now sets up ANAN, BrickSDR and other HPSDR radios too**, not only the Hermes Lite 2. A new Radio page picks the model, shows which board your radio reported the last time it connected (gold if the model you chose doesn't go with it), and tells BrickSDR and Brick2 owners to choose **HERMES**: set up as an ANAN-10E, as Thetis settings brought over often are, PureSignal won't correct (GitHub #36).
@@ -9,6 +11,7 @@ Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS
 - **A PureSignal light in the status bar**, while PS-A is on: green when it's correcting, amber when the feedback is too strong or weak, red when there's no correction. Hover to see why; click for the Linearity window.
 
 **New: other**
+- **The AUDIO tab on a VFO flag says MUTE while that receiver is muted** (GitHub #73), in red, so you can see at a glance why there's nothing to hear.
 - **Keep VAC on/off when the TX profile changes** (GitHub #59), in Setup > Transmit, off by default. Changing mode can load another TX profile, which could turn VAC off; with this on, VAC 1 and VAC 2 stay as they are.
 - **Your own meter containers show in the right-hand column** (GitHub #61), each with a tab of its own (METER 2, METER 3, or named from its Notes), instead of disappearing after a restart.
 - **Modules can send CW and talk to each other** (`IKainosKeyer`), which lets the Logbook's contest page send CQ, the exchange and TU from Enter and F1 - F3: CW through Kainos's keyer, phone through the Voice Keyer.
@@ -27,6 +30,8 @@ Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS
 - **The Xiegu GPA100 (or another CI-V amplifier) didn't reconnect when Kainos was reopened.** If yours shows "No COM port chosen", pick the port (or click Find GPA100) once more.
 
 **Modules** (from Setup > Modules)
+- **NanoVNA 0.1.0** (new): antenna measurements with a NanoVNA on USB (NanoVNA, -H, -H4, -F). SWR, impedance (R, X, |Z|) or return loss against frequency with a Smith chart beside it; hover for the SWR, impedance and L or C at any frequency, and see the lowest SWR, the 2:1 bandwidth and the resonance. **LIVE** sweeps over and over while you trim an antenna; **FOLLOW** sweeps the band VFO A is on; double-click to tune VFO A there. Save sweeps (Touchstone .s1p) and lay them under later ones to compare. Open it from the **VNA** button in the dock.
+- **SSTV 0.5.2**: an optional **CW ID** after each picture (GitHub #72): "DE" and your callsign in Morse at 20 WPM (Station setup > Then send a CW ID). The Power box in Station setup now says it's only text on your pictures and in the log: Kainos's Drive slider sets the power.
 - **Digital Modes 0.11.0**: a **Continents** filter for band activity (GitHub #44), and new modes **Q65**, **FST4**, **FST4W** and **JT4**, all decoded by WSJT-X's jt9 (included). These four, like FT2, are marked experimental: they pass the self-test against WSJT-X's own encoders and decoder, but haven't been on the air yet.
 - **Logbook 0.6.2** (new): a log with callsign lookups (QRZ, HamQTH), uploads to LoTW, eQSL, QRZ Logbook and Club Log (each off until you turn it on), POTA spots and activations, 37 contests with dupe checking, scores and Cabrillo, DXCC / WAS / WAZ / grid awards, and a search box (Ctrl+F). The digital-mode modules' QSOs come into it by themselves.
 - **Voice Keyer 0.3.0**: plays a slot when another module asks (the Logbook's contest messages).
@@ -38,6 +43,6 @@ Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS
 
 ## Installing
 
-Run **Kainos-1.0.15-x64.msi**. It replaces any earlier Kainos version and keeps your settings. Kainos installs alongside Thetis and doesn't change it.
+Run **Kainos-1.0.16-x64.msi**. It replaces any earlier Kainos version and keeps your settings. Kainos installs alongside Thetis and doesn't change it.
 
-The modules come from **Setup > Modules**. The Logbook's contest messages need Kainos 1.0.15; the other modules also run on Kainos 1.0.12 and later.
+The modules come from **Setup > Modules**. The Logbook's contest messages need Kainos 1.0.16; the other modules also run on Kainos 1.0.12 and later.
