@@ -12,6 +12,10 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **RTTY: 450 Hz shift**, between 425 and 850 on the shift button. It's the shift the German weather service (DWD) uses for its weather RTTY broadcasts, at 50 baud.
 - Technical: `KainosRttyPane.Shifts` gains 450; the modem takes any shift, so nothing else changes.
 
+**Fixed**
+- **Picking a band the radio can't tune half-went there.** On a Hermes Lite 2, which tunes up to 38.4 MHz, choosing 6 m moved the panadapter to 50 MHz but left VFO A stuck at 38.400 MHz in CW, with nothing to hear. Now the band isn't changed, and a message says why: 6 m and above need a transverter on the HL2. On other radios it names the Max Freq setting, in case that's set too low.
+- Technical: `setRX1BandFromBandStackEntry` checks the entry's frequency with `KainosFreqReachable` (within `min_freq` - `max_freq`, or on a transverter's band) before `SetBand`, which with click-tune on set the display centre before VFO A was clamped. `consoleKainosBandRange.cs` relights the band button and shows the message.
+
 ### Kainos 1.0.16
 
 1.0.15 was never released: everything prepared for it went out in 1.0.16, with the additions below.

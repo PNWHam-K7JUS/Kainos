@@ -46767,6 +46767,7 @@ namespace Thetis
             if (MOX && (VFOATX || (!rx2_enabled && VFOBTX))) return;
 
             if (bse == null) return;
+            if (!KainosFreqReachable(bse.Frequency)) { kainosBandOutOfRange(bse.Frequency); return; }     // Kainos: consoleKainosBandRange.cs
 
             NetworkIO.SendHighPriority(0);
             SetBand(bse.Mode.ToString(), bse.Filter.ToString(), bse.Frequency, bse.CTUNEnabled, bse.ZoomSlider, bse.CentreFrequency);
