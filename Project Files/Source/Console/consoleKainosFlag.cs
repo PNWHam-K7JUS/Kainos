@@ -471,6 +471,8 @@ namespace Thetis
                         an.LabelFor = (i, l) => i == 0 && KainosAutoNotchOn(rx) && KainosAutoNotchCount(rx) > 0 ? "AUTO NOTCH · " + KainosAutoNotchCount(rx)
                                               : i == 1 && KainosNnrStandby(rx) ? "NNR · STANDBY" : l;
                         rows.Add(an);
+                        // NNR's reduction depth (6 - 40 dB), as in Setup > DSP > NNR: the wheel or - / + (GitHub #82)
+                        if (SetupForm != null && SetupForm.NnrDepthControl != null) rows.Add(new KainosUpDown(SetupForm.NnrDepthControl, "NNR DEPTH", "dB", false));
                         if (rx == 2 && !KainosSplitB)
                         {
                             // RX2's AGC and AGC gain (the column's RX tab has RX1's)
@@ -1234,7 +1236,7 @@ namespace Thetis
             using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
             using (StringFormat sr = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Far })
             {
-                g.DrawString(_label, f, dim, new RectangleF(2, 0, KainosUI.S(40), Height), sf);
+                g.DrawString(_label, f, dim, new RectangleF(2, 0, Math.Max(KainosUI.S(40), g.MeasureString(_label, f).Width + 4), Height), sf);
                 g.DrawString(_target.Value.ToString(_signed ? "+0;-0;0" : "0") + " " + _unit, v, txt, new RectangleF(0, 0, _minus.Left - KainosUI.S(8), Height), sr);
             }
         }
@@ -1317,6 +1319,12 @@ namespace Thetis
         // the most UI scale it's drawn at (0: no limit); the bar under the panadapter stops at KainosUI.BarMaxScale
         public float MaxScale;
 
+        // a slider with a centre (the MAIN and SUB balance under the panadapter, GitHub #83): a mark there, the fill
+        // drawn out from it, the knob gold when it's exactly centred, a small catch there while dragging, and a right
+        // click or double-click to centre it
+        public int? Centre;
+        private bool centred { get { return Centre.HasValue && _target.Value == Centre.Value; } }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -1343,12 +1351,19 @@ namespace Thetis
             _shownValue = _target.Value;
             RectangleF t = track;
             using (Brush b = new SolidBrush(KainosUI.Line)) g.FillRectangle(b, t);
-            using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, t.X, t.Y, t.Width * norm, t.Height);
             float kx = t.X + t.Width * norm;
+            if (Centre.HasValue)
+            {
+                int span = Math.Max(1, _target.Maximum - _target.Minimum);
+                float cx = t.X + t.Width * (Centre.Value - _target.Minimum) / span;
+                using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, Math.Min(cx, kx), t.Y, Math.Abs(kx - cx), t.Height);
+                using (Pen pen = new Pen(centred ? KainosUI.Gold : KainosUI.Faint, KainosUI.S(1.5f))) g.DrawLine(pen, cx, t.Y - KainosUI.S(5), cx, t.Bottom + KainosUI.S(5));
+            }
+            else using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, t.X, t.Y, t.Width * norm, t.Height);
             RectangleF knob = new RectangleF(kx - KainosUI.S(5), t.Y - KainosUI.S(5), KainosUI.S(10), KainosUI.S(14));
             using (System.Drawing.Drawing2D.GraphicsPath p = KainosUI.RoundedRect(knob, KainosUI.S(2)))
             {
-                using (Brush b = new SolidBrush(KainosUI.Text)) g.FillPath(b, p);
+                using (Brush b = new SolidBrush(centred ? KainosUI.Gold : KainosUI.Text)) g.FillPath(b, p);
                 using (Pen pen = new Pen(KainosUI.Steel)) g.DrawPath(pen, p);
             }
         }
@@ -1358,7 +1373,10 @@ namespace Thetis
             RectangleF t;
             using (KainosUI.Capped(MaxScale)) t = track;
             float n = Math.Max(0, Math.Min(1, (x - t.X) / t.Width));
-            setValue(_target.Minimum + (int)Math.Round(n * (_target.Maximum - _target.Minimum)));
+            int v = _target.Minimum + (int)Math.Round(n * (_target.Maximum - _target.Minimum));
+            // the catch: within 3 % of the centre, it's the centre
+            if (Centre.HasValue && Math.Abs(v - Centre.Value) <= Math.Max(1, (_target.Maximum - _target.Minimum) * 3 / 100)) v = Centre.Value;
+            setValue(v);
         }
 
         private void setValue(int v)
@@ -1370,7 +1388,17 @@ namespace Thetis
             Invalidate();
         }
 
-        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); if (e.Button == MouseButtons.Left) { _drag = true; setFromX(e.X); } }
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button == MouseButtons.Left) { _drag = true; setFromX(e.X); }
+            else if (e.Button == MouseButtons.Right && Centre.HasValue) setValue(Centre.Value);
+        }
+        protected override void OnMouseDoubleClick(MouseEventArgs e)
+        {
+            base.OnMouseDoubleClick(e);
+            if (e.Button == MouseButtons.Left && Centre.HasValue) { _drag = false; setValue(Centre.Value); }
+        }
         protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); if (_drag) setFromX(e.X); }
         protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _drag = false; }
         protected override void OnMouseWheel(MouseEventArgs e)

@@ -1,4 +1,4 @@
-/*  KainosSetupShell.cs
+﻿/*  KainosSetupShell.cs
 
 This file is part of Kainos, a program that implements a Software-Defined Radio.
 Kainos is based on Thetis : https://github.com/ramdor/Thetis
@@ -453,6 +453,9 @@ namespace Thetis
             private readonly List<Row> _rows = new List<Row>();
             private string _filter = "";
             private Row _hover;
+            // the heading whose pages are folded away: clicking the open heading folds it, clicking again unfolds it
+            // (GitHub #81). Only for the heading shown: opening another heading unfolds as before.
+            private TabPage _folded;
 
             public NavList(Shell s)
             {
@@ -497,7 +500,7 @@ namespace Thetis
                         shown = pages.Where(p => PageMatches(p, _filter)).ToList();
                         if (shown.Count == 0 && top.Text.IndexOf(_filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
                     }
-                    else shown = top == current ? pages : new List<TabPage>();
+                    else shown = top == current && _folded != top ? pages : new List<TabPage>();
                     _rows.Add(new Row { Top = top, Page = top, Heading = true, Bounds = new Rectangle(0, y, rowW, headH) });
                     y += headH;
                     if (sub == null && _filter.Length == 0) continue;       // a single page: the heading is the page
@@ -556,7 +559,7 @@ namespace Thetis
                         bool sel = isSelected(r), hover = r == _hover;
                         if (r.Heading)
                         {
-                            bool open = r.Top == _s.Top.SelectedTab || _filter.Length > 0;
+                            bool open = (r.Top == _s.Top.SelectedTab && _folded != r.Top) || _filter.Length > 0;
                             Rectangle hr = new Rectangle(r.Bounds.X + (int)(6 * k), r.Bounds.Y + (int)(3 * k), r.Bounds.Width - (int)(12 * k), r.Bounds.Height - (int)(6 * k));
                             if (sel || hover)
                                 using (GraphicsPath path = rounded(hr, 5 * k))
@@ -646,8 +649,15 @@ namespace Thetis
                 if (r == null) return;
                 if (r.Heading)
                 {
-                    // a heading: its page shown last time (or its first)
+                    // a heading: its page shown last time (or its first); the open one folds or unfolds (GitHub #81)
                     TabControl sub = SubOf(r.Top);
+                    if (r.Top == _s.Top.SelectedTab && sub != null && _filter.Length == 0)
+                    {
+                        _folded = _folded == r.Top ? null : r.Top;
+                        Rebuild();
+                        return;
+                    }
+                    _folded = null;
                     Open(_s, r.Top, sub != null ? (sub.SelectedTab ?? (sub.TabCount > 0 ? sub.TabPages[0] : r.Top)) : r.Top);
                 }
                 else

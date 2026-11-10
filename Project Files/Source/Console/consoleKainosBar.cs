@@ -71,6 +71,9 @@ namespace Thetis
                 _kainosBar.Controls.AddRange(new Control[] { _kbPan, _kbCenter, _kbPanMain, _kbPanSub, _kbRx, _kbMode, _kbDisp, _kb3D, _kbZoom, _kbZoomButtons });
                 // drawn at no more than 125 %, like the bar's layout (positionKainosBar)
                 foreach (KainosSlider c in new[] { _kbPan, _kbPanMain, _kbPanSub, _kbZoom }) c.MaxScale = KainosUI.BarMaxScale;
+                // the balance sliders have a centre: right-click or double-click centres them (GitHub #83)
+                _kbPanMain.Centre = (ptbPanMainRX.Minimum + ptbPanMainRX.Maximum) / 2;
+                _kbPanSub.Centre = (ptbPanSubRX.Minimum + ptbPanSubRX.Maximum) / 2;
                 foreach (KainosButtonGrid c in new[] { _kbCenter, _kbRx, _kbDisp, _kbZoomButtons }) c.MaxScale = KainosUI.BarMaxScale;
                 _kbMode.MaxScale = _kb3D.MaxScale = KainosUI.BarMaxScale;
             }

@@ -12,6 +12,16 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **RTTY: 450 Hz shift**, between 425 and 850 on the shift button. It's the shift the German weather service (DWD) uses for its weather RTTY broadcasts, at 50 baud.
 - Technical: `KainosRttyPane.Shifts` gains 450; the modem takes any shift, so nothing else changes.
 
+- **The MAIN and SUB balance sliders have a centre** (GitHub #83, Misfit-138): a mark in the middle, the bar drawn out from it, and the knob turns gold when it's exactly centred. Right-click or double-click centres it, and dragging catches at the centre.
+- Technical: `KainosSlider.Centre` (null for the other sliders); a catch within 3 % of the centre while dragging. `kainosBarOn` sets it for `ptbPanMainRX` and `ptbPanSubRX` (0 - 100, centre 50).
+
+- **NNR's reduction depth on the VFO flag** (GitHub #82, Misfit-138): the DSP drawer has NNR DEPTH under the NNR button, 6 - 40 dB, set with the mouse wheel or - / +. It's the same setting as Setup > DSP > NNR, so the two always agree.
+- Technical: `Setup.NnrDepthControl` exposes `udNnrDepth`; the drawer shows it with a `KainosUpDown`, whose label now takes the width it needs.
+
+**Fixed**
+- **Setup's headings wouldn't close** (GitHub #81, Misfit-138): clicking an open heading in the list on the left now folds its pages away (the arrow turns back), and clicking it again opens them. The page on show stays.
+- Technical: `NavList._folded`, the heading folded; opening another heading clears it.
+
 **Fixed**
 - **Picking a band the radio can't tune half-went there.** On a Hermes Lite 2, which tunes up to 38.4 MHz, choosing 6 m moved the panadapter to 50 MHz but left VFO A stuck at 38.400 MHz in CW, with nothing to hear. Now the band isn't changed, and a message says why: 6 m and above need a transverter on the HL2. On other radios it names the Max Freq setting, in case that's set too low.
 - Technical: `setRX1BandFromBandStackEntry` checks the entry's frequency with `KainosFreqReachable` (within `min_freq` - `max_freq`, or on a transverter's band) before `SetBand`, which with click-tune on set the display centre before VFO A was clamped. `consoleKainosBandRange.cs` relights the band button and shows the message.
