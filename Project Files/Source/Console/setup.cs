@@ -6739,7 +6739,17 @@ namespace Thetis
                 }
             }
 
+            kainosMaxFreqForModel();
             console.MaxFreq = (double)udMaxFreq.Value;
+        }
+
+        // Kainos: the Hermes Lite 2's top frequency (38.4 MHz, set for it in comboRadioModel_SelectedIndexChanged) is put
+        // back to the usual 61.44 MHz for any other radio. Kainos starts out set up as an HL2, and nothing else set it
+        // back, so ANAN owners kept 38.4 and VFO A stopped there when they tuned 6 m (GitHub #60). A Max Freq anyone
+        // has set themselves (anything but 38.4) is left alone.
+        private void kainosMaxFreqForModel()
+        {
+            if (HardwareSpecific.Model != HPSDRModel.HERMESLITE && udMaxFreq.Value == 38.4m) udMaxFreq.Value = 61.44m;
         }
 
         private void chkGeneralRXOnly_CheckedChanged(object sender, System.EventArgs e)
@@ -21075,6 +21085,7 @@ namespace Thetis
                     setupAttRXControls(2);
                     break;
             }
+            kainosMaxFreqForModel();        // Kainos: not the HL2's 38.4 MHz on another radio (GitHub #60)
 
             bool user_adjusted = sender != this;
 

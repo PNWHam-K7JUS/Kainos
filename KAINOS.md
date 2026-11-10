@@ -27,6 +27,8 @@ Newest first. Each version's section is written to be copied straight into a Git
 
 **Fixed**
 - **Picking a band the radio can't tune half-went there.** On a Hermes Lite 2, which tunes up to 38.4 MHz, choosing 6 m moved the panadapter to 50 MHz but left VFO A stuck at 38.400 MHz in CW, with nothing to hear. Now the band isn't changed, and a message says why: 6 m and above need a transverter on the HL2. On other radios it names the Max Freq setting, in case that's set too low.
+- **ANAN radios couldn't tune 6 m: VFO A stopped at 38.4 MHz** (GitHub #60, ke3ci and two other G2 / G2E owners). 38.4 MHz is the Hermes Lite 2's top frequency, set when the HL2 is chosen; Kainos starts out set up as an HL2, and choosing another radio never put it back. Any other radio now gets the usual 61.44 MHz (Setup > General > Hardware Config, Max Freq), unless you've set your own.
+- Technical: `Setup.kainosMaxFreqForModel` (38.4 to 61.44 on a non-HL2 model) in `comboRadioModel_SelectedIndexChanged` and `AddHPSDRPages`, before Max Freq is applied.
 - Technical: `setRX1BandFromBandStackEntry` checks the entry's frequency with `KainosFreqReachable` (within `min_freq` - `max_freq`, or on a transverter's band) before `SetBand`, which with click-tune on set the display centre before VFO A was clamped. `consoleKainosBandRange.cs` relights the band button and shows the message.
 
 ### Kainos 1.0.16
