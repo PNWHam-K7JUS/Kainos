@@ -111,6 +111,7 @@ namespace Thetis
                 _kainosColumn = new KainosColumn(this);
                 Controls.Add(_kainosColumn);
 
+                KainosUI.RightClick = KainosFilterRightClick;      // right-clicking a filter button: edit it (GitHub #79)
                 _kainosBandDrop = new KainosDropDown("BAND", KainosUI.Tone.Gold) { BeforeOpen = refreshKainosBandGrid };
                 _kainosModeDrop = new KainosDropDown("MODE", KainosUI.Tone.Gold);
                 _kainosFilterDrop = new KainosDropDown("FILTER", KainosUI.Tone.Ice);
@@ -1840,6 +1841,7 @@ namespace Thetis
             {
                 ButtonBase c = current;
                 if (c == null || !c.Enabled) return;
+                if (KainosUI.RightClick != null && KainosUI.RightClick(c)) return;
                 MouseEventArgs m = new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0);
                 _onMouseDown.Invoke(c, new object[] { m });
                 _onMouseUp.Invoke(c, new object[] { m });
@@ -2011,7 +2013,7 @@ namespace Thetis
             Cell c = hit(e.Location);
             if (c == null || !c.Target.Enabled) return;
             if (e.Button == MouseButtons.Left) KainosUI.Press(c.Target);
-            else if (e.Button == MouseButtons.Right)
+            else if (e.Button == MouseButtons.Right && !(KainosUI.RightClick != null && KainosUI.RightClick(c.Target)))
             {
                 MouseEventArgs m = new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0);
                 _onMouseDown.Invoke(c.Target, new object[] { m });

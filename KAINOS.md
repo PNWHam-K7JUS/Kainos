@@ -18,6 +18,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **NNR's reduction depth on the VFO flag** (GitHub #82, Misfit-138): the DSP drawer has NNR DEPTH under the NNR button, 6 - 40 dB, set with the mouse wheel or - / +. It's the same setting as Setup > DSP > NNR, so the two always agree.
 - Technical: `Setup.NnrDepthControl` exposes `udNnrDepth`; the drawer shows it with a `KainosUpDown`, whose label now takes the width it needs.
 
+- **Custom filters from Kainos's filter buttons** (GitHub #79, Sam NR4A): right-click a filter button (the column's FILTER drop-down, or the VFO flag's MODE drawer) for **Edit the 2.4k filter...**, which opens the filter editor on that filter to set its name, width and shift, as right-clicking does in Thetis, or **Reset the RX1 filters to their defaults...**.
+- Technical: Thetis's menu belongs to the filter panel, and Kainos passed right clicks on by calling the button's mouse handler, which never shows a panel's menu. `KainosUI.RightClick` (set to `KainosFilterRightClick`, consoleKainosFilterEdit.cs) is asked first by `KainosButtonGrid` and `KainosDropDown`; the editor is Thetis's `FilterForm`, with `CurrentFilter` set to the button's filter.
+
 **Fixed**
 - **Setup's headings wouldn't close** (GitHub #81, Misfit-138): clicking an open heading in the list on the left now folds its pages away (the arrow turns back), and clicking it again opens them. The page on show stays.
 - Technical: `NavList._folded`, the heading folded; opening another heading clears it.
