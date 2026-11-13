@@ -5190,6 +5190,14 @@ namespace Thetis
             m.LevelerEnabled = !_console.IsSetupFormNull && _console.SetupForm.TXLevelerOn;
             m.CFCEnabled = _console.CFCEnabled;
             m.CompandEnabled = _console.CPDR;
+            // Kainos (GitHub #74): and the readings greyed or not to match (only the change events did this, so a meter
+            // greyed by mistake stayed greyed)
+            m.DisableMeterType(MeterType.EQ, !m.TXEQEnabled);
+            m.DisableMeterType(MeterType.LEVELER, !m.LevelerEnabled);
+            m.DisableMeterType(MeterType.LEVELER_GAIN, !m.LevelerEnabled);
+            m.DisableMeterType(MeterType.CFC, !m.CFCEnabled);
+            m.DisableMeterType(MeterType.CFC_GAIN, !m.CFCEnabled);
+            m.DisableMeterType(MeterType.COMP, !m.CompandEnabled);
 
             m.QuickSplitEnabled = _console.GetQuickSplitEnabled;
 
@@ -23071,6 +23079,18 @@ namespace Thetis
                 // update the console data for the meter if we are not recovering
                 if(restoreIg == null)
                     initConsoleData(this);
+                else if (_console != null)
+                {
+                    // Kainos (GitHub #74): recovering, this meter's EQ / leveler / CFC / compander states were still their
+                    // defaults (off), and the switch below passes them to OnEQChanged etc., which set them on EVERY meter
+                    // and grey those readings out, whatever the console has. Restored containers came up with EQ,
+                    // Leveler, CFC and Compression greyed until one of them was switched (or the container rebuilt). Take
+                    // the console's states first.
+                    TXEQEnabled = _console.TXEQ;
+                    LevelerEnabled = !_console.IsSetupFormNull && _console.SetupForm.TXLevelerOn;
+                    CFCEnabled = _console.CFCEnabled;
+                    CompandEnabled = _console.CPDR;
+                }
 
                 // update state of items
                 switch (meter)
@@ -44130,7 +44150,7 @@ namespace Thetis
                     token.Type == JTokenType.Boolean
                     )
                 {
-                    keyValuePairs[currentPath] = ((JValue)token).ToString(Newtonsoft.Json.Formatting.None);
+                    keyValuePairs[currentPath] = ((JValue)token).ToString(Newtonsoft.Json.Formatting.None, new Newtonsoft.Json.JsonConverter[0]);
                 }
                 else
                 {

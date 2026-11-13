@@ -270,7 +270,7 @@ namespace Thetis.FreeDVReporter
                 if (_ws == null || _ws.State != WebSocketState.Open) return;
                 var arr = new JArray { evtName };
                 if (payload != null) arr.Add(payload);
-                var frame = "42" + arr.ToString(Formatting.None);
+                var frame = "42" + arr.ToString(Formatting.None, new Newtonsoft.Json.JsonConverter[0]);
                 _ = SendRawAsync(frame, _cts != null ? _cts.Token : CancellationToken.None);
             }
             catch (Exception ex) { Log("emit " + evtName + " failed: " + ex.Message); }
@@ -354,7 +354,7 @@ namespace Thetis.FreeDVReporter
                 auth["rx_only"]     = RxOnly;
                 auth["os"]          = Os ?? "Windows";
             }
-            string authStr = "40" + auth.ToString(Formatting.None);
+            string authStr = "40" + auth.ToString(Formatting.None, new Newtonsoft.Json.JsonConverter[0]);
             Log("sending CONNECT: " + authStr);
 
             // [Reporter logging] Login attempt — capture host + credentials the user is trying.

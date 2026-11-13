@@ -6,6 +6,48 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.17 (not yet released)
+
+**New**
+- **RTTY: 450 Hz shift**, between 425 and 850 on the shift button. It's the shift the German weather service (DWD) uses for its weather RTTY broadcasts, at 50 baud.
+- Technical: `KainosRttyPane.Shifts` gains 450; the modem takes any shift, so nothing else changes.
+
+- **The MAIN and SUB balance sliders have a centre** (GitHub #83, Misfit-138): a mark in the middle, the bar drawn out from it, and the knob turns gold when it's exactly centred. Right-click or double-click centres it, and dragging catches at the centre.
+- Technical: `KainosSlider.Centre` (null for the other sliders); a catch within 3 % of the centre while dragging. `kainosBarOn` sets it for `ptbPanMainRX` and `ptbPanSubRX` (0 - 100, centre 50).
+
+- **NNR's reduction depth on the VFO flag** (GitHub #82, Misfit-138): the DSP drawer has NNR DEPTH under the NNR button, 6 - 40 dB, set with the mouse wheel or - / +. It's the same setting as Setup > DSP > NNR, so the two always agree.
+- Technical: `Setup.NnrDepthControl` exposes `udNnrDepth`; the drawer shows it with a `KainosUpDown`, whose label now takes the width it needs.
+
+- **Custom filters from Kainos's filter buttons** (GitHub #79, Sam NR4A): right-click a filter button (the column's FILTER drop-down, or the VFO flag's MODE drawer) for **Edit the 2.4k filter...**, which opens the filter editor on that filter to set its name, width and shift, as right-clicking does in Thetis, or **Reset the RX1 filters to their defaults...**.
+- Technical: Thetis's menu belongs to the filter panel, and Kainos passed right clicks on by calling the button's mouse handler, which never shows a panel's menu. `KainosUI.RightClick` (set to `KainosFilterRightClick`, consoleKainosFilterEdit.cs) is asked first by `KainosButtonGrid` and `KainosDropDown`; the editor is Thetis's `FilterForm`, with `CurrentFilter` set to the button's filter.
+
+- **PureSignal can start afresh after a QSY or a long receive** (GitHub #69, Misfit-138), in the Linearity window (right-click PS-A), both off by default. **After a QSY**: when the transmit frequency has moved more than 1 kHz since the last transmission. **After N minutes of receive**: for an LDMOS amplifier that has cooled. Either way, as you key up the old correction is thrown away and auto-calibrate starts again with a fresh sample, which is what turning PS-A off and on again while keyed did by hand. Auto-calibrate mode only; the window shows when it last did it, and why.
+- Technical: PSFormKainosFresh.cs, on `MoxPreChangeHandlers` (key-up) and `MoxChangeHandlers` (the transmission's end and frequency); the reset is `SetPSControl(1, 0, 0, 0)` then `SetPSControl(0, 0, 1, 0)` 40 ms later, as the auto-attenuate does. The controls are made before `Common.RestoreForm`, so they're saved with the window's settings; the window is 60 px taller.
+
+- **AGC in the VFO flag's DSP drawer** (GitHub #87, Misfit-138): RX1's AGC mode and AGC GAIN are in VFO A's drawer now (RX2 had them already), so they're at hand in the Compact view. As in Thetis: right-click the gain for automatic AGC (the knob turns green), drag or wheel it to set it by hand, and right-click its name for Setup's AGC page.
+- Technical: `KainosSlider` gains `Auto`, `AutoToggle`, `ManualTouch` and `LabelRightClick`, wired to `AutoAGCRX1` / `AutoAGCRX2` and `Setup.SetupTab.ALCAGC_Tab`.
+
+- **Easier-to-read S meter numbers on the VFO flag** (GitHub #89, Misfit-138): 1 - 9 and +20 to +60 are in the bright text colour, a size larger, instead of faint grey.
+
+**Fixed**
+- **The FreeDV Reporter showed no stations, or wouldn't open** (GitHub #66, Sven N2VEN), on PCs where another program has put an older Newtonsoft.Json 13.0.x into Windows's assembly cache. Windows then loads that copy instead of Kainos's own, and the Reporter's messages (its sign-in first) used a call only the newest 13.0.4 has, so it never signed in, and once that had failed the window wouldn't open at all. The same call was in the module list and Thetis's meter code. Fixed with the form of the call every 13.0 release has.
+- Technical: `JToken.ToString(Formatting)` (Newtonsoft.Json 13.0.4) becomes `ToString(Formatting, JsonConverter[])` in FreeDVReporterClient.cs (2), KainosModules.cs and MeterManager.cs. Strong-named 13.0.0.0 in the GAC always wins over the app's own copy. Kainos now builds against 13.0.1, so it calls nothing newer.
+
+- **Meter containers came up with EQ, Leveler, CFC and Compression greyed out** (GitHub #74, szproton), as if those were switched off, until one of them was switched or the container rebuilt (resetting its background did that). It was Thetis's: a container restored at start-up passed its not-yet-loaded "off" states to the handlers that grey those readings on every meter.
+- Technical: MeterManager's add-meter, when recovering (`restoreIg != null`), now takes `TXEQ`, `TXLevelerOn`, `CFCEnabled` and `CPDR` from the console before its `OnEQChanged` / `OnLevelerChanged` / `OnCFCChanged` / `OnCompandChanged` calls; and `initConsoleData(clsMeter)` sets the readings' greyed state from them (`DisableMeterType`), not just the flags.
+
+- **The Master AF slider (and the column's other sliders) forgot their setting on every restart** (GitHub #91, ruediger-moeller): Master AF always came back at 30. Thetis saves the console's controls by walking its own children and one level into its panels, and the controls Kainos moves into the right-hand column are deeper than that, so they weren't saved.
+- Technical: `kainosAddMovedState` (SaveState) and `kainosAddMovedControls` (GetState) add the controls in `_kainosMovedIn` that Thetis would have saved where they live in Classic.
+
+- **Setup's headings wouldn't close** (GitHub #81, Misfit-138): clicking an open heading in the list on the left now folds its pages away (the arrow turns back), and clicking it again opens them. The page on show stays.
+- Technical: `NavList._folded`, the heading folded; opening another heading clears it.
+
+**Fixed**
+- **Picking a band the radio can't tune half-went there.** On a Hermes Lite 2, which tunes up to 38.4 MHz, choosing 6 m moved the panadapter to 50 MHz but left VFO A stuck at 38.400 MHz in CW, with nothing to hear. Now the band isn't changed, and a message says why: 6 m and above need a transverter on the HL2. On other radios it names the Max Freq setting, in case that's set too low.
+- **ANAN radios couldn't tune 6 m: VFO A stopped at 38.4 MHz** (GitHub #60, ke3ci and two other G2 / G2E owners). 38.4 MHz is the Hermes Lite 2's top frequency, set when the HL2 is chosen; Kainos starts out set up as an HL2, and choosing another radio never put it back. Any other radio now gets the usual 61.44 MHz (Setup > General > Hardware Config, Max Freq), unless you've set your own.
+- Technical: `Setup.kainosMaxFreqForModel` (38.4 to 61.44 on a non-HL2 model) in `comboRadioModel_SelectedIndexChanged` and `AddHPSDRPages`, before Max Freq is applied.
+- Technical: `setRX1BandFromBandStackEntry` checks the entry's frequency with `KainosFreqReachable` (within `min_freq` - `max_freq`, or on a transverter's band) before `SetBand`, which with click-tune on set the display centre before VFO A was clamped. `consoleKainosBandRange.cs` relights the band button and shows the message.
+
 ### Kainos 1.0.16
 
 1.0.15 was never released: everything prepared for it went out in 1.0.16, with the additions below.
@@ -663,7 +705,7 @@ The console redesign agreed on the design canvas ("Kainos Console Concepts", con
 
 - The RTTY menu item (next to CWX) opens a terminal. In Kainos layout it splits the screen: it docks under the panadapter, which gives up its height (`kainosRttyDockHeight`), and Pop out moves it to its own window (always a window in Classic).
 - Audio: `kdigi.c` in ChannelMaster, spliced into `xpipe` (pipe.c) beside the RADE splices: `xkdigi_rx` copies each receiver's demodulated audio (left channel, before RADE) into a ring the console reads (`KDigiRxTap` / `KDigiRxRead`); `xkdigi_tx` replaces the mic audio with what the console writes (`KDigiTxEnable` / `KDigiTxWrite`) while sending, after the RADE and VAC splices, so Thetis's mic gain, processing, drive and ALC follow as for any audio. Single-reader / single-writer rings with interlocked counters.
-- Modem (`KainosRtty.cs`, no UI): 45.45 baud (50, 75), 170 Hz shift (200, 425, 850), amateur Baudot (ITA2 letters, US figures), 1 start / 5 data / 1.5 stop. Receive: each tone mixed to zero and averaged over one bit, (mark - space) / (mark + space), characters framed from the start bit's edge and sampled at each bit's middle; a quality figure squelches and each character's bits must be clear on average (SQL sets both). Unshift on space. Send: phase-continuous AFSK, mark then LTRS to open, LTRS while idle, shifts as needed. Tones 2125 / 2295 Hz in the audio (centre 2210); mark is the lower tone on LSB / DIGL and the higher on USB / DIGU (REV swaps). Tested offline: clean copy to about 12 dB SNR in the signal's bandwidth, no characters from noise alone, 20 Hz mistuning copies.
+- Modem (`KainosRtty.cs`, no UI): 45.45 baud (50, 75), 170 Hz shift (200, 425, 450, 850), amateur Baudot (ITA2 letters, US figures), 1 start / 5 data / 1.5 stop. Receive: each tone mixed to zero and averaged over one bit, (mark - space) / (mark + space), characters framed from the start bit's edge and sampled at each bit's middle; a quality figure squelches and each character's bits must be clear on average (SQL sets both). Unshift on space. Send: phase-continuous AFSK, mark then LTRS to open, LTRS while idle, shifts as needed. Tones 2125 / 2295 Hz in the audio (centre 2210); mark is the lower tone on LSB / DIGL and the higher on USB / DIGU (REV swaps). Tested offline: clean copy to about 12 dB SNR in the signal's bandwidth, no characters from noise alone, 20 Hz mistuning copies.
 - Terminal (`consoleKainosRtty.cs`): RX1 / RX2, shift, baud, REV, USOS, the M / S tuning bars with the quality line, SQL and TX level (dB); received text (sent text in red), type-ahead (Enter starts sending what's typed, then each key goes out as typed; Esc or RX returns to receive once the queue is sent; ABORT stops at once), their call (double-click a word in the text), macros CQ / ANS / 599 / 73 / MY with `{MY}` from the RADE callsign setting and `{CALL}`. Sending keys MOX; un-keying elsewhere stops it. Settings are kept in a hidden Setup box (`txtKainosRtty`).
 
 - AFC (on by default; the AFC button): the audio decimated to 8 kHz, a 2048-point Hann FFT every 128 ms, averaged; the centre whose two tones (each the peak within 8 Hz) are strongest, both at least 9 dB over the median of the bins around them, within 150 Hz of the nominal 2210, and the tones move a third of the way there each time. Moving the tones doesn't reset the decoder. The tuning indicator shows the offset; sending uses the centre AFC found, so the reply lands on the other station. Tested offline: copy 20, 40 and 80 Hz off, 120 Hz off pulls in within about a second, nothing from noise.

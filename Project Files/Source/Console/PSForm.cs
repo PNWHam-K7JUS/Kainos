@@ -75,6 +75,7 @@ namespace Thetis
 
             console = c;    // MW0LGE moved above restore, so that we actaully have console when control events fire because of restore form
             
+            kainosFreshOn();        // Kainos: start afresh after a QSY / a long receive (PSFormKainosFresh.cs), before the restore so it's saved with the form
             Common.RestoreForm(this, "PureSignal", false); // will also restore txtPSpeak //MW0LGE_21k9rc5
             kainosUseGetPkOn();     // after the restore, so the form's saved controls don't include it
 
@@ -974,7 +975,7 @@ namespace Thetis
             if (_advancedON)
                 console.psform.ClientSize = new System.Drawing.Size(560, 60);
             else
-                console.psform.ClientSize = new System.Drawing.Size(560, 300);
+                console.psform.ClientSize = new System.Drawing.Size(560, 300 + KainosFreshHeight);     // Kainos: room for "Start afresh"
 
             chkAdvancedViewHidden.Checked = _advancedON;
         }

@@ -471,11 +471,23 @@ namespace Thetis
                         an.LabelFor = (i, l) => i == 0 && KainosAutoNotchOn(rx) && KainosAutoNotchCount(rx) > 0 ? "AUTO NOTCH · " + KainosAutoNotchCount(rx)
                                               : i == 1 && KainosNnrStandby(rx) ? "NNR · STANDBY" : l;
                         rows.Add(an);
-                        if (rx == 2 && !KainosSplitB)
+                        // NNR's reduction depth (6 - 40 dB), as in Setup > DSP > NNR: the wheel or - / + (GitHub #82)
+                        if (SetupForm != null && SetupForm.NnrDepthControl != null) rows.Add(new KainosUpDown(SetupForm.NnrDepthControl, "NNR DEPTH", "dB", false));
+                        // the receiver's AGC and AGC gain (RX1's are on the column's RX tab too; GitHub #87 wanted them
+                        // here as well, for the Compact view). As Thetis's: right-click the gain for automatic AGC (the
+                        // knob turns green), drag or wheel it to set it by hand again, right-click its name for the AGC
+                        // settings.
+                        if (rx == 1 || !KainosSplitB)
                         {
-                            // RX2's AGC and AGC gain (the column's RX tab has RX1's)
-                            rows.Add(new KainosDropDown(() => comboRX2AGC, "RX2 AGC"));
-                            rows.Add(new KainosSlider(ptbRX2RF, "RX2 AGC GAIN"));
+                            bool one = rx == 1;
+                            rows.Add(new KainosDropDown(() => one ? comboAGC : comboRX2AGC, one ? "AGC" : "RX2 AGC"));
+                            rows.Add(new KainosSlider(one ? ptbRF : ptbRX2RF, one ? "AGC GAIN" : "RX2 AGC GAIN")
+                            {
+                                Auto = () => one ? AutoAGCRX1 : AutoAGCRX2,
+                                AutoToggle = () => { if (one) AutoAGCRX1 = !AutoAGCRX1; else AutoAGCRX2 = !AutoAGCRX2; },
+                                ManualTouch = () => { if (one) { if (AutoAGCRX1) AutoAGCRX1 = false; } else if (AutoAGCRX2) AutoAGCRX2 = false; },
+                                LabelRightClick = () => { if (!IsSetupFormNull) SetupForm.ShowSetupTab(Setup.SetupTab.ALCAGC_Tab); },
+                            });
                         }
                         break;
                     }
@@ -1021,9 +1033,10 @@ namespace Thetis
             using (Brush b = new SolidBrush(tone)) g.FillRectangle(b, bar.X, bar.Y, Math.Min(wv, w9), bar.Height);
             if (wv > w9) using (Brush b = new SolidBrush(KainosUI.Tx)) g.FillRectangle(b, bar.X + w9, bar.Y, wv - w9, bar.Height);
 
-            // scale: 1 3 5 7 9 +20 +40 +60
-            using (Font f = new Font("Segoe UI", 8 * s, FontStyle.Regular, GraphicsUnit.Pixel))
-            using (Brush b = new SolidBrush(KainosUI.Faint))
+            // scale: 1 3 5 7 9 +20 +40 +60, in the bright text colour and a size larger (GitHub #89: the faint grey was
+            // hard to read)
+            using (Font f = new Font("Segoe UI Semibold", 9 * s, FontStyle.Regular, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(KainosUI.Text))
             using (Pen tick = new Pen(KainosUI.Steel))
             using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
             {
@@ -1034,7 +1047,7 @@ namespace Thetis
                     float x = bar.X + bar.Width * at[i];
                     g.DrawLine(tick, x, bar.Bottom, x, bar.Bottom + 2 * s);
                     float lx = Math.Min(x, bar.Right - 8 * s);
-                    g.DrawString(labels[i], f, b, new RectangleF(lx - 15 * s, bar.Bottom + 1.5f * s, 30 * s, 11 * s), sf);
+                    g.DrawString(labels[i], f, b, new RectangleF(lx - 15 * s, bar.Bottom + 1.5f * s, 30 * s, 12.5f * s), sf);
                 }
             }
         }
@@ -1234,7 +1247,7 @@ namespace Thetis
             using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
             using (StringFormat sr = new StringFormat { LineAlignment = StringAlignment.Center, Alignment = StringAlignment.Far })
             {
-                g.DrawString(_label, f, dim, new RectangleF(2, 0, KainosUI.S(40), Height), sf);
+                g.DrawString(_label, f, dim, new RectangleF(2, 0, Math.Max(KainosUI.S(40), g.MeasureString(_label, f).Width + 4), Height), sf);
                 g.DrawString(_target.Value.ToString(_signed ? "+0;-0;0" : "0") + " " + _unit, v, txt, new RectangleF(0, 0, _minus.Left - KainosUI.S(8), Height), sr);
             }
         }
@@ -1294,7 +1307,7 @@ namespace Thetis
             _compact = compact;
             // PrettyTrackBar has no value-changed event, and Thetis moves pan / zoom from the panadapter too: follow it
             _follow = new Timer { Interval = 150 };
-            _follow.Tick += (s, e) => { if (_target.Value != _shownValue && IsHandleCreated && Visible) Invalidate(); };
+            _follow.Tick += (s, e) => { if ((_target.Value != _shownValue || autoOn != _shownAuto) && IsHandleCreated && Visible) Invalidate(); };
             _follow.Start();
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = Color.FromArgb(0x06, 0x0e, 0x17);
@@ -1316,6 +1329,21 @@ namespace Thetis
 
         // the most UI scale it's drawn at (0: no limit); the bar under the panadapter stops at KainosUI.BarMaxScale
         public float MaxScale;
+
+        // a slider with a centre (the MAIN and SUB balance under the panadapter, GitHub #83): a mark there, the fill
+        // drawn out from it, the knob gold when it's exactly centred, a small catch there while dragging, and a right
+        // click or double-click to centre it
+        public int? Centre;
+        private bool centred { get { return Centre.HasValue && _target.Value == Centre.Value; } }
+
+        // a slider with an automatic mode, as Thetis's AGC gain has (GitHub #87): Auto says whether it's on (the knob
+        // green), a right click on the track calls AutoToggle, dragging or the wheel calls ManualTouch (Thetis turns
+        // auto off then), and a right click on the label calls LabelRightClick (the settings page)
+        public Func<bool> Auto;
+        public Action AutoToggle, ManualTouch, LabelRightClick;
+        private static readonly Color AutoGreen = Color.FromArgb(0x6c, 0xc2, 0x7a);
+        private bool autoOn { get { try { return Auto != null && Auto(); } catch { return false; } } }
+        private bool _shownAuto;
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -1343,12 +1371,20 @@ namespace Thetis
             _shownValue = _target.Value;
             RectangleF t = track;
             using (Brush b = new SolidBrush(KainosUI.Line)) g.FillRectangle(b, t);
-            using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, t.X, t.Y, t.Width * norm, t.Height);
             float kx = t.X + t.Width * norm;
+            if (Centre.HasValue)
+            {
+                int span = Math.Max(1, _target.Maximum - _target.Minimum);
+                float cx = t.X + t.Width * (Centre.Value - _target.Minimum) / span;
+                using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, Math.Min(cx, kx), t.Y, Math.Abs(kx - cx), t.Height);
+                using (Pen pen = new Pen(centred ? KainosUI.Gold : KainosUI.Faint, KainosUI.S(1.5f))) g.DrawLine(pen, cx, t.Y - KainosUI.S(5), cx, t.Bottom + KainosUI.S(5));
+            }
+            else using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, t.X, t.Y, t.Width * norm, t.Height);
             RectangleF knob = new RectangleF(kx - KainosUI.S(5), t.Y - KainosUI.S(5), KainosUI.S(10), KainosUI.S(14));
+            _shownAuto = autoOn;
             using (System.Drawing.Drawing2D.GraphicsPath p = KainosUI.RoundedRect(knob, KainosUI.S(2)))
             {
-                using (Brush b = new SolidBrush(KainosUI.Text)) g.FillPath(b, p);
+                using (Brush b = new SolidBrush(_shownAuto ? AutoGreen : centred ? KainosUI.Gold : KainosUI.Text)) g.FillPath(b, p);
                 using (Pen pen = new Pen(KainosUI.Steel)) g.DrawPath(pen, p);
             }
         }
@@ -1358,7 +1394,10 @@ namespace Thetis
             RectangleF t;
             using (KainosUI.Capped(MaxScale)) t = track;
             float n = Math.Max(0, Math.Min(1, (x - t.X) / t.Width));
-            setValue(_target.Minimum + (int)Math.Round(n * (_target.Maximum - _target.Minimum)));
+            int v = _target.Minimum + (int)Math.Round(n * (_target.Maximum - _target.Minimum));
+            // the catch: within 3 % of the centre, it's the centre
+            if (Centre.HasValue && Math.Abs(v - Centre.Value) <= Math.Max(1, (_target.Maximum - _target.Minimum) * 3 / 100)) v = Centre.Value;
+            setValue(v);
         }
 
         private void setValue(int v)
@@ -1370,12 +1409,36 @@ namespace Thetis
             Invalidate();
         }
 
-        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e); if (e.Button == MouseButtons.Left) { _drag = true; setFromX(e.X); } }
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button == MouseButtons.Left) { ManualTouch?.Invoke(); _drag = true; setFromX(e.X); }
+            else if (e.Button == MouseButtons.Right)
+            {
+                if (LabelRightClick != null && onLabel(e.Location)) { LabelRightClick(); return; }
+                if (AutoToggle != null) { AutoToggle(); Invalidate(); return; }
+                if (Centre.HasValue) setValue(Centre.Value);
+            }
+        }
+
+        // the label: the top line (above the track), or the part left of the track on a one-line slider
+        private bool onLabel(Point p)
+        {
+            RectangleF t;
+            using (KainosUI.Capped(MaxScale)) t = track;
+            return _compact ? p.X < t.X : p.Y < t.Y - KainosUI.S(6);
+        }
+        protected override void OnMouseDoubleClick(MouseEventArgs e)
+        {
+            base.OnMouseDoubleClick(e);
+            if (e.Button == MouseButtons.Left && Centre.HasValue) { _drag = false; setValue(Centre.Value); }
+        }
         protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e); if (_drag) setFromX(e.X); }
         protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e); _drag = false; }
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             base.OnMouseWheel(e);
+            ManualTouch?.Invoke();
             setValue(_target.Value + Math.Sign(e.Delta));
             if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true;
         }

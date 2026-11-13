@@ -86,6 +86,10 @@ namespace Thetis
             catch { return c.Visible; }
         }
 
+        // a right click on a Kainos button standing in for a Thetis one, before it's passed on: the console sets it, and
+        // it returns true if it dealt with the click (the filter buttons' menu, consoleKainosFilterEdit.cs)
+        public static Func<Control, bool> RightClick;
+
         public static void Press(Control c)
         {
             _onClick.Invoke(c, new object[] { EventArgs.Empty });

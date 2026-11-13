@@ -695,6 +695,18 @@
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="consoleKainosBandRange.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="consoleKainosFilterEdit.cs">
+      <DependentUpon>console.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PSFormKainosFresh.cs">
+      <DependentUpon>PSForm.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="consoleKainosRtty.cs">
       <DependentUpon>console.cs</DependentUpon>
       <SubType>Form</SubType>

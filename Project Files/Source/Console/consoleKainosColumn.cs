@@ -111,6 +111,7 @@ namespace Thetis
                 _kainosColumn = new KainosColumn(this);
                 Controls.Add(_kainosColumn);
 
+                KainosUI.RightClick = KainosFilterRightClick;      // right-clicking a filter button: edit it (GitHub #79)
                 _kainosBandDrop = new KainosDropDown("BAND", KainosUI.Tone.Gold) { BeforeOpen = refreshKainosBandGrid };
                 _kainosModeDrop = new KainosDropDown("MODE", KainosUI.Tone.Gold);
                 _kainosFilterDrop = new KainosDropDown("FILTER", KainosUI.Tone.Ice);
@@ -218,6 +219,40 @@ namespace Thetis
             foreach (Control p in kainosModePanels) kainosUnpin(p);
             kainosUnpin(grpVFOBetween);
             if (_kainosMeter != null) kainosUnpin(_kainosMeter);
+        }
+
+        // ---- saving the moved controls (GitHub #91) ----
+        // Thetis saves the console's controls by walking its own children, and one level into its GroupBoxTS and PanelTS
+        // panels (SaveState / GetState). The controls moved into the column are deeper than that, so they weren't
+        // saved: the Master AF slider (and the column's other RX / TX sliders) came back at their designer value after
+        // every restart. These two add the moved controls that Thetis would have saved where they live in Classic.
+
+        private IEnumerable<Control> kainosMovedSaveable()
+        {
+            foreach (KeyValuePair<Control, KeyValuePair<Control, Point>> kv in _kainosMovedIn.ToList())
+            {
+                Control c = kv.Key, home = kv.Value.Key;
+                if (c == null || c.Parent == home) continue;        // at home: Thetis's own walk sees it (or not, as it would)
+                bool savedThere = home == this || (home != null && home.Parent == this && (home.GetType() == typeof(GroupBoxTS) || home.GetType() == typeof(PanelTS)));
+                if (!savedThere) continue;
+                if (c.GetType() == typeof(GroupBoxTS) || c.GetType() == typeof(PanelTS)) { foreach (Control c2 in c.Controls) yield return c2; }
+                else yield return c;
+            }
+        }
+
+        // SaveState: the moved controls not already in the list
+        private void kainosAddMovedState(List<string> a, List<string> alwaysSave)
+        {
+            HashSet<string> have = new HashSet<string>(a.Select(s => { int i = s.IndexOf('/'); return i < 0 ? s : s.Substring(0, i); }));
+            foreach (Control c in kainosMovedSaveable())
+                if (!string.IsNullOrEmpty(c.Name) && !have.Contains(c.Name)) addControlState(a, c, alwaysSave, true, true);
+        }
+
+        // GetState: the moved controls, so their saved values find them
+        private void kainosAddMovedControls(Dictionary<string, Control> ctrls)
+        {
+            foreach (Control c in kainosMovedSaveable())
+                if (!string.IsNullOrEmpty(c.Name) && !ctrls.ContainsKey(c.Name)) ctrls.Add(c.Name, c);
         }
 
         // Thetis controls into the column's viewport, remembering their own parent and place for Classic
@@ -1840,6 +1875,7 @@ namespace Thetis
             {
                 ButtonBase c = current;
                 if (c == null || !c.Enabled) return;
+                if (KainosUI.RightClick != null && KainosUI.RightClick(c)) return;
                 MouseEventArgs m = new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0);
                 _onMouseDown.Invoke(c, new object[] { m });
                 _onMouseUp.Invoke(c, new object[] { m });
@@ -2011,7 +2047,7 @@ namespace Thetis
             Cell c = hit(e.Location);
             if (c == null || !c.Target.Enabled) return;
             if (e.Button == MouseButtons.Left) KainosUI.Press(c.Target);
-            else if (e.Button == MouseButtons.Right)
+            else if (e.Button == MouseButtons.Right && !(KainosUI.RightClick != null && KainosUI.RightClick(c.Target)))
             {
                 MouseEventArgs m = new MouseEventArgs(MouseButtons.Right, 1, 1, 1, 0);
                 _onMouseDown.Invoke(c.Target, new object[] { m });

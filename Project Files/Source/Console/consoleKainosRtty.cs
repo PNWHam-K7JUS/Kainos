@@ -437,7 +437,7 @@ namespace Thetis
         private readonly KainosUpDown _sql, _lvl;
         private readonly Label _status;
 
-        private static readonly double[] Shifts = { 170, 200, 425, 850 };
+        private static readonly double[] Shifts = { 170, 200, 425, 450, 850 };      // 450: DWD's weather RTTY (with 50 baud)
         private static readonly double[] Bauds = { 45.45, 50, 75 };
 
         public KainosRttyPane(Console console)
