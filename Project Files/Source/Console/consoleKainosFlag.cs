@@ -473,11 +473,21 @@ namespace Thetis
                         rows.Add(an);
                         // NNR's reduction depth (6 - 40 dB), as in Setup > DSP > NNR: the wheel or - / + (GitHub #82)
                         if (SetupForm != null && SetupForm.NnrDepthControl != null) rows.Add(new KainosUpDown(SetupForm.NnrDepthControl, "NNR DEPTH", "dB", false));
-                        if (rx == 2 && !KainosSplitB)
+                        // the receiver's AGC and AGC gain (RX1's are on the column's RX tab too; GitHub #87 wanted them
+                        // here as well, for the Compact view). As Thetis's: right-click the gain for automatic AGC (the
+                        // knob turns green), drag or wheel it to set it by hand again, right-click its name for the AGC
+                        // settings.
+                        if (rx == 1 || !KainosSplitB)
                         {
-                            // RX2's AGC and AGC gain (the column's RX tab has RX1's)
-                            rows.Add(new KainosDropDown(() => comboRX2AGC, "RX2 AGC"));
-                            rows.Add(new KainosSlider(ptbRX2RF, "RX2 AGC GAIN"));
+                            bool one = rx == 1;
+                            rows.Add(new KainosDropDown(() => one ? comboAGC : comboRX2AGC, one ? "AGC" : "RX2 AGC"));
+                            rows.Add(new KainosSlider(one ? ptbRF : ptbRX2RF, one ? "AGC GAIN" : "RX2 AGC GAIN")
+                            {
+                                Auto = () => one ? AutoAGCRX1 : AutoAGCRX2,
+                                AutoToggle = () => { if (one) AutoAGCRX1 = !AutoAGCRX1; else AutoAGCRX2 = !AutoAGCRX2; },
+                                ManualTouch = () => { if (one) { if (AutoAGCRX1) AutoAGCRX1 = false; } else if (AutoAGCRX2) AutoAGCRX2 = false; },
+                                LabelRightClick = () => { if (!IsSetupFormNull) SetupForm.ShowSetupTab(Setup.SetupTab.ALCAGC_Tab); },
+                            });
                         }
                         break;
                     }
@@ -1023,9 +1033,10 @@ namespace Thetis
             using (Brush b = new SolidBrush(tone)) g.FillRectangle(b, bar.X, bar.Y, Math.Min(wv, w9), bar.Height);
             if (wv > w9) using (Brush b = new SolidBrush(KainosUI.Tx)) g.FillRectangle(b, bar.X + w9, bar.Y, wv - w9, bar.Height);
 
-            // scale: 1 3 5 7 9 +20 +40 +60
-            using (Font f = new Font("Segoe UI", 8 * s, FontStyle.Regular, GraphicsUnit.Pixel))
-            using (Brush b = new SolidBrush(KainosUI.Faint))
+            // scale: 1 3 5 7 9 +20 +40 +60, in the bright text colour and a size larger (GitHub #89: the faint grey was
+            // hard to read)
+            using (Font f = new Font("Segoe UI Semibold", 9 * s, FontStyle.Regular, GraphicsUnit.Pixel))
+            using (Brush b = new SolidBrush(KainosUI.Text))
             using (Pen tick = new Pen(KainosUI.Steel))
             using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center })
             {
@@ -1036,7 +1047,7 @@ namespace Thetis
                     float x = bar.X + bar.Width * at[i];
                     g.DrawLine(tick, x, bar.Bottom, x, bar.Bottom + 2 * s);
                     float lx = Math.Min(x, bar.Right - 8 * s);
-                    g.DrawString(labels[i], f, b, new RectangleF(lx - 15 * s, bar.Bottom + 1.5f * s, 30 * s, 11 * s), sf);
+                    g.DrawString(labels[i], f, b, new RectangleF(lx - 15 * s, bar.Bottom + 1.5f * s, 30 * s, 12.5f * s), sf);
                 }
             }
         }
@@ -1296,7 +1307,7 @@ namespace Thetis
             _compact = compact;
             // PrettyTrackBar has no value-changed event, and Thetis moves pan / zoom from the panadapter too: follow it
             _follow = new Timer { Interval = 150 };
-            _follow.Tick += (s, e) => { if (_target.Value != _shownValue && IsHandleCreated && Visible) Invalidate(); };
+            _follow.Tick += (s, e) => { if ((_target.Value != _shownValue || autoOn != _shownAuto) && IsHandleCreated && Visible) Invalidate(); };
             _follow.Start();
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             BackColor = Color.FromArgb(0x06, 0x0e, 0x17);
@@ -1324,6 +1335,15 @@ namespace Thetis
         // click or double-click to centre it
         public int? Centre;
         private bool centred { get { return Centre.HasValue && _target.Value == Centre.Value; } }
+
+        // a slider with an automatic mode, as Thetis's AGC gain has (GitHub #87): Auto says whether it's on (the knob
+        // green), a right click on the track calls AutoToggle, dragging or the wheel calls ManualTouch (Thetis turns
+        // auto off then), and a right click on the label calls LabelRightClick (the settings page)
+        public Func<bool> Auto;
+        public Action AutoToggle, ManualTouch, LabelRightClick;
+        private static readonly Color AutoGreen = Color.FromArgb(0x6c, 0xc2, 0x7a);
+        private bool autoOn { get { try { return Auto != null && Auto(); } catch { return false; } } }
+        private bool _shownAuto;
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -1361,9 +1381,10 @@ namespace Thetis
             }
             else using (Brush b = new SolidBrush(KainosUI.Ice)) g.FillRectangle(b, t.X, t.Y, t.Width * norm, t.Height);
             RectangleF knob = new RectangleF(kx - KainosUI.S(5), t.Y - KainosUI.S(5), KainosUI.S(10), KainosUI.S(14));
+            _shownAuto = autoOn;
             using (System.Drawing.Drawing2D.GraphicsPath p = KainosUI.RoundedRect(knob, KainosUI.S(2)))
             {
-                using (Brush b = new SolidBrush(centred ? KainosUI.Gold : KainosUI.Text)) g.FillPath(b, p);
+                using (Brush b = new SolidBrush(_shownAuto ? AutoGreen : centred ? KainosUI.Gold : KainosUI.Text)) g.FillPath(b, p);
                 using (Pen pen = new Pen(KainosUI.Steel)) g.DrawPath(pen, p);
             }
         }
@@ -1391,8 +1412,21 @@ namespace Thetis
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            if (e.Button == MouseButtons.Left) { _drag = true; setFromX(e.X); }
-            else if (e.Button == MouseButtons.Right && Centre.HasValue) setValue(Centre.Value);
+            if (e.Button == MouseButtons.Left) { ManualTouch?.Invoke(); _drag = true; setFromX(e.X); }
+            else if (e.Button == MouseButtons.Right)
+            {
+                if (LabelRightClick != null && onLabel(e.Location)) { LabelRightClick(); return; }
+                if (AutoToggle != null) { AutoToggle(); Invalidate(); return; }
+                if (Centre.HasValue) setValue(Centre.Value);
+            }
+        }
+
+        // the label: the top line (above the track), or the part left of the track on a one-line slider
+        private bool onLabel(Point p)
+        {
+            RectangleF t;
+            using (KainosUI.Capped(MaxScale)) t = track;
+            return _compact ? p.X < t.X : p.Y < t.Y - KainosUI.S(6);
         }
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
@@ -1404,6 +1438,7 @@ namespace Thetis
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             base.OnMouseWheel(e);
+            ManualTouch?.Invoke();
             setValue(_target.Value + Math.Sign(e.Delta));
             if (e is HandledMouseEventArgs) ((HandledMouseEventArgs)e).Handled = true;
         }

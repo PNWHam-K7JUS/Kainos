@@ -24,6 +24,11 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **PureSignal can start afresh after a QSY or a long receive** (GitHub #69, Misfit-138), in the Linearity window (right-click PS-A), both off by default. **After a QSY**: when the transmit frequency has moved more than 1 kHz since the last transmission. **After N minutes of receive**: for an LDMOS amplifier that has cooled. Either way, as you key up the old correction is thrown away and auto-calibrate starts again with a fresh sample, which is what turning PS-A off and on again while keyed did by hand. Auto-calibrate mode only; the window shows when it last did it, and why.
 - Technical: PSFormKainosFresh.cs, on `MoxPreChangeHandlers` (key-up) and `MoxChangeHandlers` (the transmission's end and frequency); the reset is `SetPSControl(1, 0, 0, 0)` then `SetPSControl(0, 0, 1, 0)` 40 ms later, as the auto-attenuate does. The controls are made before `Common.RestoreForm`, so they're saved with the window's settings; the window is 60 px taller.
 
+- **AGC in the VFO flag's DSP drawer** (GitHub #87, Misfit-138): RX1's AGC mode and AGC GAIN are in VFO A's drawer now (RX2 had them already), so they're at hand in the Compact view. As in Thetis: right-click the gain for automatic AGC (the knob turns green), drag or wheel it to set it by hand, and right-click its name for Setup's AGC page.
+- Technical: `KainosSlider` gains `Auto`, `AutoToggle`, `ManualTouch` and `LabelRightClick`, wired to `AutoAGCRX1` / `AutoAGCRX2` and `Setup.SetupTab.ALCAGC_Tab`.
+
+- **Easier-to-read S meter numbers on the VFO flag** (GitHub #89, Misfit-138): 1 - 9 and +20 to +60 are in the bright text colour, a size larger, instead of faint grey.
+
 **Fixed**
 - **The Master AF slider (and the column's other sliders) forgot their setting on every restart** (GitHub #91, ruediger-moeller): Master AF always came back at 30. Thetis saves the console's controls by walking its own children and one level into its panels, and the controls Kainos moves into the right-hand column are deeper than that, so they weren't saved.
 - Technical: `kainosAddMovedState` (SaveState) and `kainosAddMovedControls` (GetState) add the controls in `_kainosMovedIn` that Thetis would have saved where they live in Classic.
