@@ -2865,6 +2865,7 @@ namespace Thetis
                     addControlState(a, c, always_save, false, false);
                 }
             }
+            kainosAddMovedState(a, always_save);       // Kainos: the controls moved into the column (GitHub #91)
 
             a.Remove("udRX1StepAttData/" + udRX1StepAttData.Value.ToString());
             a.Remove("udRX2StepAttData/" + udRX2StepAttData.Value.ToString());
@@ -3999,6 +4000,7 @@ namespace Thetis
                     ctrls.Add(c.Name, c);
                 }
             }
+            kainosAddMovedControls(ctrls);          // Kainos: the controls moved into the column (GitHub #91)
 
             List<string> a = DB.GetVars("State");							// Get the saved list of controls
             a.Sort();
