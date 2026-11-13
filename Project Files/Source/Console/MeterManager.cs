@@ -44130,7 +44130,7 @@ namespace Thetis
                     token.Type == JTokenType.Boolean
                     )
                 {
-                    keyValuePairs[currentPath] = ((JValue)token).ToString(Newtonsoft.Json.Formatting.None);
+                    keyValuePairs[currentPath] = ((JValue)token).ToString(Newtonsoft.Json.Formatting.None, new Newtonsoft.Json.JsonConverter[0]);
                 }
                 else
                 {

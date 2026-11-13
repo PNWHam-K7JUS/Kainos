@@ -30,6 +30,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **Easier-to-read S meter numbers on the VFO flag** (GitHub #89, Misfit-138): 1 - 9 and +20 to +60 are in the bright text colour, a size larger, instead of faint grey.
 
 **Fixed**
+- **The FreeDV Reporter showed no stations, or wouldn't open** (GitHub #66, Sven N2VEN), on PCs where another program has put an older Newtonsoft.Json 13.0.x into Windows's assembly cache. Windows then loads that copy instead of Kainos's own, and the Reporter's messages (its sign-in first) used a call only the newest 13.0.4 has, so it never signed in, and once that had failed the window wouldn't open at all. The same call was in the module list and Thetis's meter code. Fixed with the form of the call every 13.0 release has.
+- Technical: `JToken.ToString(Formatting)` (Newtonsoft.Json 13.0.4) becomes `ToString(Formatting, JsonConverter[])` in FreeDVReporterClient.cs (2), KainosModules.cs and MeterManager.cs. Strong-named 13.0.0.0 in the GAC always wins over the app's own copy. Kainos now builds against 13.0.1, so it calls nothing newer.
+
 - **The Master AF slider (and the column's other sliders) forgot their setting on every restart** (GitHub #91, ruediger-moeller): Master AF always came back at 30. Thetis saves the console's controls by walking its own children and one level into its panels, and the controls Kainos moves into the right-hand column are deeper than that, so they weren't saved.
 - Technical: `kainosAddMovedState` (SaveState) and `kainosAddMovedControls` (GetState) add the controls in `_kainosMovedIn` that Thetis would have saved where they live in Classic.
 

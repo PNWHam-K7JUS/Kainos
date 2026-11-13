@@ -179,7 +179,7 @@ namespace Thetis
             JObject set = new JObject();
             foreach (KeyValuePair<string, Dictionary<string, string>> kv in _settings) set[kv.Key] = JObject.FromObject(kv.Value);
             o["settings"] = set;
-            return o.ToString(Formatting.None);
+            return o.ToString(Formatting.None, new Newtonsoft.Json.JsonConverter[0]);
         }
 
         // at start-up, from the saved state: what's installed (and still on disk), what's on, the settings
