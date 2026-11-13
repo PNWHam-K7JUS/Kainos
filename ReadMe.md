@@ -6,7 +6,7 @@ Kainos is a fork of [Thetis](https://github.com/ramdor/Thetis), and builds on th
 
 - Website and download: https://kainossdr.com
 - Releases: https://github.com/PNWHam-K7JUS/Kainos/releases
-- Current version: 1.0.16 (based on Thetis 2.10.3.15)
+- Current version: 1.0.17 (based on Thetis 2.10.3.15)
 
 ![Kainos main window: the panadapter and waterfall with the VFO A flag, the left button column, the right-hand column of tabs (VFO, meters, band, RX, EQ, Kainos Audio) and the bar under the panadapter](Documentation/images/kainos-main-window.webp)
 

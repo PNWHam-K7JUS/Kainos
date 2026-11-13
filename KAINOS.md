@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.17 (not yet released)
+### Kainos 1.0.17
 
 **New**
 - **RTTY: 450 Hz shift**, between 425 and 850 on the shift button. It's the shift the German weather service (DWD) uses for its weather RTTY broadcasts, at 50 baud.
@@ -42,11 +42,15 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **Setup's headings wouldn't close** (GitHub #81, Misfit-138): clicking an open heading in the list on the left now folds its pages away (the arrow turns back), and clicking it again opens them. The page on show stays.
 - Technical: `NavList._folded`, the heading folded; opening another heading clears it.
 
-**Fixed**
 - **Picking a band the radio can't tune half-went there.** On a Hermes Lite 2, which tunes up to 38.4 MHz, choosing 6 m moved the panadapter to 50 MHz but left VFO A stuck at 38.400 MHz in CW, with nothing to hear. Now the band isn't changed, and a message says why: 6 m and above need a transverter on the HL2. On other radios it names the Max Freq setting, in case that's set too low.
 - **ANAN radios couldn't tune 6 m: VFO A stopped at 38.4 MHz** (GitHub #60, ke3ci and two other G2 / G2E owners). 38.4 MHz is the Hermes Lite 2's top frequency, set when the HL2 is chosen; Kainos starts out set up as an HL2, and choosing another radio never put it back. Any other radio now gets the usual 61.44 MHz (Setup > General > Hardware Config, Max Freq), unless you've set your own.
 - Technical: `Setup.kainosMaxFreqForModel` (38.4 to 61.44 on a non-HL2 model) in `comboRadioModel_SelectedIndexChanged` and `AddHPSDRPages`, before Max Freq is applied.
 - Technical: `setRX1BandFromBandStackEntry` checks the entry's frequency with `KainosFreqReachable` (within `min_freq` - `max_freq`, or on a transverter's band) before `SetBand`, which with click-tune on set the display centre before VFO A was clamped. `consoleKainosBandRange.cs` relights the band button and shows the message.
+
+**Modules** (from Setup > Modules)
+- **Olivia / MFSK 0.1.1**: "OLIVIA 8/250" no longer stays on the panadapter in every mode (GitHub #86): the window's timer put the marker back after it was cleared, even when the window had never been opened. `<RX>` and `<TX>` typed in the box now work as in the messages (GitHub #80), and the received text follows the newest text while it's showing, stays put while you read back, and has a Clear button (GitHub #75).
+- **PSK 0.2.1**, **DominoEX / THOR 0.1.1**: the same marker and scrolling fixes.
+- **Hell 0.1.1**: the same marker fix.
 
 ### Kainos 1.0.16
 
