@@ -17,6 +17,7 @@ Based on Thetis 2.10.3.15. See the [Kainos wiki](https://github.com/PNWHam-K7JUS
 - **The Master AF slider forgot its setting** and came back at 30 after every restart (GitHub #91), as did the other sliders in the right-hand column.
 - **The FreeDV Reporter showed no stations, or wouldn't open** (GitHub #66), on PCs where another program has installed an older copy of a library Kainos uses (Newtonsoft.Json). Your call now shows on the Reporter again.
 - **Meter containers came up with EQ, Leveler, CFC and Compression greyed out** (GitHub #74), as if those were switched off, until one was switched or the container's background reset. (A Thetis bug.)
+- **A module installed in Setup > Modules was forgotten if you then closed Setup with Cancel**, and so were some Kainos settings changed elsewhere (RTTY, CW, the column's tabs) if Setup was opened and cancelled afterwards.
 - **Setup's headings in the list on the left wouldn't close** (GitHub #81): clicking an open heading now folds it away.
 
 **Modules** (from Setup > Modules: update each one that offers a new version)

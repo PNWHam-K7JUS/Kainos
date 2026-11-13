@@ -51,6 +51,15 @@ namespace Thetis
     // They use the Thetis 'TS' control types, so getOptions/saveOptions persist them by name.
     public partial class Setup
     {
+        // Cancel puts back the controls changed since the last save. Kainos's hidden txtKainos... boxes aren't Setup
+        // edits: each mirrors state the console owns (the installed modules, RTTY / CW settings, the column's tabs...),
+        // updated as it changes. Put back, they no longer matched the console, and the stale copy was saved at exit:
+        // a module installed from Setup and then Cancel was forgotten at the next start, and its folder removed.
+        private void kainosKeepHiddenState()
+        {
+            m_lstUpdatedControls.RemoveAll(n => n != null && (n.StartsWith("txtKainos", StringComparison.Ordinal) || n == "txtAetherStripRX"));
+        }
+
         private TabPage tpDSPAetherVoice;
         private AetherVoiceSetupControls _aetherVoiceRX;
         private AetherVoiceSetupControls _aetherVoiceTX;

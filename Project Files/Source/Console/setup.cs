@@ -11731,6 +11731,7 @@ namespace Thetis
             m_objSaveLoadThread = null;
 
             removeSpecialCases();
+            kainosKeepHiddenState();        // Kainos: Cancel doesn't undo the console's own state (setupKainos.cs)
 #if DEBUG
             listClickedControls(); //MW0LGE_21d for testing
             listUpdatedControls();
