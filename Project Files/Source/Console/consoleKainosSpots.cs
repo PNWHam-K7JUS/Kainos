@@ -178,6 +178,9 @@ namespace Thetis
             _spotButtons.Add("POTA", () => KainosSpotting.PotaOn, () => { KainosSpotting.PotaOn = !KainosSpotting.PotaOn; kainosSpotsChanged(KainosSpotting.PotaOn); }, KainosUI.Tone.Ice);
             _spotButtons.Add("Pan", () => Display.ShowTCISpots, () => kainosShowSpotsOnPanadapter(!Display.ShowTCISpots), KainosUI.Tone.Gold);
             _spotButtons.Add("Band", () => SpotBandOnly, () => { SpotBandOnly = !SpotBandOnly; kainosSpotsSave(); _spotList.Invalidate(); }, KainosUI.Tone.Gold);
+            // GitHub #68: spot to the cluster, and pick the cluster (consoleKainosSpotSend.cs)
+            _spotButtons.Add("Spot...", () => false, () => KainosSpotWindow(), KainosUI.Tone.Ice);
+            _spotButtons.Add("Server", () => false, () => kainosClusterMenu().Show(MousePosition), KainosUI.Tone.Ice);
             _spotList = new KainosSpotList(this);
             foreach (Control c in new Control[] { _spotStatusDx, _spotStatusPota, _spotButtons, _spotList })
                 _kainosColumn.Viewport.Controls.Add(c);
@@ -320,6 +323,7 @@ namespace Thetis
             base.OnMouseDown(e);
             int h = hit(e.Location);
             if (h >= 0 && e.Button == MouseButtons.Left) _console.KainosTuneToSpot(_shown[h]);
+            else if (h >= 0 && e.Button == MouseButtons.Right) _console.KainosSpotWindow(_shown[h]);     // spot it again (GitHub #68)
         }
 
         protected override void OnMouseWheel(MouseEventArgs e)

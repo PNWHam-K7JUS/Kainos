@@ -6,6 +6,12 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
+### Kainos 1.0.18 (not yet released)
+
+**New**
+- **Spot to the DX cluster, and choose the cluster** (GitHub #68, Sam NR4A). The SPOTS tab has **Spot...**: a small window with the frequency (the one you transmit on), their call and a comment (the mode to start with). It shows the exact line the cluster gets, which goes out under your callsign, and sends nothing until you press Send. Right-click a spot in the list to spot that station again. **Server** picks the cluster: NC7J (as before), W3LPL, VE7CC or K1TTT, the Reverse Beacon Network's CW / RTTY or FT8 / FT4 feed (receive only: its spots come from skimmers, so Spot says so), or any other address.
+- Technical: `KainosSpotting.SendSpot` writes `DX <kHz> <call> <comment>` down the logged-in connection (the comment ASCII, at most 30 characters); the cluster echoes it back as an ordinary spot. `KainosCluster.Known` is the list; the RBN's repeats (the same call within 1 kHz) count once every 10 minutes, as it can send hundreds a minute. consoleKainosSpotSend.cs has the windows. Tested against a stand-in cluster on 127.0.0.1: login, the line sent, and the refusals (not connected, a bad call or frequency, RBN).
+
 ### Kainos 1.0.17
 
 **New**

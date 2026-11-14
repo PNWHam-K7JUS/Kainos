@@ -44,6 +44,28 @@ namespace Thetis
         public DateTime Utc;
     }
 
+    // A DX cluster the SPOTS tab offers (GitHub #68). The Reverse Beacon Network's two feeds are clusters too, but
+    // only of skimmers' spots: nothing can be spotted to them.
+    internal class KainosCluster
+    {
+        public string Name, Host;
+        public int Port;
+        public bool Rbn;
+        public KainosCluster(string name, string host, int port, bool rbn = false) { Name = name; Host = host; Port = port; Rbn = rbn; }
+
+        public static readonly KainosCluster[] Known =
+        {
+            new KainosCluster("NC7J (USA)", "dxc.nc7j.com", 7373),
+            new KainosCluster("W3LPL (USA)", "w3lpl.net", 7373),
+            new KainosCluster("VE7CC (Canada)", "dxc.ve7cc.net", 23),
+            new KainosCluster("K1TTT (USA)", "k1ttt.net", 7373),
+            new KainosCluster("Reverse Beacon Network: CW and RTTY", "telnet.reversebeacon.net", 7000, true),
+            new KainosCluster("Reverse Beacon Network: FT8 and FT4", "telnet.reversebeacon.net", 7001, true),
+        };
+
+        public static bool IsRbn(string host) { return (host ?? "").IndexOf("reversebeacon", StringComparison.OrdinalIgnoreCase) >= 0; }
+    }
+
     internal static class KainosSpotting
     {
         public static event Action<KainosSpot> Spotted;
@@ -63,6 +85,10 @@ namespace Thetis
         private static Thread _clusterThread, _potaThread;
         private static volatile bool _run;
         private static TcpClient _client;
+        private static NetworkStream _stream;               // the logged-in connection, for sending spots (null when not)
+        private static readonly object _sendLock = new object();
+        private static readonly System.Collections.Generic.Dictionary<string, Tuple<double, DateTime>> _rbnSeen = new System.Collections.Generic.Dictionary<string, Tuple<double, DateTime>>();
+        public static string LastSent { get; private set; } = "";
         private static string _clusterKey = "";
         private static readonly AutoResetEvent _wake = new AutoResetEvent(false);
 
@@ -150,9 +176,10 @@ namespace Thetis
                             if (!loggedIn && (isLoginPrompt(line.ToString()) || isLoginPrompt(lastLine)))
                             {
                                 byte[] me = Encoding.ASCII.GetBytes(call + "\r\n");
-                                s.Write(me, 0, me.Length);
+                                lock (_sendLock) s.Write(me, 0, me.Length);
                                 line.Clear();
                                 loggedIn = true;
+                                _stream = s;
                                 setStatus(true, "Connected to " + host + " as " + call);
                                 backoff = 15;
                             }
@@ -163,7 +190,7 @@ namespace Thetis
                 {
                     if (_run && ClusterOn) setStatus(true, "Lost " + host + " (" + ex.Message + ")");
                 }
-                finally { _client = null; }
+                finally { _client = null; _stream = null; }
 
                 if (!_run) break;
                 if (_clusterKey != key || !ClusterOn) continue;     // settings changed: straight back round
@@ -171,6 +198,55 @@ namespace Thetis
                 sleep(backoff);
                 backoff = Math.Min(300, backoff * 2);
             }
+        }
+
+        // ---- sending a spot (GitHub #68) ----
+
+        // A callsign as clusters take it: letters and digits with a digit in it, and / parts (DL/K7JUS/P)
+        private static readonly Regex CallRx = new Regex(@"^(?=.*\d)[A-Z0-9]{1,8}(/[A-Z0-9]{1,8}){0,2}$", RegexOptions.Compiled);
+
+        public static bool CanSpot { get { return _stream != null && !KainosCluster.IsRbn(ClusterHost); } }
+
+        // the line a spot is sent as: "DX 14025.0 JA1ABC CW 599 tnx" (the cluster adds who spotted it and when)
+        public static string SpotLine(double khz, string call, string comment)
+        {
+            string c = (comment ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
+            // plain ASCII only, and clusters keep about 30 characters of the comment
+            StringBuilder sb = new StringBuilder();
+            foreach (char ch in c) if (ch >= ' ' && ch < 127) sb.Append(ch);
+            c = Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
+            if (c.Length > 30) c = c.Substring(0, 30).TrimEnd();
+            return ("DX " + khz.ToString("0.0", CultureInfo.InvariantCulture) + " " + (call ?? "").Trim().ToUpperInvariant() + " " + c).TrimEnd();
+        }
+
+        // why a spot can't be sent as it is, or null
+        public static string SpotProblem(double khz, string call)
+        {
+            if (KainosCluster.IsRbn(ClusterHost)) return "The Reverse Beacon Network only takes spots from its skimmers. Pick a DX cluster to spot to.";
+            if (_stream == null) return ClusterOn ? "Not connected to the cluster yet." : "Turn DX on first, so Kainos is connected to a cluster.";
+            if (!CallRx.IsMatch((call ?? "").Trim().ToUpperInvariant())) return "That doesn't look like a callsign.";
+            if (khz < 100 || khz > 300000000) return "That frequency doesn't look right (it's in kHz, like 14025.0).";
+            return null;
+        }
+
+        // sends it down the logged-in connection; returns why not, or null when it's gone. The cluster sends it back
+        // as an ordinary spot, so it appears in the list like any other.
+        public static string SendSpot(double khz, string call, string comment)
+        {
+            string why = SpotProblem(khz, call);
+            if (why != null) return why;
+            string line = SpotLine(khz, call, comment);
+            try
+            {
+                byte[] b = Encoding.ASCII.GetBytes(line + "\r\n");
+                NetworkStream s = _stream;
+                if (s == null) return "Not connected to the cluster.";
+                lock (_sendLock) s.Write(b, 0, b.Length);
+                LastSent = line;
+                setStatus(true, "Spot sent: " + line);
+                return null;
+            }
+            catch (Exception ex) { return "Couldn't send it: " + ex.Message; }
         }
 
         private static bool isLoginPrompt(string s)
@@ -187,6 +263,19 @@ namespace Thetis
             if (!double.TryParse(m.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out khz)) return;
             string comment = m.Groups[4].Value.Trim();
             string hhmm = m.Groups[5].Value;
+            // the Reverse Beacon Network sends the same station from every skimmer that hears it, hundreds a minute at
+            // busy times: a call within 1 kHz of where it was last spotted counts once every 10 minutes
+            if (KainosCluster.IsRbn(ClusterHost))
+            {
+                string dxCall = m.Groups[3].Value.ToUpperInvariant();
+                lock (_rbnSeen)
+                {
+                    Tuple<double, DateTime> was;
+                    if (_rbnSeen.TryGetValue(dxCall, out was) && Math.Abs(was.Item1 - khz) <= 1 && (DateTime.UtcNow - was.Item2).TotalMinutes < 10) return;
+                    _rbnSeen[dxCall] = Tuple.Create(khz, DateTime.UtcNow);
+                    if (_rbnSeen.Count > 5000) _rbnSeen.Clear();
+                }
+            }
             DateTime now = DateTime.UtcNow, utc;
             int h = int.Parse(hhmm.Substring(0, 2)), mi = int.Parse(hhmm.Substring(2, 2));
             utc = new DateTime(now.Year, now.Month, now.Day, Math.Min(23, h), Math.Min(59, mi), 0, DateTimeKind.Utc);
