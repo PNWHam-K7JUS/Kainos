@@ -139,7 +139,7 @@ namespace Thetis
             {
                 if (!ClusterOn) { setStatus(true, "Off"); sleep(30); continue; }
                 string call = (Callsign ?? "").Trim().ToUpperInvariant();
-                if (call.Length < 3) { setStatus(true, "Needs your callsign"); sleep(15); continue; }
+                if (call.Length < 3) { setStatus(true, "Needs your callsign (Setup, search \"callsign\")"); sleep(15); continue; }
 
                 string host = ClusterHost, key = host + ":" + ClusterPort + "/" + call;
                 _clusterKey = key;
@@ -193,7 +193,8 @@ namespace Thetis
                 finally { _client = null; _stream = null; }
 
                 if (!_run) break;
-                if (_clusterKey != key || !ClusterOn) continue;     // settings changed: straight back round
+                // the server or callsign changed (the Server menu, Setup): straight back round, no waiting
+                if (ClusterHost + ":" + ClusterPort + "/" + (Callsign ?? "").Trim().ToUpperInvariant() != key || !ClusterOn) continue;
                 setStatus(true, "Reconnecting to " + host + " in " + backoff + " s");
                 sleep(backoff);
                 backoff = Math.Min(300, backoff * 2);
@@ -223,7 +224,12 @@ namespace Thetis
         public static string SpotProblem(double khz, string call)
         {
             if (KainosCluster.IsRbn(ClusterHost)) return "The Reverse Beacon Network only takes spots from its skimmers. Pick a DX cluster to spot to.";
-            if (_stream == null) return ClusterOn ? "Not connected to the cluster yet." : "Turn DX on first, so Kainos is connected to a cluster.";
+            if (_stream == null)
+            {
+                if (!ClusterOn) return "Turn DX on first, so Kainos is connected to a cluster.";
+                if ((Callsign ?? "").Trim().Length < 3) return "Kainos needs your callsign first: in Setup, search for \"callsign\".";
+                return "Not connected to the cluster yet.";
+            }
             if (!CallRx.IsMatch((call ?? "").Trim().ToUpperInvariant())) return "That doesn't look like a callsign.";
             if (khz < 100 || khz > 300000000) return "That frequency doesn't look right (it's in kHz, like 14025.0).";
             return null;
