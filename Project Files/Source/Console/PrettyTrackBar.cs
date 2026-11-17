@@ -82,6 +82,17 @@ namespace Thetis
 
         #region Misc Routines
 
+        // Kainos (GitHub #93): the head's place is worked out from the width, but only when the value or the head
+        // image changed, so a slider resized afterwards kept its head where it was. Kainos's column widens the RX / TX
+        // sliders; back in Classic a slider set high (AGC gain, VOX) had its head past its right end, out of sight.
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            UpdateHeadRectPos();
+            UpdateLimitBar();
+            Invalidate();
+        }
+
         private void UpdateHeadRectPos()
         {
             int head_x = 0;

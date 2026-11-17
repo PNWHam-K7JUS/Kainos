@@ -49,6 +49,11 @@ namespace Thetis
         private readonly Dictionary<Control, Size> _kainosCollapsed = new Dictionary<Control, Size>();
         private readonly Dictionary<Control, Func<Size, Size>> _kainosCollapseTo = new Dictionary<Control, Func<Size, Size>>();
         private readonly Dictionary<Control, KeyValuePair<Control, Point>> _kainosMovedIn = new Dictionary<Control, KeyValuePair<Control, Point>>();
+        // what the column changes besides the place (GitHub #93): each moved control's size, and its labels' AutoSize
+        // and alignment. Only the place used to be put back, so in Classic the labels (now column-wide) lay over their
+        // sliders and the AGC box, and the sliders seemed to be gone.
+        private readonly Dictionary<Control, Size> _kainosMovedSize = new Dictionary<Control, Size>();
+        private readonly Dictionary<Label, KeyValuePair<bool, ContentAlignment>> _kainosMovedLabel = new Dictionary<Label, KeyValuePair<bool, ContentAlignment>>();
         private bool _kainosShown;
         private bool _kainosPlacing;
         private bool _kainosPartsOn;            // the dock and column are in place (off while Thetis's display is collapsed)
@@ -209,8 +214,16 @@ namespace Thetis
                     kv.Value.Key.Controls.Add(kv.Key);
                     kv.Key.Location = kv.Value.Value;
                 }
+                // the size and the label settings the column changed, wherever the control is now (GitHub #93)
+                Size sz;
+                if (_kainosMovedSize.TryGetValue(kv.Key, out sz)) kv.Key.Size = sz;
+                Label l = kv.Key as Label;
+                KeyValuePair<bool, ContentAlignment> la;
+                if (l != null && _kainosMovedLabel.TryGetValue(l, out la)) { l.TextAlign = la.Value; l.AutoSize = la.Key; }
             }
             _kainosMovedIn.Clear();
+            _kainosMovedSize.Clear();
+            _kainosMovedLabel.Clear();
             foreach (KeyValuePair<Control, Size> kv in _kainosCollapsed.ToList())
                 kv.Key.Size = kv.Value;
             _kainosCollapsed.Clear();
@@ -264,6 +277,9 @@ namespace Thetis
                 if (c.Parent != _kainosColumn.Viewport)
                 {
                     _kainosMovedIn[c] = new KeyValuePair<Control, Point>(c.Parent, c.Location);
+                    if (!_kainosMovedSize.ContainsKey(c)) _kainosMovedSize[c] = c.Size;
+                    Label l = c as Label;
+                    if (l != null && !_kainosMovedLabel.ContainsKey(l)) _kainosMovedLabel[l] = new KeyValuePair<bool, ContentAlignment>(l.AutoSize, l.TextAlign);
                     _kainosColumn.Viewport.Controls.Add(c);
                 }
                 c.ParentChanged -= kainosMovedParentChanged;
@@ -438,6 +454,16 @@ namespace Thetis
             if (_kainosDisplayLocation.X >= 0)
             {
                 panelDisplay.Location = _kainosDisplayLocation;
+                // and its size, as Thetis's ExpandDisplay has it (GitHub #93): the Kainos layout makes it reach down to
+                // the status bar, and ResizeConsole doesn't size it, so it stayed tall and the pan and zoom sliders
+                // (placed from its top) sat on the waterfall, above the zoom buttons (anchored to its bottom)
+                if (!collapsedDisplay)
+                {
+                    if (LegacyItemController.ExpandSpectrumToRight)
+                        panelDisplay.Size = new Size(ClientSize.Width - gr_display_basis.X - 8, gr_display_size_basis.Height + v_delta);
+                    else
+                        panelDisplay.Size = new Size(gr_display_size_basis.Width + h_delta, gr_display_size_basis.Height + v_delta);
+                }
                 // the pan and zoom sliders where Thetis has them (its ExpandDisplay)
                 kainosSetTop(lblDisplayPan, lbl_displaypan_basis.Y + v_delta);
                 kainosSetTop(ptbDisplayPan, tb_displaypan_basis.Y + v_delta);
