@@ -43,8 +43,15 @@ namespace Thetis
         public static readonly Color FieldBg = Color.FromArgb(0x06, 0x0e, 0x17);
         public static readonly Color Border = Color.FromArgb(0x2a, 0x3a, 0x4d);
         public static readonly Color Text = Color.FromArgb(0xe8, 0xef, 0xf6);        // near white: easy to read on the navy (issue #3)
-        public static readonly Color TextMid = Color.FromArgb(0xa8, 0xc4, 0xda);     // group titles and secondary text
-        public static readonly Color TextDim = Color.FromArgb(0x7a, 0x8c, 0x9e);
+        public static Color TextMid = Color.FromArgb(0xa8, 0xc4, 0xda);     // group titles and secondary text
+        public static Color TextDim = Color.FromArgb(0x7a, 0x8c, 0x9e);
+
+        // Brighter text (KainosUI.SetBrightText, GitHub #94)
+        internal static void SetBrightText(bool on)
+        {
+            TextMid = on ? Color.FromArgb(0xe2, 0xec, 0xf4) : Color.FromArgb(0xa8, 0xc4, 0xda);
+            TextDim = on ? Color.FromArgb(0xc0, 0xcd, 0xd8) : Color.FromArgb(0x7a, 0x8c, 0x9e);
+        }
         public static readonly Color ButtonBg = Color.FromArgb(0x14, 0x25, 0x38);
         public static readonly Color ButtonHover = Color.FromArgb(0x1b, 0x31, 0x46);
         public static readonly Color ButtonOn = Color.FromArgb(0x2a, 0x24, 0x14);

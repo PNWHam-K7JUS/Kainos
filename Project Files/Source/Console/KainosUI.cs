@@ -36,8 +36,20 @@ namespace Thetis
         public static readonly Color Line = Color.FromArgb(0x1f, 0x33, 0x46);       // borders and grid
         public static readonly Color Steel = Color.FromArgb(0x46, 0x5f, 0x6f);
         public static readonly Color Text = Color.FromArgb(0xe9, 0xee, 0xf3);
-        public static readonly Color Dim = Color.FromArgb(0x94, 0xa7, 0xb2);
-        public static readonly Color Faint = Color.FromArgb(0x5f, 0x75, 0x84);
+        private static readonly Color DimNormal = Color.FromArgb(0x94, 0xa7, 0xb2), FaintNormal = Color.FromArgb(0x5f, 0x75, 0x84);     // before Dim / Faint: initialised in order
+        public static Color Dim = DimNormal;
+        public static Color Faint = FaintNormal;
+
+        // Setup > Appearance > Kainos > Brighter text (GitHub #94, WB2QLL): the secondary text (captions, tab names,
+        // unlit buttons, hints) near white, for anyone who finds the dimmer greys hard to read on the navy.
+        public static bool BrightText { get; private set; }
+        public static void SetBrightText(bool on)
+        {
+            BrightText = on;
+            Dim = on ? Color.FromArgb(0xe2, 0xe9, 0xef) : DimNormal;
+            Faint = on ? Color.FromArgb(0xb4, 0xc3, 0xce) : FaintNormal;
+            KainosWindowTheme.SetBrightText(on);
+        }
         public static readonly Color Ice = Color.FromArgb(0x7f, 0xb0, 0xcc);        // spectrum, active controls
         public static readonly Color IceHi = Color.FromArgb(0xa8, 0xd8, 0xf0);
         public static readonly Color Gold = Color.FromArgb(0xd4, 0xad, 0x6a);       // VFO A, selected

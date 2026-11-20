@@ -33,6 +33,7 @@ namespace Thetis
         // light mode (consoleKainosSupport.cs): the box, and the frame rate and 3D it replaced; the update check's
         // "last=yyyy-mm-dd;skip=version"
         private CheckBoxTS chkKainosLightMode;
+        private CheckBoxTS chkKainosBrightText;
         private CheckBoxTS chkKainosFahrenheit;          // the HL2's temperature in the status bar in °F (GitHub #28)
 
         internal bool KainosFahrenheit
@@ -64,6 +65,19 @@ namespace Thetis
             toolTip1.SetToolTip(chkKainosFahrenheit, "Shows the Hermes Lite 2's temperature in the status bar in Fahrenheit rather than Celsius.\r\n" +
                 "A click on the temperature in the status bar switches it too.");
             page.Controls.Add(chkKainosFahrenheit);
+
+            // GitHub #94 (WB2QLL): Kainos's secondary text near white
+            chkKainosBrightText = new CheckBoxTS { Name = "chkKainosBrightText", Text = "Brighter text (captions, tabs, buttons and hints near white)", Location = new Point(180, 368), AutoSize = true };
+            toolTip1.SetToolTip(chkKainosBrightText, "Kainos's secondary text (the column's captions and tab names, unlit buttons, hints and status lines)\r\n" +
+                "in near white instead of grey, for anyone who finds the grey hard to read. A window that's already open\r\n" +
+                "may need closing and opening again.");
+            chkKainosBrightText.CheckedChanged += (s, e) =>
+            {
+                if (initializing) return;
+                KainosUI.SetBrightText(chkKainosBrightText.Checked);
+                console.Invalidate(true);
+            };
+            page.Controls.Add(chkKainosBrightText);
 
             chkKainosLightMode = new CheckBoxTS { Name = "chkKainosLightMode", Text = "Light mode (for slower PCs: no 3D, 20 frames a second)", Location = new Point(180, 320), AutoSize = true };
             toolTip1.SetToolTip(chkKainosLightMode, "Turns the 3D panadapter off and lowers the display to 20 frames a second, so Kainos runs well on an\r\n" +

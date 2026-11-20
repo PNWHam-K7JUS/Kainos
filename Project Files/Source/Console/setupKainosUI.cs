@@ -315,6 +315,7 @@ namespace Thetis
                 console.KainosTermHeightSetting = txtKainosTermHeight.Text;
             }
             finally { _kainosApplyingUI = false; }
+            if (chkKainosBrightText != null && KainosUI.BrightText != chkKainosBrightText.Checked) KainosUI.SetBrightText(chkKainosBrightText.Checked);     // GitHub #94
             console.KainosFlagOpacity = new[] { 1.0, 0.9, 0.75, 0.6, 0.45, 0.0 }[Math.Max(0, comboKainosFlagOpacity.SelectedIndex)];
             KainosWheelFilter.AdjustFirst = comboKainosWheel.SelectedIndex == 1;
             Display.KainosBackdrop = chkKainosBackdrop.Checked;
