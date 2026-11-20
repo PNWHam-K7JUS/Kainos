@@ -122,6 +122,10 @@ namespace Thetis
             GroupBoxTS grpPan = new GroupBoxTS { Name = "grpKainosPanadapter", Text = "Panadapter (Kainos layout)", Location = new Point(8, 166), Size = new Size(430, 140) };
             chkKainosBackdrop = new CheckBoxTS { Name = "chkKainosBackdrop", Text = "Kainos background (dark navy, with the Kainos logo behind the trace)", Location = new Point(14, 22), AutoSize = true, Checked = true };
             chkKainosBackdrop.CheckedChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+            // GitHub #100 (F6HQY): a skin's display picture (K2GX's world map, say) is under this
+            toolTip1.SetToolTip(chkKainosBackdrop, "In Kainos layout, the panadapter's background is Kainos's dark navy with the logo.\r\n" +
+                "Untick it to see your skin's own display background instead, such as a skin's picture\r\n" +
+                "(K2GX's world map, for one) or the background colour in Setup > Appearance > RX Display.");
             comboKainosBackdropLogo = new ComboBoxTS { Name = "comboKainosBackdropLogo", DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(100, 50), Size = new Size(140, 21) };
             comboKainosBackdropLogo.Items.AddRange(new object[] { "Off", "Faint (6%)", "Light (12%)", "Medium (20%)" });
             comboKainosBackdropLogo.SelectedIndex = 2;
