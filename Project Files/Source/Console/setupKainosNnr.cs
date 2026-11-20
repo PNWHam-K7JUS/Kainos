@@ -99,6 +99,8 @@ namespace Thetis
         // the depth box, for the VFO flag's DSP drawer to show as its own (GitHub #82): the same control, so the two
         // always agree, and changing it there saves and applies as here
         internal NumericUpDownTS NnrDepthControl { get { return udNnrDepth; } }
+        // Setup > Transmit's AM carrier level (%), for the Kainos TX tab (GitHub #117)
+        internal NumericUpDownTS AMCarrierControl { get { return udTXAMCarrierLevel; } }
 
         // opens Setup on this tab (right-click NNR on a VFO flag)
         internal void ShowNnrTab()

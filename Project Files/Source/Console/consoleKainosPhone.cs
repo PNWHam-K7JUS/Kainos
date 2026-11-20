@@ -32,6 +32,16 @@ namespace Thetis
     {
         private Label[] _kainosPhoneCaps;
         private KainosDropDown _kainosProfileDrop;
+        // AM's carrier level (Setup > Transmit), in AM and SAM only, under the sliders (GitHub #117, Misfit-138)
+        private KainosUpDown _kainosAmCarrier;
+        private bool kainosAmCarrierShown
+        {
+            get
+            {
+                DSPMode m = RX1DSPMode;
+                return _kainosAmCarrier != null && (m == DSPMode.AM || m == DSPMode.SAM || m == DSPMode.AM_LSB || m == DSPMode.AM_USB);
+            }
+        }
         private readonly Dictionary<Label, KeyValuePair<bool, ContentAlignment>> _kainosPhoneLabelLook = new Dictionary<Label, KeyValuePair<bool, ContentAlignment>>();
 
         // caption, value label, slider, level bar (or null)
@@ -112,6 +122,14 @@ namespace Thetis
                 if (shown) y += capH + sliderH + gap;
             }
 
+            // AM's carrier level
+            if (apply && _kainosAmCarrier != null)
+            {
+                _kainosAmCarrier.Visible = kainosAmCarrierShown;
+                if (kainosAmCarrierShown) _kainosAmCarrier.SetBounds(0, y, w, sliderH);
+            }
+            if (kainosAmCarrierShown) y += sliderH + gap;
+
             // the transmit profile, and the TX filter's Low / High
             int ddH = KainosDropDown.PreferredHeight, rowH = KainosUI.S(24), lw = KainosUI.S(40), half = w / 2;
             if (apply)
@@ -176,6 +194,16 @@ namespace Thetis
                 // Thetis shows / hides VOX and DEXP's sliders: lay out again
                 foreach (Control c in kainosPhoneSliders.Select(r => r[1]))
                     c.VisibleChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
+                if (SetupForm != null && SetupForm.AMCarrierControl != null)
+                {
+                    _kainosAmCarrier = new KainosUpDown(SetupForm.AMCarrierControl, "AM CARRIER", "%", false) { Name = "kainosAmCarrier" };
+                    // it comes and goes with the mode
+                    ModeChangeHandlers += (rx, oldMode, newMode, oldBand, newBand) =>
+                    {
+                        if (rx != 1 || !_kainosLayout) return;
+                        if (InvokeRequired) BeginInvoke(new Action(positionKainosColumn)); else positionKainosColumn();
+                    };
+                }
             }
             foreach (Label l in _kainosPhoneCaps)
             {
@@ -185,6 +213,7 @@ namespace Thetis
             }
             if (_kainosProfileDrop.Parent != panelModeSpecificPhone) panelModeSpecificPhone.Controls.Add(_kainosProfileDrop);
             _kainosProfileDrop.Visible = true;
+            if (_kainosAmCarrier != null && _kainosAmCarrier.Parent != panelModeSpecificPhone) panelModeSpecificPhone.Controls.Add(_kainosAmCarrier);
         }
 
         // Classic: Kainos's own controls away, the labels as they were (the recorded bounds and fonts are put back by
@@ -193,6 +222,7 @@ namespace Thetis
         {
             if (_kainosPhoneCaps != null) foreach (Label l in _kainosPhoneCaps) l.Visible = false;
             if (_kainosProfileDrop != null) _kainosProfileDrop.Visible = false;
+            if (_kainosAmCarrier != null) _kainosAmCarrier.Visible = false;
             foreach (KeyValuePair<Label, KeyValuePair<bool, ContentAlignment>> kv in _kainosPhoneLabelLook)
             {
                 kv.Key.TextAlign = kv.Value.Value;
