@@ -181,6 +181,11 @@ namespace Thetis
             kainosDetachMeter();
             kainosRestoreDisplayLocation();
             ResizeConsole(h_delta, v_delta);     // Thetis puts the panadapter and its panels back
+            // and Thetis lays its view out again, as its Collapse / Expand does: the borrowed AF, AGC, preamp and drive
+            // controls go to its own places for them (the "basis" positions). Put back where they were when the column
+            // took them, they could be out of date and sit off to the side, half behind the panadapter, until a
+            // Collapse / Expand (the rest of GitHub #93, seen 2026-11-20).
+            if (collapsedDisplay) CollapseDisplay(); else ExpandDisplay();
         }
 
         // moves and collapses (the parts of Kainos layout that take Thetis controls over)
