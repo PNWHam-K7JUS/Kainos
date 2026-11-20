@@ -43,6 +43,11 @@ namespace Thetis
         private KainosUpDown _kiwiVolume;
         private KainosKiwiList _kiwiList;
         private readonly NumericUpDown KiwiVolume = new NumericUpDown { Minimum = 0, Maximum = 100, Increment = 5, Value = 60 };
+        // how long the TX mute holds after the un-key (ms): a Kiwi nearby needs little, a distant one more (Discussion
+        // #54: a fixed 1.5 s cut off the start of the other station's reply)
+        private readonly NumericUpDown KiwiTxHold = new NumericUpDown { Minimum = 0, Maximum = 3000, Increment = 100, Value = 300 };
+        private KainosUpDown _kiwiTxHoldUpDown;
+        private System.Windows.Forms.Timer _kiwiTxHoldTimer;
         private KiwiClient _kiwi;
         private KiwiReceiver _kiwiOn;
         private List<KiwiReceiver> _kiwiAll = new List<KiwiReceiver>();
@@ -76,7 +81,6 @@ namespace Thetis
         private bool _kiwiTxMute = true, _kiwiTxHeld;
         private DateTime _kiwiTxHoldUntil;
         private bool _kiwiHearShown;
-        private const int KiwiTxHoldMs = 1500;
 
         // saved with the options: "fav=url|url;dev=-1;follow=1;vol=60"
         public string KainosKiwiSettings = "";
@@ -108,6 +112,7 @@ namespace Thetis
                         }
                         break;
                     case "vol": if (int.TryParse(v, out n)) KiwiVolume.Value = Math.Max(0, Math.Min(100, n)); break;
+                    case "txhold": if (int.TryParse(v, out n)) KiwiTxHold.Value = Math.Max(0, Math.Min(3000, n / 100 * 100)); break;
                     case "mute": KiwiMuted = v == "1"; break;
                     case "txmute": _kiwiTxMute = v != "0"; break;
                     case "own":
@@ -130,7 +135,7 @@ namespace Thetis
                                  + ";follow=" + (_kiwiFollow ? 1 : 0) + ";followb=" + (_kiwiFollowB ? 1 : 0) + ";main=" + (KiwiOnPanadapter ? 1 : 0)
                                  + ";wfc=" + KiwiWfContrast + ";wfs=" + KiwiWfSpeed
                                  + ";zooms=" + string.Join("|", _kiwiZoomByBand.Select(kv => kv.Key + ":" + kv.Value))
-                                 + ";vol=" + (int)KiwiVolume.Value + ";mute=" + (KiwiMuted ? 1 : 0) + ";txmute=" + (_kiwiTxMute ? 1 : 0)
+                                 + ";vol=" + (int)KiwiVolume.Value + ";txhold=" + (int)KiwiTxHold.Value + ";mute=" + (KiwiMuted ? 1 : 0) + ";txmute=" + (_kiwiTxMute ? 1 : 0)
                                  + ";own=" + string.Join("|", _kiwiOwn.Select(r => Uri.EscapeDataString(r.Url) + "~" + Uri.EscapeDataString(r.Loc.Length > 0 ? r.Loc : r.Name)));
             KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -207,6 +212,8 @@ namespace Thetis
             _kiwiButtons.LabelFor = (i, l) => l == "Hear" ? (KiwiHearingKiwi ? "Hear radio" : "Hear Kiwi") : follow(i, l);
             _kiwiVolume = new KainosUpDown(KiwiVolume, "Vol", "%", false);
             KiwiVolume.ValueChanged += (s, e) => { kiwiApplyVolume(); kiwiSave(); };
+            _kiwiTxHoldUpDown = new KainosUpDown(KiwiTxHold, "TX hold", "ms", false);
+            KiwiTxHold.ValueChanged += (s, e) => kiwiSave();
             MoxChangeHandlers += (rx, oldMox, newMox) =>
             {
                 if (InvokeRequired) { try { BeginInvoke(new Action(() => kiwiMox(newMox))); } catch { } }
@@ -224,10 +231,10 @@ namespace Thetis
             _kiwiSearch.TextChanged += (s, e) => { _kiwiShow = KainosKiwiList.Rows; kiwiSort(); kiwiListResized(); };
             _kiwiSearch.HandleCreated += (s, e) => SendMessage(_kiwiSearch.Handle, 0x1501, (IntPtr)1, "Search: place, call, antenna or address");     // EM_SETCUEBANNER
             _kiwiList = new KainosKiwiList(this);
-            foreach (Control c in new Control[] { _kiwiStatus, _kiwiButtons, _kiwiTune, _kiwiVolume, _kiwiOutButton, _kiwiSearch, _kiwiList })
+            foreach (Control c in new Control[] { _kiwiStatus, _kiwiButtons, _kiwiTune, _kiwiVolume, _kiwiTxHoldUpDown, _kiwiOutButton, _kiwiSearch, _kiwiList })
                 _kainosColumn.Viewport.Controls.Add(c);
             int row = KainosUI.S(26), gap = KainosUI.S(6);
-            _kainosColumn.AddSection("kiwi", "KIWI", w => KainosUI.S(20) + gap + _kiwiButtons.PreferredHeight(w) + gap + (row + gap) * 4 + _kiwiList.PreferredHeight, r =>
+            _kainosColumn.AddSection("kiwi", "KIWI", w => KainosUI.S(20) + gap + _kiwiButtons.PreferredHeight(w) + gap + (row + gap) * 5 + _kiwiList.PreferredHeight, r =>
             {
                 int y = r.Top;
                 _kiwiStatus.SetBounds(r.Left, y, r.Width, KainosUI.S(20)); y += KainosUI.S(20) + gap;
@@ -235,6 +242,7 @@ namespace Thetis
                 _kiwiButtons.SetBounds(r.Left, y, r.Width, bh); y += bh + gap;
                 _kiwiTune.SetBounds(r.Left, y, r.Width, row); y += row + gap;
                 _kiwiVolume.SetBounds(r.Left, y, r.Width, row); y += row + gap;
+                _kiwiTxHoldUpDown.SetBounds(r.Left, y, r.Width, row); y += row + gap;
                 _kiwiOutButton.SetBounds(r.Left, y, r.Width, row); y += row + gap;
                 _kiwiSearch.SetBounds(r.Left, y + (row - _kiwiSearch.PreferredHeight) / 2, r.Width, _kiwiSearch.PreferredHeight); y += row + gap;
                 _kiwiList.SetBounds(r.Left, y, r.Width, _kiwiList.PreferredHeight);
@@ -499,7 +507,20 @@ namespace Thetis
         private void kiwiMox(bool tx)
         {
             if (tx && _kiwiTxMute) { _kiwiTxHeld = true; kiwiApplyVolume(); }
-            if (!tx && _kiwiTxHeld) _kiwiTxHoldUntil = DateTime.Now.AddMilliseconds(KiwiTxHoldMs);
+            if (!tx && _kiwiTxHeld)
+            {
+                int ms = (int)KiwiTxHold.Value;
+                _kiwiTxHoldUntil = DateTime.Now.AddMilliseconds(ms);
+                // released on time, not at the next 300 ms tick
+                if (_kiwiTxHoldTimer == null)
+                {
+                    _kiwiTxHoldTimer = new System.Windows.Forms.Timer();
+                    _kiwiTxHoldTimer.Tick += (s, e) => { _kiwiTxHoldTimer.Stop(); kiwiTxRelease(true); };
+                }
+                _kiwiTxHoldTimer.Stop();
+                _kiwiTxHoldTimer.Interval = Math.Max(1, ms);
+                _kiwiTxHoldTimer.Start();
+            }
         }
 
         // the TX mute ends (after its hold, or when TX mute is turned off): what came in meanwhile is dropped
