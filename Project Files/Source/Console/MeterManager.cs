@@ -5859,6 +5859,11 @@ namespace Thetis
                 // float form
                 frmMeterDisplay f = new frmMeterDisplay(_console, ucM.RX);
                 f.ID = ucM.ID;
+                // Kainos: owned by the console, so an unpinned floating container stays above Kainos (and minimizes with
+                // it) but not above other programs. Unowned, and with no taskbar button, it went behind a maximized
+                // Kainos as soon as Kainos was clicked, and seemed to be gone (GitHub #101). Pinned, it's still on top
+                // of everything.
+                try { f.Owner = _console; } catch { }
 
                 // if we are recoving, we need to apply the form size to the user control
                 // size, and in turn this define the target size for the dx renderer.
