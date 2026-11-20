@@ -6,7 +6,7 @@ This file records what Kainos changes compared with Thetis, and why, so that fut
 
 Newest first. Each version's section is written to be copied straight into a GitHub release or post. Full notes for each release are in `Documentation/ReleaseNotes/`.
 
-### Kainos 1.0.18 (not yet released)
+### Kainos 1.0.18
 
 **New**
 - **Spot to the DX cluster, and choose the cluster** (GitHub #68, Sam NR4A). The SPOTS tab has **Spot...**: a small window with the frequency (the one you transmit on), their call and a comment (the mode to start with). It shows the exact line the cluster gets, which goes out under your callsign, and sends nothing until you press Send. Right-click a spot in the list to spot that station again. **Server** picks the cluster: NC7J (as before), W3LPL, VE7CC or K1TTT, the Reverse Beacon Network's CW / RTTY or FT8 / FT4 feed (receive only: its spots come from skimmers, so Spot says so), or any other address.
@@ -32,6 +32,9 @@ Newest first. Each version's section is written to be copied straight into a Git
 - **A floating meter container could vanish behind Kainos** (GitHub #101, NI2M). With pin-on-top off, a floating container went behind a maximized Kainos as soon as you clicked Kainos, and as it has no taskbar button it seemed to be gone. It now stays above Kainos (but not above other programs); pinned, it's on top of everything as before.
 - **A red attenuator box over the right-hand column while transmitting** (GitHub #105, Sam NR4A). With ATT on TX, Thetis shows the TX attenuator over the S-ATT box while you transmit. In the Kainos column it stayed where the column was when the transmission started, so after a scroll it sat over the BAND or VFO tab. It now moves and sizes with the S-ATT box.
 - Technical: `udTXStepAttData` is in the RX column's AGC / S-ATT row (consoleKainosColumn.cs), without the row's visibility hook (it's shown at every key-up), and left where Thetis puts it when it goes to RX2's box (transmitting on VFO B).
+
+**Modules** (from Setup > Modules)
+- **Olivia / MFSK 0.1.2** (GitHub #105, Sam NR4A): starts at 1500 Hz, where fldigi and most Olivia nets are, instead of 1000 Hz. The typing box has a scroll bar and follows what you add, so a long message can be read back. The received text is redrawn in full after new text, so no stale blocks are left behind.
 
 ### Kainos 1.0.17
 
