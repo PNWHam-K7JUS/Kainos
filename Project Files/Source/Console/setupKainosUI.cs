@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -128,8 +129,18 @@ namespace Thetis
             comboKainosBackdropLogo.SelectedIndexChanged += (s, e) => { if (!initializing) applyKainosUI(); };
             chkKainosPanColours = new CheckBoxTS { Name = "chkKainosPanColours", Text = "Kainos colours (grid, labels, trace and filter; the waterfall keeps its own)", Location = new Point(14, 80), AutoSize = true, Checked = true };
             toolTip1.SetToolTip(chkKainosPanColours, "In Kainos layout, the panadapter's grid, labels, trace, fill and filter colours are Kainos's.\r\n" +
-                "Your own colours (Setup > Appearance > Display) come back in Classic, or with this off.");
-            chkKainosPanColours.CheckedChanged += (s, e) => { if (!initializing) applyKainosUI(); };
+                "Your own colours (Setup > Appearance > Display) come back in Classic, or with this off.\r\n" +
+                "A colour you change in Setup > Appearance > Display stays yours in Kainos layout too;\r\n" +
+                "ticking this again puts all of Kainos's back.");
+            chkKainosPanColours.CheckedChanged += (s, e) =>
+            {
+                if (initializing) return;
+                if (chkKainosPanColours.Checked) console.KainosPanColoursMineClear();     // all of Kainos's colours again
+                applyKainosUI();
+            };
+            txtKainosPanMine = new TextBoxTS { Name = "txtKainosPanMine", Visible = false, Text = "" };
+            tpAppearanceKainos.Controls.Add(txtKainosPanMine);
+            kainosHookPanColourChanges();
             grpPan.Controls.Add(chkKainosPanColours);
             grpPan.Controls.Add(chkKainosBackdrop);
             grpPan.Controls.Add(avLabel("Logo", 14, 53));
@@ -192,6 +203,37 @@ namespace Thetis
             tcAppearance.Controls.Add(tpAppearanceKainos);
         }
 
+        // The Display tab's colour buttons and alpha sliders for the colours Kainos layout swaps (consoleKainosPanColours.cs):
+        // one the user changes there is theirs from then on (GitHub #112). Only while Setup is open and not loading, as
+        // the buttons also say Changed when the saved colours are put into them.
+        private TextBoxTS txtKainosPanMine;
+
+        private void kainosHookPanColourChanges()
+        {
+            var map = new List<Tuple<string, Control[]>>
+            {
+                Tuple.Create("grid", new Control[] { clrbtnGrid, tbGridCourseAlpha }),
+                Tuple.Create("hgrid", new Control[] { clrbtnHGridColor, tbHGridColorAlpha }),
+                Tuple.Create("gridfine", new Control[] { clrbtnGridFine, tbGridFineAlpha }),
+                Tuple.Create("gridtext", new Control[] { clrbtnText }),
+                Tuple.Create("line", new Control[] { clrbtnDataLine, tbDataLineAlpha }),
+                Tuple.Create("fill", new Control[] { clrbtnDataFill, tbDataFillAlpha }),
+                Tuple.Create("peaksfill", new Control[] { clrbtnActiveSpectralPeak, tbActiveSpectralPeakAlpha }),
+                Tuple.Create("filter", new Control[] { clrbtnFilter, tbRX1FilterAlpha }),
+                Tuple.Create("txfilter", new Control[] { clrbtnTXFilter }),
+            };
+            foreach (var m in map)
+            {
+                string name = m.Item1;
+                EventHandler mine = (s, e) => { if (!initializing && Visible) console.KainosPanColourMine(name); };
+                foreach (Control c in m.Item2)
+                {
+                    if (c is ColorButton) ((ColorButton)c).Changed += mine;
+                    else if (c is TrackBar) ((TrackBar)c).Scroll += mine;
+                }
+            }
+        }
+
         // called from ForceAllEvents at startup, and when the setting changes
         private bool _kainosVstLoaded;
 
@@ -229,6 +271,7 @@ namespace Thetis
                     txtKainosTermHeight.Text = console.KainosTermHeightSetting;
                     txtKainosAutoNotch.Text = console.KainosAutoNotchSettings;
                     txtKainosNnr.Text = console.KainosNnrSettings;
+                    txtKainosPanMine.Text = console.KainosPanColoursMine;
                 };
             }
             _kainosApplyingUI = true;
@@ -243,6 +286,7 @@ namespace Thetis
                 console.KainosAutoNotchSettings = txtKainosAutoNotch.Text;
                 console.KainosAutoNotchLoad();
                 console.KainosNnrSettings = txtKainosNnr.Text;
+                console.KainosPanColoursMine = txtKainosPanMine.Text;
                 console.KainosNnrLoad();
                 console.KainosCwSettings = txtKainosCw.Text;
                 console.CwLoadSettings();

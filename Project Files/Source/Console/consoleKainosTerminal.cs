@@ -65,6 +65,13 @@ namespace Thetis
                         Icon = Icon,
                     };
                     window.FormClosing += (s, e) => { if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; close(); } };
+                    // the F-keys while the window has the focus but its typing box doesn't (GitHub #99)
+                    window.KeyPreview = true;
+                    window.KeyDown += (s, e) =>
+                    {
+                        if (KainosTypingInOwnBox) return;       // the box handles its own
+                        if (KainosTerminalKey(e) || KainosModuleKey(e)) { e.Handled = true; e.SuppressKeyPress = true; }
+                    };
                 }
                 if (pane.Parent != window) { pane.Dock = DockStyle.Fill; window.Controls.Add(pane); }
                 pane.Visible = true;
@@ -80,6 +87,17 @@ namespace Thetis
             if (_kainosLayout) positionKainosColumn();
             pane.Invalidate(true);
             return window;
+        }
+
+        // F1 - F6 for the open CW or RTTY terminal's macros, wherever the focus is (only the typing box had them, so
+        // they did nothing once anything else was clicked: GitHub #99). Ahead of a module's F-keys (the Voice Keyer):
+        // with a terminal open, that's what the keys are for.
+        internal bool KainosTerminalKey(KeyEventArgs e)
+        {
+            if (e.Control || e.Alt || e.Shift) return false;
+            if (_cwOpen && _cwPane != null && _cwPane.Visible) return _cwPane.MacroKey(e.KeyCode);
+            if (_rttyOpen && _rttyPane != null && _rttyPane.Visible) return _rttyPane.MacroKey(e.KeyCode);
+            return false;
         }
 
         // a popped-out pane's window: 240 design px at least, or less for a module pane that's short (IKainosPaneHeight)

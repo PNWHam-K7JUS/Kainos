@@ -76,10 +76,42 @@ namespace Thetis
 
         private static bool sameColour(Color a, Color b) { return a.ToArgb() == b.ToArgb(); }
 
+        // Colours the user has set in Setup while Kainos's were showing (by name, saved): Kainos leaves those alone from
+        // then on. They used to last only until the next start, when Kainos's went back over them (GitHub #112).
+        // Ticking "Kainos colours" again in Setup clears the list.
+        private readonly HashSet<string> _kpcMine = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        public string KainosPanColoursMine
+        {
+            get { return string.Join(",", _kpcMine); }
+            set
+            {
+                _kpcMine.Clear();
+                foreach (string s in (value ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)) _kpcMine.Add(s.Trim());
+            }
+        }
+
+        // from Setup: the user changed this colour (one of the names in kainosPanColourList)
+        internal void KainosPanColourMine(string name)
+        {
+            if (!_kpcOn || _kpcMine.Contains(name)) return;
+            _kpcMine.Add(name);
+            _kpcSaved.Remove(name);         // theirs now in both layouts
+            KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        internal void KainosPanColoursMineClear()
+        {
+            if (_kpcMine.Count == 0) return;
+            _kpcMine.Clear();
+            KainosSettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         private void kainosPanColoursOn()
         {
             foreach (KainosPanColour p in kainosPanColourList)
             {
+                if (_kpcMine.Contains(p.Name)) continue;
                 Color cur = p.Get();
                 if (!sameColour(cur, p.Kainos)) _kpcSaved[p.Name] = cur;      // the user's (or the skin's) colour, for Classic
                 p.Set(p.Kainos);
@@ -92,6 +124,7 @@ namespace Thetis
             if (!_kpcOn) return;
             foreach (KainosPanColour p in kainosPanColourList)
             {
+                if (_kpcMine.Contains(p.Name)) continue;
                 Color saved;
                 // still Kainos's: put the user's back; changed in Setup meanwhile: theirs stays
                 if (_kpcSaved.TryGetValue(p.Name, out saved) && sameColour(p.Get(), p.Kainos)) p.Set(saved);

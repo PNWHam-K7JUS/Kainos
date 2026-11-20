@@ -93,7 +93,10 @@ namespace Thetis
                 {
                     new Control[] { lblAF, ptbAF }, new Control[] { lblRX1AF, ptbRX1AF }, new Control[] { lblRX2AF, ptbRX2AF },
                     new Control[] { lblRF, ptbRF },
-                    new Control[] { lblAGC, comboAGC, lblPreamp, comboPreamp, udRX1StepAttData },
+                    // udTXStepAttData: Thetis shows it over the S-ATT box while transmitting (ATT on TX). In the
+                    // row it moves and sizes with that box; left out, it stayed where the column was when the
+                    // transmission started and floated over other rows after a scroll (GitHub #105)
+                    new Control[] { lblAGC, comboAGC, lblPreamp, comboPreamp, udRX1StepAttData, udTXStepAttData },
                     new Control[] { chkSquelch, ptbSquelch, picSquelch },
                 };
             }
@@ -142,6 +145,7 @@ namespace Thetis
                     p.VisibleChanged += (s, e) => { if (_kainosLayout) { refreshKainosBandGrid(); positionKainosColumn(); } };
                 // Thetis shows the mode panel of the current mode, and shows / hides some RX and TX controls
                 foreach (Control c in kainosModePanels.Concat(kainosRxRows.SelectMany(r => r)).Concat(kainosTxRows.SelectMany(r => r)))
+                    if (c != udTXStepAttData)       // shown and hidden at every key-up: it changes no row's height
                     c.VisibleChanged += (s, e) => { if (_kainosLayout && !_kainosPlacing) positionKainosColumn(); };
 
                 // anything Thetis moves or resizes can change the free space on the right
@@ -293,6 +297,7 @@ namespace Thetis
         {
             Control c = (Control)sender;
             if (!_kainosPartsOn || _kainosColumn == null || c.Parent == _kainosColumn.Viewport || c.Parent == null) return;
+            if (c == udTXStepAttData) return;       // Thetis took it to RX2's S-ATT box (transmitting on VFO B): leave it there
             _kainosMovedIn[c] = new KeyValuePair<Control, Point>(c.Parent, c.Location);
             BeginInvoke(new Action(() =>
             {

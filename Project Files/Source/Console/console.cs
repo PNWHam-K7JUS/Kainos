@@ -721,7 +721,10 @@ namespace Thetis
                 Directory.CreateDirectory(AppDataPath);
 
             if (!string.IsNullOrEmpty(thetis_data_path))
+            {
                 ThetisSettingsImport.OfferOnce(AppDataPath, thetis_data_path); // Kainos: one-time offer to bring Thetis settings across
+                ThetisSettingsImport.OfferCmAsioOnce(AppDataPath);              // Kainos: and Thetis's cmASIO, if it's still missing (GitHub #102)
+            }
 
             _use_additional_sas = !Common.HasArg(args, "-nospec"); // prevent the use of additional spec analysers           
             _touch_support = Common.HasArg(args, "-touch"); // configure touch support for mouse down/up/move, used primarily by containers, and ucMeter
@@ -26997,6 +27000,7 @@ namespace Thetis
         {
             if (Common.ShiftKeyDown) Display.DisplayShiftKeyDown = true;
             if (KainosTypingInOwnBox) return;       // Kainos: typing in a Kainos text box (consoleKainosSupport.cs)
+            if (KainosTerminalKey(e)) { e.Handled = true; e.SuppressKeyPress = true; return; }  // Kainos: the CW / RTTY macros (consoleKainosTerminal.cs)
             if (KainosModuleKey(e)) { e.Handled = true; e.SuppressKeyPress = true; return; }    // Kainos: a module's F-keys (a voice keyer)
 
             if (e.Alt == true) // ke9ns add

@@ -494,7 +494,7 @@ namespace Thetis
             _type.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape) { _console.RttyReceive(); e.SuppressKeyPress = true; }
-                else if (e.KeyCode >= Keys.F1 && e.KeyCode < Keys.F1 + KainosMacros.Count) { runMacro(e.KeyCode - Keys.F1); e.Handled = e.SuppressKeyPress = true; }
+                else if (MacroKey(e.KeyCode)) e.Handled = e.SuppressKeyPress = true;
             };
 
             _call = new TextBox
@@ -506,6 +506,9 @@ namespace Thetis
                 CharacterCasing = CharacterCasing.Upper,
                 MaxLength = 12,
             };
+            // the received text and CALL boxes too: the console leaves keys to a focused box (GitHub #99)
+            foreach (Control box in new Control[] { _rx, _call })
+                box.KeyDown += (s, e) => { if (!e.Control && !e.Alt && !e.Shift && MacroKey(e.KeyCode)) e.Handled = e.SuppressKeyPress = true; };
 
             _txButtons = new KainosActionGrid(3);
             _txButtons.Add("TX", () => _console.RttyTransmitting, startTx, KainosUI.Tone.Tx);
@@ -526,6 +529,14 @@ namespace Thetis
             _status.Text = rttyHint;
 
             Controls.AddRange(new Control[] { _top, _tune, _sql, _lvl, _winButtons, _rx, _type, _txButtons, _call, _macros, _status });
+        }
+
+        // F1 - F6: a macro. From the typing box, and from Console.KainosTerminalKey wherever the focus is (GitHub #99)
+        internal bool MacroKey(Keys k)
+        {
+            if (k < Keys.F1 || k >= Keys.F1 + KainosMacros.Count) return false;
+            runMacro(k - Keys.F1);
+            return true;
         }
 
         private void runMacro(int k)

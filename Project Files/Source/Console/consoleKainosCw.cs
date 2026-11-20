@@ -344,7 +344,7 @@ namespace Thetis
             _type.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape) { _console.CwStopQueue(); e.SuppressKeyPress = true; }
-                else if (e.KeyCode >= Keys.F1 && e.KeyCode < Keys.F1 + KainosMacros.Count) { runMacro(e.KeyCode - Keys.F1); e.Handled = e.SuppressKeyPress = true; }
+                else if (MacroKey(e.KeyCode)) e.Handled = e.SuppressKeyPress = true;
             };
 
             _call = new TextBox
@@ -356,6 +356,9 @@ namespace Thetis
                 CharacterCasing = CharacterCasing.Upper,
                 MaxLength = 12,
             };
+            // the received text and CALL boxes too: the console leaves keys to a focused box (GitHub #99)
+            foreach (Control box in new Control[] { _rx, _call })
+                box.KeyDown += (s, e) => { if (!e.Control && !e.Alt && !e.Shift && MacroKey(e.KeyCode)) e.Handled = e.SuppressKeyPress = true; };
 
             _txButtons = new KainosActionGrid(3);
             _txButtons.Add("TX", () => _console.CwSending, startTx, KainosUI.Tone.Tx);
@@ -381,6 +384,14 @@ namespace Thetis
         private string hint
         {
             get { return "Zero-beat the signal (0 Beat) so it sits at your CW pitch, " + _console.CwPitchHz + " Hz. Double-click a call to copy it; right-click a macro to edit it (F1-F6 send them)."; }
+        }
+
+        // F1 - F6: a macro. From the typing box, and from Console.KainosTerminalKey wherever the focus is (GitHub #99)
+        internal bool MacroKey(Keys k)
+        {
+            if (k < Keys.F1 || k >= Keys.F1 + KainosMacros.Count) return false;
+            runMacro(k - Keys.F1);
+            return true;
         }
 
         private void runMacro(int k)

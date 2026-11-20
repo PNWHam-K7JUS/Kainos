@@ -11,8 +11,10 @@ option) any later version.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace Thetis
 {
@@ -70,6 +72,32 @@ namespace Thetis
                 _nnrTimer = new System.Windows.Forms.Timer { Interval = 250 };
                 _nnrTimer.Tick += (s, e) => nnrTick();
                 _nnrTimer.Start();
+                nnrAddDspMenuItems();
+            }
+        }
+
+        // NNR in Thetis's DSP menus too (RX1's and RX2's), for the Classic layout and its collapsed view, which have no
+        // NNR button (GitHub #116, W3UB). Ticked while on; "standing by" outside the voice modes.
+        private void nnrAddDspMenuItems()
+        {
+            foreach (KeyValuePair<ToolStripMenuItem, int> m in new[]
+            {
+                new KeyValuePair<ToolStripMenuItem, int>(dSPToolStripMenuItem, 1),
+                new KeyValuePair<ToolStripMenuItem, int>(dSPToolStripMenuItem1, 2),
+            })
+            {
+                if (m.Key == null) continue;
+                int rx = m.Value;
+                ToolStripMenuItem item = new ToolStripMenuItem("NNR") { Name = "KainosNnrToolStripMenuItem" + rx, ToolTipText = "Kainos's neural noise reduction (voice modes)" };
+                item.Click += (s, e) => KainosToggleNnr(rx);
+                int at = m.Key.DropDownItems.IndexOf(rx == 1 ? (ToolStripItem)NR4ToolStripMenuItem : NR4ToolStripMenuItem_rx2);      // after NR4
+                if (at >= 0) m.Key.DropDownItems.Insert(at + 1, item);
+                else m.Key.DropDownItems.Add(item);
+                m.Key.DropDownOpening += (s, e) =>
+                {
+                    item.Checked = KainosNnrOn(rx);
+                    item.Text = KainosNnrStandby(rx) ? "NNR (standing by: voice modes only)" : "NNR";
+                };
             }
         }
 

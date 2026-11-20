@@ -9,6 +9,8 @@ move, key up and turn PS-A on again while keyed. These do the same by themselves
 
   - After a QSY: when the transmit VFO has moved more than 1 kHz since the last transmission ended.
   - After a long receive: when it's been more than the minutes set since the last transmission ended.
+  - On every TX: at every key-up, whatever the frequency or time (GitHub #95, Misfit-138). It covers both the others,
+    so they're greyed while it's ticked.
 
 Either way, at the moment of keying up the correction is thrown away and auto-calibrate starts again (the same two
 calls Thetis's own auto-attenuate uses: everything off and reset, then auto back on), so PureSignal takes a fresh
@@ -27,7 +29,7 @@ namespace Thetis
     public partial class PSForm
     {
         private GroupBoxTS _kfGroup;
-        private CheckBoxTS _kfQsy, _kfIdle;
+        private CheckBoxTS _kfQsy, _kfIdle, _kfEvery;
         private NumericUpDownTS _kfMinutes;
         private LabelTS _kfLast;
         private double _kfLastTxMHz = double.NaN;
@@ -44,6 +46,7 @@ namespace Thetis
             _kfIdle = new CheckBoxTS { Name = "chkKainosPsFreshIdle", Text = "After", Location = new Point(250, 18), AutoSize = true };
             _kfMinutes = new NumericUpDownTS { Name = "udKainosPsFreshMinutes", Minimum = 1, Maximum = 60, Value = 5, Location = new Point(302, 16), Size = new Size(42, 20) };
             LabelTS minutes = new LabelTS { Text = "minutes of receive", Location = new Point(348, 19), AutoSize = true };
+            _kfEvery = new CheckBoxTS { Name = "chkKainosPsFreshEvery", Text = "On every TX", Location = new Point(448, 18), AutoSize = true };
             _kfLast = new LabelTS { Text = "", Location = new Point(10, 37), Size = new Size(515, 15), ForeColor = SystemColors.GrayText };
             toolTip1.SetToolTip(_kfQsy, "When the transmit frequency has moved more than 1 kHz since the last transmission, PureSignal's\n" +
                 "correction is thrown away as you key up, and auto-calibrate starts again with a fresh sample.\n" +
@@ -51,7 +54,11 @@ namespace Thetis
             toolTip1.SetToolTip(_kfIdle, "When it's been this long since the last transmission, PureSignal starts afresh as you key up:\n" +
                 "an LDMOS amplifier that has cooled during a long receive doesn't match the correction from when it was warm.");
             toolTip1.SetToolTip(_kfMinutes, "Minutes of receive after which PureSignal starts afresh");
-            _kfGroup.Controls.AddRange(new Control[] { _kfQsy, _kfIdle, _kfMinutes, minutes, _kfLast });
+            toolTip1.SetToolTip(_kfEvery, "PureSignal starts afresh as you key up, every time: each transmission begins with a fresh sample\n" +
+                "rather than the last one's correction (so its first moment is uncorrected while PureSignal settles).\n" +
+                "It includes the two others, so they're greyed while this is ticked.");
+            _kfEvery.CheckedChanged += (s, e) => { _kfQsy.Enabled = _kfIdle.Enabled = _kfMinutes.Enabled = !_kfEvery.Checked; };
+            _kfGroup.Controls.AddRange(new Control[] { _kfQsy, _kfIdle, _kfMinutes, minutes, _kfEvery, _kfLast });
             Controls.Add(_kfGroup);
             ClientSize = new Size(ClientSize.Width, ClientSize.Height + KainosFreshHeight);
 
@@ -73,7 +80,9 @@ namespace Thetis
             if (!_bPSRunning || _cmdstate != eCMDState.AutoCalibrate) return;      // auto-calibrate only
             string why = null;
             double now = kainosTxMHz();
-            if (_kfQsy.Checked && !double.IsNaN(_kfLastTxMHz) && !double.IsNaN(now) && Math.Abs(now - _kfLastTxMHz) > 0.001)
+            if (_kfEvery.Checked)
+                why = "every TX";
+            else if (_kfQsy.Checked && !double.IsNaN(_kfLastTxMHz) && !double.IsNaN(now) && Math.Abs(now - _kfLastTxMHz) > 0.001)
                 why = "QSY " + (_kfLastTxMHz).ToString("0.000", CultureInfo.InvariantCulture) + " → " + now.ToString("0.000", CultureInfo.InvariantCulture) + " MHz";
             else if (_kfIdle.Checked && _kfLastTxEnd != DateTime.MinValue && (DateTime.UtcNow - _kfLastTxEnd).TotalMinutes > (double)_kfMinutes.Value)
                 why = ((int)(DateTime.UtcNow - _kfLastTxEnd).TotalMinutes) + " minutes of receive";

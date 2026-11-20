@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -127,13 +128,11 @@ namespace Thetis
                 copyFolder(folder, Path.Combine(dest, Path.GetFileName(folder)), ref failed);
         }
 
+        // Kainos's own values are kept; the rest come from Thetis. (It used to copy nothing if Kainos's key was there
+        // at all, and Kainos makes it for small things, the progress log's place for one: the cmASIO settings could
+        // be left behind, GitHub #102.)
         private static void copyRegistry()
         {
-            using (RegistryKey existing = Registry.CurrentUser.OpenSubKey(KAINOS_REG_KEY))
-            {
-                if (existing != null) return; // Kainos already has its own
-            }
-
             using (RegistryKey source = Registry.CurrentUser.OpenSubKey(THETIS_REG_KEY))
             {
                 if (source == null) return;
@@ -145,8 +144,10 @@ namespace Thetis
 
         private static void copyKey(RegistryKey source, RegistryKey dest)
         {
+            HashSet<string> have = new HashSet<string>(dest.GetValueNames(), StringComparer.OrdinalIgnoreCase);
             foreach (string name in source.GetValueNames())
-                dest.SetValue(name, source.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames), source.GetValueKind(name));
+                if (!have.Contains(name))
+                    dest.SetValue(name, source.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames), source.GetValueKind(name));
 
             foreach (string sub_name in source.GetSubKeyNames())
             {
@@ -154,6 +155,56 @@ namespace Thetis
                 using (RegistryKey sub_dest = dest.CreateSubKey(sub_name))
                     copyKey(sub_source, sub_dest);
             }
+        }
+
+        // cmASIO (Thetis's low-latency ASIO audio) is set up in Thetis but not in Kainos: offer once to use the same
+        // device. For anyone who set Kainos up without the import, or whose import left it behind (GitHub #102).
+        // Called before the audio starts: cmASIO.dll reads these values when ChannelMaster starts.
+        private const string CMASIO_MARKER_FILE = "thetis_cmasio_offered.txt";
+        private static readonly string[] CMASIO_VALUES = { "ASIOdrivername", "ASIOblocknum", "ASIObaseinchannel", "ASIObaseoutchannel", "ASIOinputmode" };
+
+        public static void OfferCmAsioOnce(string kainos_data_path)
+        {
+            try
+            {
+                string marker = Path.Combine(kainos_data_path, CMASIO_MARKER_FILE);
+                if (File.Exists(marker)) return;
+
+                using (RegistryKey source = Registry.CurrentUser.OpenSubKey(THETIS_REG_KEY))
+                {
+                    string thetis_driver = source == null ? null : source.GetValue("ASIOdrivername") as string;
+                    if (string.IsNullOrEmpty(thetis_driver)) return;        // Thetis doesn't use cmASIO: ask if it does later
+
+                    using (RegistryKey dest = Registry.CurrentUser.CreateSubKey(KAINOS_REG_KEY))
+                    {
+                        if (dest == null) return;
+                        if (!string.IsNullOrEmpty(dest.GetValue("ASIOdrivername") as string))
+                        {
+                            writeMarker(marker, "not offered, Kainos already uses cmASIO");
+                            return;
+                        }
+
+                        DialogResult r = MessageBox.Show(
+                            "Thetis is set up to use cmASIO, its low-latency ASIO audio, with \"" + thetis_driver + "\". " +
+                            "Kainos isn't, so it's using its usual audio.\r\n\r\n" +
+                            "Use the same cmASIO settings in Kainos? (Thetis is not changed.)\r\n\r\n" +
+                            "You won't be asked again. To change them later, start Kainos with -cmasioconfig for the cmASIO tab in Setup > Audio.",
+                            "Kainos - cmASIO", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (r != DialogResult.Yes)
+                        {
+                            writeMarker(marker, "declined");
+                            return;
+                        }
+                        foreach (string name in CMASIO_VALUES)
+                        {
+                            object v = source.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+                            if (v != null) dest.SetValue(name, v, source.GetValueKind(name));
+                        }
+                        writeMarker(marker, "copied (" + thetis_driver + ")");
+                    }
+                }
+            }
+            catch { }
         }
 
         private static void writeMarker(string marker, string result)
